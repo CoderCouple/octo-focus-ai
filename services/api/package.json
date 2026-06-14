@@ -1,0 +1,35 @@
+{
+  "name": "@octo/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "lint": "echo \"lint pending\"",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/core": "^10.4.15",
+    "@nestjs/platform-fastify": "^10.4.15",
+    "@octo/ai": "workspace:*",
+    "@octo/diagrams": "workspace:*",
+    "@octo/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.47.10",
+    "drizzle-orm": "^0.38.4",
+    "postgres": "^3.4.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.8",
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.30.2",
+    "typescript": "^5.7.2"
+  }
+}
