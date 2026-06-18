@@ -1,92 +1,103 @@
-const sidebarItems = [
-  { label: "Home", icon: "H" },
-  { label: "Notes", icon: "N" },
-  { label: "Canvas", icon: "C" },
-  { label: "Agents", icon: "A" },
-  { label: "Graph", icon: "G" },
-  { label: "Search", icon: "S" },
+import {
+  FileText,
+  Focus,
+  Home,
+  LayoutGrid,
+  Network,
+  Search,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
+import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ProjectsPanel } from "@/components/projects/projects-panel";
+import { apiFetch } from "@/lib/api";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { SignOutButton } from "./sign-out-button";
+
+const sidebarItems: Array<{ label: string; icon: LucideIcon }> = [
+  { label: "Home", icon: Home },
+  { label: "Notes", icon: FileText },
+  { label: "Canvas", icon: LayoutGrid },
+  { label: "Agents", icon: Sparkles },
+  { label: "Graph", icon: Network },
+  { label: "Search", icon: Search },
 ];
 
-export default function HomePage() {
+interface MeResponse {
+  user: { id: string; name: string; email: string; avatarUrl: string | null };
+  memberships: Array<{
+    membership: { id: string; role: "OWNER" | "ADMIN" | "MEMBER"; workspaceId: string };
+    workspace: { id: string; name: string; slug: string };
+  }>;
+}
+
+export default async function HomePage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const me = await apiFetch<MeResponse>("/me");
+  const active = me.memberships[0];
+
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">O</div>
+    <main className="grid min-h-screen grid-cols-[240px_1fr]">
+      <aside className="flex flex-col border-r border-border bg-card/70 p-3">
+        <div className="mb-6 flex items-center gap-2 px-2">
+          <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground">
+            <Focus className="h-4 w-4" strokeWidth={2.25} />
+          </div>
           <div>
-            <div className="brand-title">Octo</div>
-            <div className="muted tiny">Human + AI workspace</div>
+            <div className="text-sm font-semibold">OctoFocusAI</div>
+            <div className="text-xs text-muted-foreground">Human + AI workspace</div>
           </div>
         </div>
 
-        <nav className="nav">
-          {sidebarItems.map((item) => (
-            <button key={item.label} className="nav-button">
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
+        <nav className="grid gap-1">
+          {sidebarItems.map(({ label, icon: Icon }) => (
+            <Button
+              key={label}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 font-normal text-muted-foreground"
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </Button>
           ))}
         </nav>
+
+        <div className="mt-auto grid gap-2 border-t border-border pt-3">
+          <div className="px-2">
+            <div className="truncate text-sm font-medium">{me.user.name}</div>
+            <div className="truncate text-xs text-muted-foreground">{me.user.email}</div>
+          </div>
+          <SignOutButton />
+        </div>
       </aside>
 
-      <section className="workspace">
-        <header className="topbar">
+      <section className="grid grid-rows-[56px_1fr]">
+        <header className="flex items-center justify-between border-b border-border bg-card/70 px-6">
           <div>
-            <h1>Product Workspace</h1>
-            <p className="muted tiny">Notes, diagrams, and agent edits in one place.</p>
+            <h1 className="text-base font-semibold">{active?.workspace.name ?? "Workspace"}</h1>
+            <p className="text-xs text-muted-foreground">
+              {active?.membership.role.toLowerCase()} · {active?.workspace.slug}
+            </p>
           </div>
-          <button className="primary-button">New page</button>
         </header>
 
-        <div className="split">
-          <section className="note">
-            <div className="row">
-              <h2 className="section-heading">Note</h2>
-              <button className="secondary-button">Ask Octo</button>
-            </div>
-            <h3 className="note-title">System architecture draft</h3>
-            <div className="note-copy">
-              <p>
-                Octo stores structured notes and editable canvases in the same project. AI actions
-                create semantic diagram schemas before rendering editable canvas shapes.
-              </p>
-              <ul className="list-disc space-y-2 pl-5">
-                <li>Write rough product notes.</li>
-                <li>Generate diagrams from selected text.</li>
-                <li>Let agents propose safe, auditable updates.</li>
-              </ul>
-            </div>
-          </section>
-
-          <section className="canvas">
-            <div className="grid-bg" />
-            <div className="canvas-inner">
-              <div className="row">
-                <h2 className="section-heading">Canvas</h2>
-                <button className="secondary-button">Generate diagram</button>
-              </div>
-
-              <div className="canvas-stage">
-                {["Note text", "Octo diagram schema", "Editable canvas"].map((label, index) => (
-                  <div
-                    key={label}
-                    className="canvas-card"
-                    style={{ left: index * 230, top: index % 2 === 0 ? 80 : 190 }}
-                  >
-                    <div className="card-title">{label}</div>
-                    <p className="card-copy">
-                      {index === 0
-                        ? "Human-readable source."
-                        : index === 1
-                          ? "AI-safe structure."
-                          : "Human-editable result."}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
+        {active ? (
+          <ProjectsPanel workspaceId={active.workspace.id} />
+        ) : (
+          <div className="p-8 text-sm text-muted-foreground">
+            No workspace yet. Sign out and back in to bootstrap one.
+          </div>
+        )}
       </section>
     </main>
   );

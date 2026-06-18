@@ -14,9 +14,9 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@octo/shared": ["packages/shared/src"],
-      "@octo/diagrams": ["packages/diagrams/src"],
-      "@octo/ai": ["packages/ai/src"]
+      "@octofocus/shared": ["packages/shared/src"],
+      "@octofocus/diagrams": ["packages/diagrams/src"],
+      "@octofocus/ai": ["packages/ai/src"]
     }
   }
 }

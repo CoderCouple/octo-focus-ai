@@ -25,7 +25,7 @@ export const DiagramEdgeSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
-export const OctoDiagramSchema = z.object({
+export const OctoFocusAIDiagramSchema = z.object({
   type: DiagramTypeSchema,
   title: z.string(),
   nodes: z.array(DiagramNodeSchema),
@@ -36,4 +36,4 @@ export const OctoDiagramSchema = z.object({
 export type DiagramType = z.infer<typeof DiagramTypeSchema>;
 export type DiagramNode = z.infer<typeof DiagramNodeSchema>;
 export type DiagramEdge = z.infer<typeof DiagramEdgeSchema>;
-export type OctoDiagram = z.infer<typeof OctoDiagramSchema>;
+export type OctoFocusAIDiagram = z.infer<typeof OctoFocusAIDiagramSchema>;

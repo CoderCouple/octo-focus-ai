@@ -6,7 +6,7 @@ export class HealthController {
   getHealth() {
     return {
       ok: true,
-      service: "octo-api",
+      service: "octofocusai-api",
       timestamp: new Date().toISOString(),
     };
   }

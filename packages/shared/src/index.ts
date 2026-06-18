@@ -28,7 +28,33 @@ export const HealthResponseSchema = z.object({
   timestamp: z.string(),
 });
 
+export const ProjectCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  icon: z.string().max(50).optional(),
+});
+
+export const ProjectUpdateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  icon: z.string().max(50).nullable().optional(),
+});
+
+export const ProjectSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  icon: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+});
+
 export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
 export type AgentAction = z.infer<typeof AgentActionSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
+export type Project = z.infer<typeof ProjectSchema>;
+export type ProjectCreate = z.infer<typeof ProjectCreateSchema>;
+export type ProjectUpdate = z.infer<typeof ProjectUpdateSchema>;

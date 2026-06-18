@@ -3,7 +3,7 @@ import { Command } from "commander";
 
 const program = new Command();
 
-program.name("octo").description("Octo workspace CLI").version("0.1.0");
+program.name("octofocus").description("OctoFocusAI workspace CLI").version("0.1.0");
 
 program
   .command("login")
@@ -15,7 +15,7 @@ program
 program
   .command("agent")
   .argument("<prompt>", "Agent task prompt")
-  .description("Run an Octo agent task")
+  .description("Run an OctoFocusAI agent task")
   .action((prompt: string) => {
     console.log(`Agent task queued locally: ${prompt}`);
   });

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@octo/shared", "@octo/diagrams"],
+  transpilePackages: ["@octofocus/shared", "@octofocus/diagrams"],
 };
 
 export default nextConfig;

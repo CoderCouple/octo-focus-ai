@@ -4,11 +4,11 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
-    "rootDir": "src",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {}
   },
   "include": ["src/**/*.ts"]
 }

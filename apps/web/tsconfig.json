@@ -10,16 +10,11 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@octo/shared": [
-        "../../packages/shared/src"
-      ],
-      "@octo/diagrams": [
-        "../../packages/diagrams/src"
-      ]
+      "@/*": ["./src/*"],
+      "@octofocus/shared": ["../../packages/shared/src"],
+      "@octofocus/diagrams": ["../../packages/diagrams/src"]
     },
     "isolatedModules": true
   },

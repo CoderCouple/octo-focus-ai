@@ -1,10 +1,10 @@
 {
-  "name": "@octo/cli",
+  "name": "@octofocus/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "octo": "dist/index.js"
+    "octofocus": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",

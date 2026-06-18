@@ -1,5 +1,5 @@
 {
-  "name": "@octo/ai",
+  "name": "@octofocus/ai",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@octo/diagrams": "workspace:*"
+    "@octofocus/diagrams": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

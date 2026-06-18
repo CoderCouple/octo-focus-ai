@@ -1,27 +1,25 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { SUPABASE_CLIENT } from "./supabase.tokens";
+
+export interface AuthenticatedRequest {
+  user: User;
+  headers: Record<string, string | undefined>;
+}
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  private readonly supabase = createClient(
-    process.env.SUPABASE_URL ?? "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
+  constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const header = request.headers.authorization as string | undefined;
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const header = request.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
 
     if (!token) {

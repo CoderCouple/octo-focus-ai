@@ -2,6 +2,12 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./modules/app.module";
 
+try {
+  process.loadEnvFile("../../.env");
+} catch {
+  // running in an environment where env vars are already set (prod, CI)
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,

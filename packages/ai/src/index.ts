@@ -1,11 +1,11 @@
-import type { OctoDiagram } from "@octo/diagrams";
+import type { OctoFocusAIDiagram } from "@octofocus/diagrams";
 
 export interface GenerateDiagramInput {
   prompt: string;
-  type: OctoDiagram["type"];
+  type: OctoFocusAIDiagram["type"];
 }
 
-export function generateMockDiagram(input: GenerateDiagramInput): OctoDiagram {
+export function generateMockDiagram(input: GenerateDiagramInput): OctoFocusAIDiagram {
   return {
     type: input.type,
     title: input.prompt.slice(0, 80) || "Untitled diagram",

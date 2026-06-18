@@ -1,14 +1,14 @@
-# Octo MVP Technical Plan
+# OctoFocusAI MVP Technical Plan
 
 ## Product Direction
 
-Octo is a visual workspace for notes, canvases, diagram-as-code, human drawing, and AI agents.
+OctoFocusAI is a visual workspace for notes, canvases, diagram-as-code, human drawing, and AI agents.
 
 The core MVP behavior:
 
 > Users write notes, turn them into editable diagrams, and let AI agents safely update workspace content.
 
-Octo should feel like a focused blend of Notion, Eraser, and a developer-native AI workspace.
+OctoFocusAI should feel like a focused blend of Notion, Eraser, and a developer-native AI workspace.
 
 ## Reference Repos
 
@@ -77,12 +77,12 @@ services/
 
 packages/
   shared/             shared Zod schemas, DTOs, API contracts
-  diagrams/           Octo diagram schema and converters
+  diagrams/           OctoFocusAI diagram schema and converters
   ai/                 prompts and AI orchestration
   cli/                developer CLI
 
 docs/
-  OCTO_MVP_PLAN.md
+  OCTOFOCUSAI_MVP_PLAN.md
 ```
 
 ## Backend ERD
@@ -246,7 +246,7 @@ erDiagram
 ### Canvas
 
 - `Canvas.document` stores the editable tldraw snapshot.
-- `Canvas.diagramSchema` stores Octo's normalized diagram-as-code representation.
+- `Canvas.diagramSchema` stores OctoFocusAI's normalized diagram-as-code representation.
 - `CanvasSnapshot` records major manual and AI mutations.
 
 ### AI Agents
@@ -277,12 +277,12 @@ Every AI action is tracked through `AiRun`:
 
 ## Diagram Architecture
 
-AI should generate Octo's normalized schema, not raw tldraw state.
+AI should generate OctoFocusAI's normalized schema, not raw tldraw state.
 
 ```txt
 Note text or prompt
   -> AI action
-  -> OctoDiagram schema
+  -> OctoFocusAIDiagram schema
   -> converter
   -> tldraw editable canvas
 ```
@@ -296,13 +296,13 @@ The CLI is a first-class product surface for developers and agents.
 Initial commands:
 
 ```txt
-octo login
-octo project list
-octo page push
-octo page pull
-octo diagram generate
-octo agent run
-octo agent status
+octofocus login
+octofocus project list
+octofocus page push
+octofocus page pull
+octofocus diagram generate
+octofocus agent run
+octofocus agent status
 ```
 
 The CLI talks only to the backend API.
