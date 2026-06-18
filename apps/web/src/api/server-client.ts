@@ -1,8 +1,9 @@
-import { env } from "../env";
-import { createSupabaseBrowserClient } from "../supabase/browser";
+import "server-only";
+import { env } from "@/lib/env";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function browserApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const supabase = createSupabaseBrowserClient();
+export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -15,7 +16,11 @@ export async function browserApiFetch<T>(path: string, init: RequestInit = {}): 
     headers.set("authorization", `Bearer ${session.access_token}`);
   }
 
-  const response = await fetch(`${env.API_URL}${path}`, { ...init, headers });
+  const response = await fetch(`${env.API_URL}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     let detail = "";

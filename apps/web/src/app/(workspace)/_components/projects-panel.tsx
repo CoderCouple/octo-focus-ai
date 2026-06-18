@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createProject, listProjects } from "@/lib/api/projects";
+import { createProjectAction, listProjectsAction } from "@/actions/projects-action";
 
 interface ProjectsPanelProps {
   workspaceId: string;
@@ -29,7 +29,7 @@ export function ProjectsPanel({ workspaceId }: ProjectsPanelProps) {
 
   const projectsQuery = useQuery<Project[]>({
     queryKey: projectsKey,
-    queryFn: () => listProjects(workspaceId),
+    queryFn: () => listProjectsAction(workspaceId),
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,7 +39,7 @@ export function ProjectsPanel({ workspaceId }: ProjectsPanelProps) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      return createProject(workspaceId, {
+      return createProjectAction(workspaceId, {
         name: name.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
       });
