@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getMeApi, type MeResponse } from "@/api/me-api";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { env } from "@/lib/env";
@@ -69,6 +70,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             <span className="text-muted-foreground text-xs leading-tight">
               {active.membership.role.toLowerCase()} · {active.workspace.slug}
             </span>
+          </div>
+          <div className="ml-auto">
+            <ThemeToggle />
           </div>
         </header>
         <div className="flex-1 overflow-auto">{children}</div>

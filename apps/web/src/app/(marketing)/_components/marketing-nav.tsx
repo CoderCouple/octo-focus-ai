@@ -1,5 +1,6 @@
 import { Focus } from "lucide-react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
 export function MarketingNav() {
@@ -11,7 +12,8 @@ export function MarketingNav() {
         </div>
         <span className="text-sm font-semibold tracking-tight">OctoFocusAI</span>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        <ThemeToggle />
         <Button asChild variant="ghost" size="sm">
           <Link href="/login">Sign in</Link>
         </Button>
