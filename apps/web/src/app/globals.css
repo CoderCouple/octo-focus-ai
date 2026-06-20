@@ -66,6 +66,10 @@
 }
 
 @theme inline {
+  --animate-octo-spin: octo-spin 220s linear infinite;
+  --animate-octo-spin-slow: octo-spin-slow 380s linear infinite;
+  --animate-octo-pulse: octo-pulse 9s ease-in-out infinite;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -109,6 +113,38 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+@keyframes octo-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes octo-spin-slow {
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes octo-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.78;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-octo-spin,
+  .animate-octo-spin-slow,
+  .animate-octo-pulse {
+    animation: none !important;
+  }
 }
 
 /* Align tldraw's canvas paper with our monochrome card/background tokens
