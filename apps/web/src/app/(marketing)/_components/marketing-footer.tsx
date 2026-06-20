@@ -18,9 +18,12 @@ export function MarketingFooter() {
           <Link href="/login" className="hover:text-foreground transition-colors">
             Sign in
           </Link>
-          <a href="https://github.com" className="hover:text-foreground transition-colors">
-            GitHub
-          </a>
+          <Link href="/privacy" className="hover:text-foreground transition-colors">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Terms
+          </Link>
           <span>© 2026 OctoFocusAI</span>
         </div>
       </div>

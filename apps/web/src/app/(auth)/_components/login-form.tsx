@@ -162,7 +162,8 @@ export function LoginForm({ className, mode = "login", ...props }: LoginFormProp
         )}
       </Card>
       <FieldDescription className="text-center text-xs whitespace-nowrap">
-        By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+        By continuing, you agree to our <Link href="/terms">Terms</Link> and{" "}
+        <Link href="/privacy">Privacy Policy</Link>.
       </FieldDescription>
     </div>
   );
