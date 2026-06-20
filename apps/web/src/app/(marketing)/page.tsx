@@ -24,7 +24,7 @@ export default function LandingPage() {
             Now in private beta
           </div>
           <h1 className="text-foreground text-2xl leading-[1.15] font-medium tracking-tight sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl">
-            <span className="block whitespace-nowrap">A focused workspace for</span>
+            <span className="block whitespace-nowrap">AI focused workspace for</span>
             <span className="mt-2 inline-flex items-center justify-center gap-x-2 whitespace-nowrap sm:gap-x-2.5 md:gap-x-3 lg:gap-x-4">
               <Users
                 className="size-5 sm:size-6 md:size-8 lg:size-10 xl:size-12"

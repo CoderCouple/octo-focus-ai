@@ -1,4 +1,4 @@
-import { Focus } from "lucide-react";
+import { Bot, Focus, Users } from "lucide-react";
 import { AuthBackdrop } from "../_components/auth-backdrop";
 import { LoginForm } from "../_components/login-form";
 
@@ -14,8 +14,12 @@ export default function SignupPage() {
             </div>
             <div className="text-xl font-medium tracking-tight">OctoFocusAI</div>
           </div>
-          <p className="text-muted-foreground max-w-xs text-sm">
-            A focused workspace for diagrams, notes, and AI agents.
+          <p className="text-muted-foreground inline-flex flex-wrap items-center justify-center gap-x-1.5 text-sm">
+            AI focused workspace for
+            <Users className="size-3.5" strokeWidth={1.75} aria-hidden />
+            Humans and
+            <Bot className="size-3.5" strokeWidth={1.75} aria-hidden />
+            Agents.
           </p>
         </div>
         <LoginForm mode="signup" />

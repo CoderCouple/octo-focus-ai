@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "OctoFocusAI",
-  description: "A focused workspace for Humans and Agents.",
+  description: "AI focused workspace for Humans and Agents.",
 };
 
 export default function RootLayout({
