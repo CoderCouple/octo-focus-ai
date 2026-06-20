@@ -1,7 +1,7 @@
 "use client";
 
 import type { Canvas, Page, Project } from "@octofocus/shared";
-import { FileText, LayoutGrid, Rows2 } from "lucide-react";
+import { FileText, LayoutGrid, Columns2 } from "lucide-react";
 import { useState } from "react";
 import { CanvasPane } from "@/components/canvas-pane";
 import { NotesPane } from "@/components/notes-pane";
@@ -43,7 +43,7 @@ export function ProjectSplitView({
             Notes
           </ToggleGroupItem>
           <ToggleGroupItem value="both" aria-label="Notes and canvas">
-            <Rows2 className="h-3.5 w-3.5" />
+            <Columns2 className="h-3.5 w-3.5" />
             Both
           </ToggleGroupItem>
           <ToggleGroupItem value="canvas" aria-label="Canvas only">

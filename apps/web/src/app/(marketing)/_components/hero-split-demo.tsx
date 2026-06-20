@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, LayoutGrid, Rows2 } from "lucide-react";
+import { FileText, LayoutGrid, Columns2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface CanvasNode {
@@ -148,7 +148,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
         onClick={() => onChange("notes")}
       />
       <ModeButton
-        Icon={Rows2}
+        Icon={Columns2}
         label="Both"
         active={mode === "both"}
         onClick={() => onChange("both")}
