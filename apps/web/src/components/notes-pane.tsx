@@ -2,7 +2,7 @@
 
 import { Code2, FileText } from "lucide-react";
 import { useState } from "react";
-import { NotesEditor } from "@/app/(workspace)/projects/[id]/_components/notes-editor";
+import { NotesEditor } from "@/app/(workspace)/app/projects/[id]/_components/notes-editor";
 import { Toggle } from "@/components/ui/toggle";
 
 interface NotesPaneProps {

@@ -33,9 +33,43 @@
   --radius: 0.5rem;
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Endel-style auth orb — dark sphere on light surface */
+  --orb-page: hsl(0 0% 100%);
+  --orb-fill: radial-gradient(
+    circle at 50% 35%,
+    rgba(60, 60, 60, 1) 0%,
+    rgba(30, 30, 30, 1) 38%,
+    rgba(10, 10, 10, 1) 78%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  --orb-rim: rgba(0, 0, 0, 0.55);
+  --orb-glow: rgba(0, 0, 0, 0.18);
+  --orb-ring: rgba(0, 0, 0, 0.32);
+  --orb-ripple: rgba(0, 0, 0, 0.28);
+  --orb-grain: rgba(0, 0, 0, 0.5);
+  --orb-icon: rgba(255, 255, 255, 0.95);
+  --orb-glow-soft: rgba(0, 0, 0, 0.08);
 }
 
 .dark {
+  /* Endel-style auth orb — dark sphere on dark surface with light rim glow */
+  --orb-page: hsl(0 0% 0%);
+  --orb-fill: radial-gradient(
+    circle at 50% 35%,
+    rgba(140, 140, 140, 1) 0%,
+    rgba(70, 70, 70, 1) 38%,
+    rgba(20, 20, 20, 1) 78%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  --orb-rim: rgba(255, 255, 255, 0.45);
+  --orb-glow: rgba(255, 255, 255, 0.20);
+  --orb-ring: rgba(255, 255, 255, 0.45);
+  --orb-ripple: rgba(255, 255, 255, 0.30);
+  --orb-grain: rgba(255, 255, 255, 0.6);
+  --orb-icon: rgba(255, 255, 255, 1);
+  --orb-glow-soft: rgba(255, 255, 255, 0.08);
+
   --background: hsl(0 0% 0%);
   --foreground: hsl(0 0% 100%);
   --card: hsl(0 0% 5%);
@@ -69,6 +103,9 @@
   --animate-octo-spin: octo-spin 220s linear infinite;
   --animate-octo-spin-slow: octo-spin-slow 380s linear infinite;
   --animate-octo-pulse: octo-pulse 9s ease-in-out infinite;
+  --animate-octo-ripple: octo-ripple 5s ease-out infinite backwards;
+  --animate-octo-twinkle: octo-twinkle 4s ease-in-out infinite backwards;
+  --animate-octo-shoot: octo-shoot 6s linear infinite backwards;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -139,10 +176,57 @@ body {
   }
 }
 
+@keyframes octo-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.45);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes octo-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes octo-shoot {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(var(--shoot-angle, 25deg));
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--shoot-dx, 120vw), var(--shoot-dy, 90vh), 0)
+      rotate(var(--shoot-angle, 25deg));
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-octo-spin,
   .animate-octo-spin-slow,
-  .animate-octo-pulse {
+  .animate-octo-pulse,
+  .animate-octo-ripple,
+  .animate-octo-twinkle,
+  .animate-octo-shoot {
     animation: none !important;
   }
 }

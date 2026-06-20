@@ -33,7 +33,7 @@ interface ActionGroup {
 }
 
 function getGroupsForRoute(pathname: string): { title: string; groups: ActionGroup[] } {
-  if (pathname === "/canvas") {
+  if (pathname === "/app/canvas") {
     return {
       title: "Canvas",
       groups: [
@@ -57,7 +57,7 @@ function getGroupsForRoute(pathname: string): { title: string; groups: ActionGro
     };
   }
 
-  if (pathname.startsWith("/projects/")) {
+  if (pathname.startsWith("/app/projects/")) {
     return {
       title: "Project",
       groups: [

@@ -1,21 +1,25 @@
 import { Focus } from "lucide-react";
-import Link from "next/link";
 import { AuthBackdrop } from "../_components/auth-backdrop";
 import { LoginForm } from "../_components/login-form";
 
 export default function SignupPage() {
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center gap-6 overflow-hidden p-6 md:p-10">
+    <main className="bg-background relative flex min-h-svh flex-col items-center overflow-hidden p-6 md:p-10">
       <AuthBackdrop />
-      <div className="relative flex w-full max-w-sm flex-col gap-6">
-        <Link href="/" className="flex items-center gap-2 self-center font-medium">
-          <div className="bg-primary text-primary-foreground grid size-6 place-items-center rounded-md">
-            <Focus className="size-3.5" strokeWidth={2.25} />
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-8 pt-[380px] pb-12">
+        <div className="text-foreground flex flex-col items-center gap-2 text-center">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary text-primary-foreground grid size-6 place-items-center rounded-md">
+              <Focus className="size-3.5" strokeWidth={2.25} />
+            </div>
+            <div className="text-xl font-medium tracking-tight">OctoFocusAI</div>
           </div>
-          OctoFocusAI
-        </Link>
+          <p className="text-muted-foreground max-w-xs text-sm">
+            A focused workspace for diagrams, notes, and AI agents.
+          </p>
+        </div>
         <LoginForm mode="signup" />
       </div>
-    </div>
+    </main>
   );
 }

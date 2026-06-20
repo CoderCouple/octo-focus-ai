@@ -43,13 +43,13 @@ export function AppSidebar({ workspace, user, ...props }: AppSidebarProps) {
       },
     ],
     navMain: [
-      { title: "Home", url: "/", icon: Home },
-      { title: "Notes", url: "/notes", icon: FileText },
-      { title: "Canvas", url: "/canvas", icon: LayoutGrid },
-      { title: "Agents", url: "/agents", icon: Sparkles },
-      { title: "Graph", url: "/graph", icon: Network },
-      { title: "Search", url: "/search", icon: Search },
-      { title: "Settings", url: "/settings", icon: Settings },
+      { title: "Home", url: "/app", icon: Home },
+      { title: "Notes", url: "/app/notes", icon: FileText },
+      { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
+      { title: "Agents", url: "/app/agents", icon: Sparkles },
+      { title: "Graph", url: "/app/graph", icon: Network },
+      { title: "Search", url: "/app/search", icon: Search },
+      { title: "Settings", url: "/app/settings", icon: Settings },
     ],
   };
 

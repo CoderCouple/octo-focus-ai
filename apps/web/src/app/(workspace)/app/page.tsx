@@ -1,6 +1,6 @@
 import { getMeApi } from "@/api/me-api";
 import { env } from "@/lib/env";
-import { ProjectsPanel } from "./_components/projects-panel";
+import { ProjectsPanel } from "../_components/projects-panel";
 
 const DEV_WORKSPACE_ID = "00000000-0000-0000-0000-000000000002";
 
