@@ -61,7 +61,11 @@ const SHOOTING_STARS: ShootingStar[] = [
   { top: 84, startLeft: -8, delay: 21.2, duration: 5.5, length: 260 },
 ];
 
-export function AuthBackdrop() {
+interface AuthBackdropProps {
+  showOrb?: boolean;
+}
+
+export function AuthBackdrop({ showOrb = true }: AuthBackdropProps = {}) {
   return (
     <div
       className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
@@ -126,54 +130,58 @@ export function AuthBackdrop() {
         ))}
       </div>
 
-      {/* Rippling rings — each spawns at the orb's edge with a stagger */}
-      <div className="absolute left-1/2" style={{ top: ORB_TOP }}>
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+      {showOrb && (
+        <>
+          {/* Rippling rings — each spawns at the orb's edge with a stagger */}
+          <div className="absolute left-1/2" style={{ top: ORB_TOP }}>
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div
+                key={i}
+                className="animate-octo-ripple absolute top-0 left-0 rounded-full"
+                style={{
+                  height: ORB_SIZE,
+                  width: ORB_SIZE,
+                  border: "1px solid var(--orb-ripple)",
+                  animationDelay: `${i * 0.625}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Outer atmospheric glow */}
           <div
-            key={i}
-            className="animate-octo-ripple absolute top-0 left-0 rounded-full"
+            aria-hidden
+            className="animate-octo-pulse absolute left-1/2 h-[820px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
-              height: ORB_SIZE,
-              width: ORB_SIZE,
-              border: "1px solid var(--orb-ripple)",
-              animationDelay: `${i * 0.625}s`,
+              top: ORB_TOP,
+              background:
+                "radial-gradient(circle at 50% 45%, var(--orb-glow) 0%, var(--orb-glow-soft) 32%, transparent 60%)",
+              filter: "blur(8px)",
             }}
           />
-        ))}
-      </div>
 
-      {/* Outer atmospheric glow */}
-      <div
-        aria-hidden
-        className="animate-octo-pulse absolute left-1/2 h-[820px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          top: ORB_TOP,
-          background:
-            "radial-gradient(circle at 50% 45%, var(--orb-glow) 0%, var(--orb-glow-soft) 32%, transparent 60%)",
-          filter: "blur(8px)",
-        }}
-      />
-
-      {/* The orb itself */}
-      <div
-        aria-hidden
-        className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          top: ORB_TOP,
-          height: ORB_SIZE,
-          width: ORB_SIZE,
-          background: "var(--orb-fill)",
-          boxShadow:
-            "inset 0 0 0 1.5px var(--orb-rim), inset 0 -50px 70px rgba(0,0,0,0.7), 0 0 80px 12px var(--orb-glow)",
-        }}
-      >
-        <Focus
-          className="absolute top-1/2 left-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2"
-          strokeWidth={1.5}
-          style={{ color: "var(--orb-icon)" }}
-          aria-hidden
-        />
-      </div>
+          {/* The orb itself */}
+          <div
+            aria-hidden
+            className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              top: ORB_TOP,
+              height: ORB_SIZE,
+              width: ORB_SIZE,
+              background: "var(--orb-fill)",
+              boxShadow:
+                "inset 0 0 0 1.5px var(--orb-rim), inset 0 -50px 70px rgba(0,0,0,0.7), 0 0 80px 12px var(--orb-glow)",
+            }}
+          >
+            <Focus
+              className="absolute top-1/2 left-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2"
+              strokeWidth={1.5}
+              style={{ color: "var(--orb-icon)" }}
+              aria-hidden
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
