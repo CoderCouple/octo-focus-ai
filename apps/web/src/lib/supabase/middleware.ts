@@ -5,6 +5,10 @@ import { env } from "../env";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  if (env.DEV_AUTH_BYPASS) {
+    return response;
+  }
+
   const supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
@@ -27,7 +31,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/auth");
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/auth");
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();

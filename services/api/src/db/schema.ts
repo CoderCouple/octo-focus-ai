@@ -85,6 +85,7 @@ export const pages = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     document: jsonb("document").notNull(),
+    contentMd: text("content_md").default("").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

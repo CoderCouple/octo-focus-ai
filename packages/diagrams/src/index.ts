@@ -37,3 +37,6 @@ export type DiagramType = z.infer<typeof DiagramTypeSchema>;
 export type DiagramNode = z.infer<typeof DiagramNodeSchema>;
 export type DiagramEdge = z.infer<typeof DiagramEdgeSchema>;
 export type OctoFocusAIDiagram = z.infer<typeof OctoFocusAIDiagramSchema>;
+
+export { parseDsl, serializeDsl } from "./dsl";
+export type { ParseResult } from "./dsl";

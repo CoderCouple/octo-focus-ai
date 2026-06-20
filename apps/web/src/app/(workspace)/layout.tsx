@@ -1,21 +1,52 @@
 import { redirect } from "next/navigation";
-import { getMeApi } from "@/api/me-api";
+import { getMeApi, type MeResponse } from "@/api/me-api";
+import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AppSidebar } from "./_components/app-sidebar";
+
+const DEV_ME: MeResponse = {
+  user: {
+    id: "00000000-0000-0000-0000-000000000000",
+    name: "Dev User",
+    email: "dev@octofocus.local",
+    avatarUrl: null,
+  },
+  memberships: [
+    {
+      membership: {
+        id: "00000000-0000-0000-0000-000000000001",
+        role: "OWNER",
+        workspaceId: "00000000-0000-0000-0000-000000000002",
+      },
+      workspace: {
+        id: "00000000-0000-0000-0000-000000000002",
+        name: "Dev workspace",
+        slug: "dev-workspace",
+      },
+    },
+  ],
+};
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let me: MeResponse;
 
-  if (!user) {
-    redirect("/login");
+  if (env.DEV_AUTH_BYPASS) {
+    me = DEV_ME;
+  } else {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/login");
+    }
+
+    me = await getMeApi();
   }
 
-  const me = await getMeApi();
   const active = me.memberships[0];
 
   if (!active) {

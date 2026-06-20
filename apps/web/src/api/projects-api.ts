@@ -12,3 +12,7 @@ export function createProjectApi(workspaceId: string, body: ProjectCreate) {
     body: JSON.stringify(body),
   });
 }
+
+export function getProjectApi(projectId: string) {
+  return serverApiFetch<Project>(`/projects/${projectId}`);
+}

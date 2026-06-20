@@ -22,6 +22,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { AuthenticatedRequest } from "../auth/supabase-auth.guard";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
+import { ChangeEventsService } from "../common/change-events.service";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { projects, workspaceMembers } from "../db/schema";
@@ -31,7 +32,10 @@ const UuidParam = new ZodValidationPipe(z.string().uuid());
 @Controller()
 @UseGuards(SupabaseAuthGuard)
 export class ProjectsController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly changeEvents: ChangeEventsService,
+  ) {}
 
   @Get("workspaces/:workspaceId/projects")
   async list(
@@ -62,6 +66,15 @@ export class ProjectsController {
         icon: body.icon ?? null,
       })
       .returning();
+    await this.changeEvents.record({
+      workspaceId,
+      actorType: "USER",
+      userId: request.user.id,
+      entityType: "project",
+      entityId: row.id,
+      action: "project.create",
+      after: row,
+    });
     return row;
   }
 
@@ -91,6 +104,17 @@ export class ProjectsController {
       })
       .where(eq(projects.id, id))
       .returning();
+    await this.changeEvents.record({
+      workspaceId: existing.workspaceId,
+      actorType: "USER",
+      userId: request.user.id,
+      entityType: "project",
+      entityId: id,
+      action: "project.update",
+      before: existing,
+      after: row,
+      patch: body,
+    });
     return row;
   }
 
@@ -104,6 +128,16 @@ export class ProjectsController {
       .set({ archivedAt: new Date() })
       .where(eq(projects.id, id))
       .returning();
+    await this.changeEvents.record({
+      workspaceId: existing.workspaceId,
+      actorType: "USER",
+      userId: request.user.id,
+      entityType: "project",
+      entityId: id,
+      action: "project.archive",
+      before: existing,
+      after: row,
+    });
     return row;
   }
 

@@ -12,4 +12,5 @@ export const env = {
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   ),
   API_URL: readEnv(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL"),
+  DEV_AUTH_BYPASS: process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true",
 };
