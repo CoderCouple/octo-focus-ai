@@ -161,7 +161,7 @@ export function LoginForm({ className, mode = "login", ...props }: LoginFormProp
           </CardContent>
         )}
       </Card>
-      <FieldDescription className="px-6 text-center">
+      <FieldDescription className="text-center text-xs whitespace-nowrap">
         By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
       </FieldDescription>
     </div>
