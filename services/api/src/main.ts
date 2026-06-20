@@ -20,7 +20,10 @@ async function bootstrap() {
   });
 
   const port = Number(process.env.PORT ?? 4000);
-  const host = process.env.HOST ?? "127.0.0.1";
+  // Railway/Docker/most prod hosts inject PORT and need 0.0.0.0 to be reachable.
+  // Locally we default to loopback for safety.
+  const defaultHost = process.env.PORT ? "0.0.0.0" : "127.0.0.1";
+  const host = process.env.HOST ?? defaultHost;
   await app.listen(port, host);
 }
 
