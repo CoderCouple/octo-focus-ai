@@ -1,7 +1,8 @@
 /**
- * Public read endpoints — NO auth guard. Two paths:
- *   GET  /public/p/:workspaceSlug/:slug
- *   POST /public/share/:token  (body may contain { password })
+ * Public read endpoints — NO auth guard. Three paths:
+ *   GET  /public/p/:workspaceSlug/:slug   (project/page/canvas)
+ *   POST /public/share/:token             (token-gated share)
+ *   GET  /public/i/:slug                  (exported canvas image)
  *
  * Caller is the Next.js public route which sets an edge-cache TTL of 60s.
  */
@@ -10,12 +11,15 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Inject,
   NotFoundException,
   Param,
   Post,
+  StreamableFile,
   UnauthorizedException,
 } from "@nestjs/common";
+import { Readable } from "stream";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createHash, timingSafeEqual } from "crypto";
@@ -23,7 +27,7 @@ import type { ResourceKind } from "@octofocus/shared";
 import { PermissionsService } from "../common/permissions.service";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
-import { canvases, pages, projects, shareLinks } from "../db/schema";
+import { canvasAssets, canvases, pages, projects, shareLinks } from "../db/schema";
 
 const SlugParam = new ZodValidationPipe(z.string().min(1).max(120));
 const TokenParam = new ZodValidationPipe(z.string().min(8).max(64));
@@ -71,6 +75,23 @@ export class PublicController {
     }
 
     return this.shape(hit.kind, hit.row, hit.workspaceSlug);
+  }
+
+  @Get("i/:slug")
+  @Header("cache-control", "public, max-age=60, s-maxage=60")
+  async getImageBySlug(@Param("slug", SlugParam) slug: string): Promise<StreamableFile> {
+    const [asset] = await this.db
+      .select()
+      .from(canvasAssets)
+      .where(and(eq(canvasAssets.publicSlug, slug), isNull(canvasAssets.revokedAt)))
+      .limit(1);
+    if (!asset) throw new NotFoundException("Image not found.");
+    if (asset.visibility === "private") throw new NotFoundException("Image not public.");
+
+    return new StreamableFile(Readable.from(asset.content), {
+      type: asset.contentType,
+      length: asset.content.length,
+    });
   }
 
   @Post("share/:token")

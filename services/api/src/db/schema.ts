@@ -2,6 +2,7 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -44,6 +45,16 @@ export const sharePermission = pgEnum("share_permission", [
   "admin",
 ]);
 export const shareStatus = pgEnum("share_status", ["active", "pending", "revoked", "expired"]);
+
+export const canvasAssetFormat = pgEnum("canvas_asset_format", ["svg", "png"]);
+
+// Drizzle doesn't have a first-class `bytea` helper; map it through customType.
+// We send/receive Buffer instances from the api.
+const bytea = customType<{ data: Buffer; default: false }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 // =============================================================================
 // Core identity + workspace
@@ -236,6 +247,35 @@ export const canvasSnapshots = pgTable(
   },
   (table) => ({
     canvasIdx: index("canvas_snapshots_canvas_id_idx").on(table.canvasId),
+  }),
+);
+
+export const canvasAssets = pgTable(
+  "canvas_assets",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("ast")),
+    canvasId: text("canvas_id")
+      .notNull()
+      .references(() => canvases.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    publicSlug: text("public_slug").unique(),
+    visibility: visibilityKind("visibility").default("public").notNull(),
+    format: canvasAssetFormat("format").default("svg").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    content: bytea("content").notNull(),
+    contentType: text("content_type").default("image/svg+xml").notNull(),
+    title: text("title"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => ({
+    canvasIdx: index("canvas_assets_canvas_id_idx").on(table.canvasId),
+    publicSlugIdx: index("canvas_assets_public_slug_idx").on(table.publicSlug),
   }),
 );
 

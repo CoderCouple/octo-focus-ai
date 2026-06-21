@@ -30,6 +30,7 @@ export const ID_PREFIXES = {
   resourceShare: "shr",
   shareLink: "lnk",
   userPreference: "prf",
+  canvasAsset: "ast",
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];

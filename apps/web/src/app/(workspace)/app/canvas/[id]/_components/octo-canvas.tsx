@@ -30,9 +30,17 @@ export interface OctoCanvasProps {
   autoShape: boolean;
   /** Diagram-as-code text. Changes are debounce-parsed and synced to canvas shapes. */
   dsl: string;
+  /** Fires once tldraw has finished mounting; gives the parent the live editor. */
+  onEditorReady?: (editor: Editor) => void;
 }
 
-export function OctoCanvas({ canvasId, initialDocument, autoShape, dsl }: OctoCanvasProps) {
+export function OctoCanvas({
+  canvasId,
+  initialDocument,
+  autoShape,
+  dsl,
+  onEditorReady,
+}: OctoCanvasProps) {
   const editorRef = useRef<Editor | null>(null);
   const autoShapeRef = useRef(autoShape);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,6 +103,7 @@ export function OctoCanvas({ canvasId, initialDocument, autoShape, dsl }: OctoCa
     }
     registerShapeDetection(editor, autoShapeRef);
     registerAutosave(editor);
+    onEditorReady?.(editor);
   }
 
   function registerAutosave(editor: Editor) {

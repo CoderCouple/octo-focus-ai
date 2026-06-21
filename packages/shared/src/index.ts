@@ -29,6 +29,7 @@ export const AiRunIdSchema = prefixedId(ID_PREFIXES.aiRun);
 export const ChangeEventIdSchema = prefixedId(ID_PREFIXES.changeEvent);
 export const ResourceShareIdSchema = prefixedId(ID_PREFIXES.resourceShare);
 export const ShareLinkIdSchema = prefixedId(ID_PREFIXES.shareLink);
+export const CanvasAssetIdSchema = prefixedId(ID_PREFIXES.canvasAsset);
 
 // =============================================================================
 // Existing enums + agent config
@@ -332,6 +333,42 @@ export const ShareLinkSchema = z.object({
 // =============================================================================
 // User preferences
 // =============================================================================
+
+// =============================================================================
+// Canvas exports (image assets)
+// =============================================================================
+
+export const CanvasAssetFormatSchema = z.enum(["svg", "png"]);
+
+export const CanvasAssetCreateSchema = z.object({
+  format: CanvasAssetFormatSchema.default("svg"),
+  content: z.string().min(1).max(5_000_000), // base64-encoded payload, ~5MB cap
+  contentType: z.string().min(1).max(120).default("image/svg+xml"),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  title: z.string().max(120).optional(),
+  visibility: VisibilitySchema.default("public"),
+});
+
+export const CanvasAssetSchema = z.object({
+  id: CanvasAssetIdSchema,
+  canvasId: CanvasIdSchema,
+  publicSlug: z.string(),
+  visibility: VisibilitySchema,
+  format: CanvasAssetFormatSchema,
+  contentType: z.string(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+  title: z.string().nullable(),
+  createdAt: z.string(),
+  revokedAt: z.string().nullable(),
+  url: z.string(),
+  markdown: z.string(),
+});
+
+export type CanvasAssetFormat = z.infer<typeof CanvasAssetFormatSchema>;
+export type CanvasAssetCreate = z.infer<typeof CanvasAssetCreateSchema>;
+export type CanvasAsset = z.infer<typeof CanvasAssetSchema>;
 
 export const UserPreferenceSchema = z.object({
   userId: UserIdSchema,

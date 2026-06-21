@@ -6,6 +6,7 @@ import { PermissionsService } from "../common/permissions.service";
 import { SlugService } from "../common/slug.service";
 import { DatabaseModule } from "../db/database.module";
 import { AiRunsController } from "../routes/ai-runs.controller";
+import { CanvasAssetsController } from "../routes/canvas-assets.controller";
 import { CanvasesController } from "../routes/canvases.controller";
 import { ChangeEventsController } from "../routes/change-events.controller";
 import { HealthController } from "../routes/health.controller";
@@ -25,6 +26,7 @@ import { SharesController } from "../routes/shares.controller";
     PreferencesController,
     ProjectsController,
     CanvasesController,
+    CanvasAssetsController,
     PagesController,
     AiRunsController,
     ChangeEventsController,

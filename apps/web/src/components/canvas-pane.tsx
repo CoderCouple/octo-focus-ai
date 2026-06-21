@@ -1,8 +1,10 @@
 "use client";
 
 import { Code2, Pencil } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Editor } from "tldraw";
 import { OctoCanvas } from "@/app/(workspace)/app/canvas/[id]/_components/octo-canvas-dynamic";
+import { CanvasExportDialog } from "@/components/canvas-export-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { updateCanvasAction } from "@/actions/canvases-action";
@@ -20,6 +22,11 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
   const [dslOpen, setDslOpen] = useState(false);
   const [dsl, setDsl] = useState(initialDsl);
   const dslSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorRef = useRef<Editor | null>(null);
+  const handleEditorReady = useCallback((e: Editor) => {
+    editorRef.current = e;
+  }, []);
+  const getEditor = useCallback(() => editorRef.current, []);
 
   useEffect(() => {
     return () => {
@@ -60,6 +67,9 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
           <Code2 className="h-3.5 w-3.5" />
           Diagram as code
         </Toggle>
+        <div className="ml-auto">
+          <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
+        </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
         {dslOpen && (
@@ -85,6 +95,7 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
             initialDocument={initialDocument}
             autoShape={autoShape}
             dsl={dsl}
+            onEditorReady={handleEditorReady}
           />
         </div>
       </div>
