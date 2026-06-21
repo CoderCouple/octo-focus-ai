@@ -10,10 +10,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@octofocus/diagrams": "workspace:*"
+    "@octofocus/diagrams": "workspace:*",
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "@types/node": "^22.10.2"
   }
 }

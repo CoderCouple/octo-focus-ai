@@ -153,13 +153,13 @@ importers:
       '@octofocus/diagrams':
         specifier: workspace:*
         version: link:../diagrams
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.21
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
 
   packages/cli:
     dependencies:
@@ -182,6 +182,9 @@ importers:
 
   packages/diagrams:
     dependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -189,12 +192,12 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.21
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
 
   packages/shared:
     dependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -202,9 +205,6 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.21
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
 
   services/api:
     dependencies:
