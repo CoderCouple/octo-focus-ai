@@ -8,12 +8,10 @@ import { ProjectSplitView } from "./_components/project-split-view";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; canvas?: string }>;
 }
 
-export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
+export default async function ProjectDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const { page: pageParam, canvas: canvasParam } = await searchParams;
 
   let project;
   try {
@@ -31,11 +29,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   ]);
   const workspaceSlug = me.memberships[0]?.workspace.slug ?? "";
 
-  // Pick the requested page/canvas, fall back to first, or auto-create one.
-  let page = (pageParam && pages.find((p) => p.id === pageParam)) || pages[0];
-  if (!page) page = await createPageApi(id, { title: "Untitled" });
-  let canvas = (canvasParam && canvases.find((c) => c.id === canvasParam)) || canvases[0];
-  if (!canvas) canvas = await createCanvasApi(id, { title: "Untitled canvas" });
+  // 1:1 model — every project has exactly one note and one canvas. Create
+  // them on first open if the project doesn't have them yet.
+  const page = pages[0] ?? (await createPageApi(id, { title: project.name }));
+  const canvas = canvases[0] ?? (await createCanvasApi(id, { title: project.name }));
 
   const initialDsl =
     canvas.diagramSchema &&
@@ -50,8 +47,6 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
       project={project}
       page={page}
       canvas={canvas}
-      pages={pages.map((p) => ({ id: p.id, title: p.title }))}
-      canvases={canvases.map((c) => ({ id: c.id, title: c.title }))}
       initialDsl={initialDsl}
       workspaceSlug={workspaceSlug}
     />

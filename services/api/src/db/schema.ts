@@ -13,6 +13,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 import { generateId } from "@octofocus/shared";
 
 // =============================================================================
@@ -158,6 +159,10 @@ export const pages = pgTable(
   (table) => ({
     projectIdx: index("pages_project_id_idx").on(table.projectId),
     publicSlugIdx: index("pages_public_slug_idx").on(table.publicSlug),
+    // 1:1 — at most one non-deleted page per project.
+    onePerProject: uniqueIndex("pages_one_per_project_idx")
+      .on(table.projectId)
+      .where(sql`deleted_at IS NULL`),
   }),
 );
 
@@ -207,6 +212,10 @@ export const canvases = pgTable(
   (table) => ({
     projectIdx: index("canvases_project_id_idx").on(table.projectId),
     publicSlugIdx: index("canvases_public_slug_idx").on(table.publicSlug),
+    // 1:1 — at most one non-deleted canvas per project.
+    onePerProject: uniqueIndex("canvases_one_per_project_idx")
+      .on(table.projectId)
+      .where(sql`deleted_at IS NULL`),
   }),
 );
 

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -84,6 +85,15 @@ export class PagesController {
   ) {
     const project = await this.loadProject(projectId);
     await this.assertMember(request.user.id, project.workspaceId);
+    // 1:1 — reject if this project already has an active page.
+    const [existing] = await this.db
+      .select({ id: pages.id })
+      .from(pages)
+      .where(and(eq(pages.projectId, projectId), isNull(pages.deletedAt)))
+      .limit(1);
+    if (existing) {
+      throw new BadRequestException("This project already has a note.");
+    }
     const [row] = await this.db
       .insert(pages)
       .values({ projectId, title: body.title, document: {} })

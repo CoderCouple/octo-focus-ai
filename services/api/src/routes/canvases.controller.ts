@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -82,6 +83,15 @@ export class CanvasesController {
   ) {
     const project = await this.loadProject(projectId);
     await this.assertMember(request.user.id, project.workspaceId);
+    // 1:1 — reject if this project already has an active canvas.
+    const [existing] = await this.db
+      .select({ id: canvases.id })
+      .from(canvases)
+      .where(and(eq(canvases.projectId, projectId), isNull(canvases.deletedAt)))
+      .limit(1);
+    if (existing) {
+      throw new BadRequestException("This project already has a canvas.");
+    }
     const [row] = await this.db
       .insert(canvases)
       .values({

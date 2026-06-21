@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "canvases_one_per_project_idx" ON "canvases" USING btree ("project_id") WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "pages_one_per_project_idx" ON "pages" USING btree ("project_id") WHERE deleted_at IS NULL;
