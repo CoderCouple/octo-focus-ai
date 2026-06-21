@@ -2,7 +2,7 @@
 
 import { Code2, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { OctoCanvas } from "@/app/(workspace)/app/canvas/[id]/_components/octo-canvas";
+import { OctoCanvas } from "@/app/(workspace)/app/canvas/[id]/_components/octo-canvas-dynamic";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { updateCanvasAction } from "@/actions/canvases-action";

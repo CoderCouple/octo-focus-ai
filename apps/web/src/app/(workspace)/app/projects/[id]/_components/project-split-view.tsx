@@ -66,8 +66,13 @@ export function ProjectSplitView({
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
+        {/*
+         * Stable keys keep tldraw + BlockNote mounted across mode toggles.
+         * Without them, React reconciles by sibling index — when one pane
+         * disappears the other's index shifts and React unmounts/remounts it.
+         */}
         {showNotes && (
-          <div className={showCanvas ? "w-1/2 border-r" : "flex-1"}>
+          <div key="notes" className={showCanvas ? "w-1/2 border-r" : "flex-1"}>
             <NotesPane
               pageId={page.id}
               initialContent={page.document}
@@ -76,7 +81,7 @@ export function ProjectSplitView({
           </div>
         )}
         {showCanvas && (
-          <div className={showNotes ? "w-1/2" : "flex-1"}>
+          <div key="canvas" className={showNotes ? "w-1/2" : "flex-1"}>
             <CanvasPane
               canvasId={canvas.id}
               initialDocument={canvas.document}
