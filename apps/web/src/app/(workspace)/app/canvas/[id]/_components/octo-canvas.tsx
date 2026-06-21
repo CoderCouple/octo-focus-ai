@@ -117,9 +117,15 @@ export function OctoCanvas({ canvasId, initialDocument, autoShape, dsl }: OctoCa
     );
   }
 
+  // tldraw needs the parent to have explicit pixel dimensions, not just
+  // flex-derived dimensions — otherwise the viewport can collapse to 0x0
+  // during mid-render layout passes and the editor renders invisibly.
+  // Pin Tldraw to an absolute inset-0 wrapper.
   return (
-    <div className="h-full w-full">
-      <Tldraw onMount={onMount} />
+    <div className="relative h-full w-full">
+      <div className="absolute inset-0">
+        <Tldraw onMount={onMount} />
+      </div>
     </div>
   );
 }
