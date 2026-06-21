@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Calendar,
   FileText,
   Home,
   LayoutGrid,
@@ -33,6 +34,7 @@ export function AppSidebar({ workspace, memberships, user, ...props }: AppSideba
     { title: "Home", url: "/app", icon: Home },
     { title: "Notes", url: "/app/notes", icon: FileText },
     { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
+    { title: "Calendar", url: "/app/calendar", icon: Calendar },
     { title: "Agents", url: "/app/agents", icon: Sparkles },
     { title: "Graph", url: "/app/graph", icon: Network },
     { title: "Search", url: "/app/search", icon: Search },
