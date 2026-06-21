@@ -1,5 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import { AppExceptionFilter } from "./common/error/app-exception.filter";
+import { ResponseInterceptor } from "./common/interceptor/response.interceptor";
 import { AppModule } from "./modules/app.module";
 
 try {
@@ -18,6 +20,9 @@ async function bootstrap() {
     origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
     credentials: true,
   });
+
+  app.useGlobalFilters(new AppExceptionFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   const port = Number(process.env.PORT ?? 4000);
   // Railway/Docker/most prod hosts inject PORT and need 0.0.0.0 to be reachable.
