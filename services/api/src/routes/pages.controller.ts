@@ -27,7 +27,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { pages, projects, workspaceMembers } from "../db/schema";
 
-const UuidParam = new ZodValidationPipe(z.string().uuid());
+const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 
 @Controller()
 @UseGuards(SupabaseAuthGuard)
@@ -39,7 +39,7 @@ export class PagesController {
 
   @Get("projects/:projectId/pages")
   async list(
-    @Param("projectId", UuidParam) projectId: string,
+    @Param("projectId", IdParam) projectId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     const project = await this.loadProject(projectId);
@@ -53,7 +53,7 @@ export class PagesController {
 
   @Post("projects/:projectId/pages")
   async create(
-    @Param("projectId", UuidParam) projectId: string,
+    @Param("projectId", IdParam) projectId: string,
     @Body(new ZodValidationPipe(PageCreateSchema)) body: PageCreate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -76,7 +76,7 @@ export class PagesController {
   }
 
   @Get("pages/:id")
-  async getOne(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async getOne(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const page = await this.loadPage(id);
     const project = await this.loadProject(page.projectId);
     await this.assertMember(request.user.id, project.workspaceId);
@@ -85,7 +85,7 @@ export class PagesController {
 
   @Patch("pages/:id")
   async update(
-    @Param("id", UuidParam) id: string,
+    @Param("id", IdParam) id: string,
     @Body(new ZodValidationPipe(PageUpdateSchema)) body: PageUpdate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -118,7 +118,7 @@ export class PagesController {
   }
 
   @Delete("pages/:id")
-  async softDelete(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async softDelete(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const page = await this.loadPage(id);
     const project = await this.loadProject(page.projectId);
     await this.assertMember(request.user.id, project.workspaceId);

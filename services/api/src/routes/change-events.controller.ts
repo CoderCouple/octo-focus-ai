@@ -17,12 +17,12 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { changeEvents, workspaceMembers } from "../db/schema";
 
-const UuidParam = new ZodValidationPipe(z.string().uuid());
+const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 const ListQuery = new ZodValidationPipe(
   z.object({
     limit: z.coerce.number().int().min(1).max(200).default(50),
     entityType: z.string().optional(),
-    entityId: z.string().uuid().optional(),
+    entityId: z.string().min(1).max(64).optional(),
   }),
 );
 
@@ -33,7 +33,7 @@ export class ChangeEventsController {
 
   @Get("workspaces/:workspaceId/change-events")
   async list(
-    @Param("workspaceId", UuidParam) workspaceId: string,
+    @Param("workspaceId", IdParam) workspaceId: string,
     @Query(ListQuery)
     query: { limit: number; entityType?: string; entityId?: string },
     @Req() request: AuthenticatedRequest,
@@ -53,7 +53,7 @@ export class ChangeEventsController {
   }
 
   @Get("change-events/:id")
-  async getOne(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async getOne(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const [row] = await this.db
       .select()
       .from(changeEvents)

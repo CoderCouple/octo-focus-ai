@@ -27,7 +27,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { projects, workspaceMembers } from "../db/schema";
 
-const UuidParam = new ZodValidationPipe(z.string().uuid());
+const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 
 @Controller()
 @UseGuards(SupabaseAuthGuard)
@@ -39,7 +39,7 @@ export class ProjectsController {
 
   @Get("workspaces/:workspaceId/projects")
   async list(
-    @Param("workspaceId", UuidParam) workspaceId: string,
+    @Param("workspaceId", IdParam) workspaceId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     await this.assertMember(request.user.id, workspaceId);
@@ -52,7 +52,7 @@ export class ProjectsController {
 
   @Post("workspaces/:workspaceId/projects")
   async create(
-    @Param("workspaceId", UuidParam) workspaceId: string,
+    @Param("workspaceId", IdParam) workspaceId: string,
     @Body(new ZodValidationPipe(ProjectCreateSchema)) body: ProjectCreate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -79,7 +79,7 @@ export class ProjectsController {
   }
 
   @Get("projects/:id")
-  async getOne(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async getOne(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const project = await this.loadProject(id);
     await this.assertMember(request.user.id, project.workspaceId);
     return project;
@@ -87,7 +87,7 @@ export class ProjectsController {
 
   @Patch("projects/:id")
   async update(
-    @Param("id", UuidParam) id: string,
+    @Param("id", IdParam) id: string,
     @Body(new ZodValidationPipe(ProjectUpdateSchema)) body: ProjectUpdate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -119,7 +119,7 @@ export class ProjectsController {
   }
 
   @Delete("projects/:id")
-  async archive(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async archive(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const existing = await this.loadProject(id);
     await this.assertMember(request.user.id, existing.workspaceId);
 

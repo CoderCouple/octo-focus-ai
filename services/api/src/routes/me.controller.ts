@@ -5,6 +5,9 @@ import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { Database, DRIZZLE } from "../db/database.module";
 import { users, workspaceMembers, workspaces } from "../db/schema";
 
+// users.id is already `usr_<uuid>` by the time it reaches this controller —
+// the auth guard rewrites Supabase's raw JWT subject into the prefixed form.
+
 function slugify(input: string): string {
   return (
     input
@@ -44,6 +47,10 @@ export class MeController {
           set: { email, name, avatarUrl, updatedAt: new Date() },
         })
         .returning();
+
+      if (!user) {
+        throw new BadRequestException("Failed to upsert user.");
+      }
 
       let memberships = await tx
         .select({ membership: workspaceMembers, workspace: workspaces })

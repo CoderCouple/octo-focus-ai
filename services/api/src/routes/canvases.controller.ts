@@ -27,7 +27,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { canvases, projects, workspaceMembers } from "../db/schema";
 
-const UuidParam = new ZodValidationPipe(z.string().uuid());
+const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 
 @Controller()
 @UseGuards(SupabaseAuthGuard)
@@ -39,7 +39,7 @@ export class CanvasesController {
 
   @Get("projects/:projectId/canvases")
   async list(
-    @Param("projectId", UuidParam) projectId: string,
+    @Param("projectId", IdParam) projectId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     const project = await this.loadProject(projectId);
@@ -53,7 +53,7 @@ export class CanvasesController {
 
   @Post("projects/:projectId/canvases")
   async create(
-    @Param("projectId", UuidParam) projectId: string,
+    @Param("projectId", IdParam) projectId: string,
     @Body(new ZodValidationPipe(CanvasCreateSchema)) body: CanvasCreate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -80,7 +80,7 @@ export class CanvasesController {
   }
 
   @Get("canvases/:id")
-  async getOne(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async getOne(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const canvas = await this.loadCanvas(id);
     const project = await this.loadProject(canvas.projectId);
     await this.assertMember(request.user.id, project.workspaceId);
@@ -89,7 +89,7 @@ export class CanvasesController {
 
   @Patch("canvases/:id")
   async update(
-    @Param("id", UuidParam) id: string,
+    @Param("id", IdParam) id: string,
     @Body(new ZodValidationPipe(CanvasUpdateSchema)) body: CanvasUpdate,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -122,7 +122,7 @@ export class CanvasesController {
   }
 
   @Delete("canvases/:id")
-  async softDelete(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async softDelete(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const canvas = await this.loadCanvas(id);
     const project = await this.loadProject(canvas.projectId);
     await this.assertMember(request.user.id, project.workspaceId);

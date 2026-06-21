@@ -9,7 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const DEV_ME: MeResponse = {
   user: {
-    id: "00000000-0000-0000-0000-000000000000",
+    id: "usr_00000000-0000-0000-0000-000000000000",
     name: "Dev User",
     email: "dev@octofocus.local",
     avatarUrl: null,
@@ -17,12 +17,12 @@ const DEV_ME: MeResponse = {
   memberships: [
     {
       membership: {
-        id: "00000000-0000-0000-0000-000000000001",
+        id: "mem_00000000-0000-0000-0000-000000000001",
         role: "OWNER",
-        workspaceId: "00000000-0000-0000-0000-000000000002",
+        workspaceId: "wsp_00000000-0000-0000-0000-000000000002",
       },
       workspace: {
-        id: "00000000-0000-0000-0000-000000000002",
+        id: "wsp_00000000-0000-0000-0000-000000000002",
         name: "Dev workspace",
         slug: "dev-workspace",
       },

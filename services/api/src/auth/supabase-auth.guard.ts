@@ -6,20 +6,23 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { buildIdFromUuid } from "@octofocus/shared";
 import { Database, DRIZZLE } from "../db/database.module";
 import { canvases, projects, users, workspaceMembers, workspaces } from "../db/schema";
 import { SUPABASE_CLIENT } from "./supabase.tokens";
 
 export interface AuthenticatedRequest {
-  user: User;
+  user: User & { id: string };
   headers: Record<string, string | undefined>;
 }
 
-const DEV_USER_ID = "00000000-0000-0000-0000-000000000000";
-const DEV_WORKSPACE_ID = "00000000-0000-0000-0000-000000000002";
-const DEV_MEMBERSHIP_ID = "00000000-0000-0000-0000-000000000001";
-export const DEV_PROJECT_ID = "00000000-0000-0000-0000-000000000003";
-export const DEV_CANVAS_ID = "00000000-0000-0000-0000-000000000004";
+const DEV_AUTH_SUB = "00000000-0000-0000-0000-000000000000";
+const DEV_USER_ID = buildIdFromUuid("usr", DEV_AUTH_SUB);
+const DEV_WORKSPACE_ID = buildIdFromUuid("wsp", "00000000-0000-0000-0000-000000000002");
+const DEV_MEMBERSHIP_ID = buildIdFromUuid("mem", "00000000-0000-0000-0000-000000000001");
+export const DEV_PROJECT_ID = buildIdFromUuid("prj", "00000000-0000-0000-0000-000000000003");
+export const DEV_CANVAS_ID = buildIdFromUuid("cnv", "00000000-0000-0000-0000-000000000004");
+
 const DEV_USER: User = {
   id: DEV_USER_ID,
   email: "dev@octofocus.local",
@@ -60,7 +63,9 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException("Invalid Supabase session.");
     }
 
-    request.user = data.user;
+    // Rewrite Supabase's raw UUID into our prefixed form so downstream code
+    // always sees the same `usr_<uuid>` shape, in dev and prod.
+    request.user = { ...data.user, id: buildIdFromUuid("usr", data.user.id) };
     return true;
   }
 

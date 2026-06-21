@@ -26,7 +26,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
 import { aiRuns, workspaceMembers } from "../db/schema";
 
-const UuidParam = new ZodValidationPipe(z.string().uuid());
+const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 const ListQuery = new ZodValidationPipe(
   z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) }),
 );
@@ -38,7 +38,7 @@ export class AiRunsController {
 
   @Get("workspaces/:workspaceId/ai-runs")
   async list(
-    @Param("workspaceId", UuidParam) workspaceId: string,
+    @Param("workspaceId", IdParam) workspaceId: string,
     @Query(ListQuery) query: { limit: number },
     @Req() request: AuthenticatedRequest,
   ) {
@@ -75,7 +75,7 @@ export class AiRunsController {
   }
 
   @Get("ai-runs/:id")
-  async getOne(@Param("id", UuidParam) id: string, @Req() request: AuthenticatedRequest) {
+  async getOne(@Param("id", IdParam) id: string, @Req() request: AuthenticatedRequest) {
     const run = await this.loadRun(id);
     await this.assertMember(request.user.id, run.workspaceId);
     return run;
@@ -83,7 +83,7 @@ export class AiRunsController {
 
   @Patch("ai-runs/:id")
   async update(
-    @Param("id", UuidParam) id: string,
+    @Param("id", IdParam) id: string,
     @Body(new ZodValidationPipe(AiRunUpdateSchema)) body: AiRunUpdate,
     @Req() request: AuthenticatedRequest,
   ) {

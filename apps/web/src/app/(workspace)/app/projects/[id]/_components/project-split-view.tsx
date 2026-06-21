@@ -5,6 +5,7 @@ import { FileText, LayoutGrid, Columns2 } from "lucide-react";
 import { useState } from "react";
 import { CanvasPane } from "@/components/canvas-pane";
 import { NotesPane } from "@/components/notes-pane";
+import { SharePopover } from "@/components/share-popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Mode = "notes" | "both" | "canvas";
@@ -14,6 +15,7 @@ interface ProjectSplitViewProps {
   page: Page;
   canvas: Canvas;
   initialDsl: string;
+  workspaceSlug: string;
 }
 
 export function ProjectSplitView({
@@ -21,6 +23,7 @@ export function ProjectSplitView({
   page,
   canvas,
   initialDsl,
+  workspaceSlug,
 }: ProjectSplitViewProps) {
   const [mode, setMode] = useState<Mode>("both");
 
@@ -51,12 +54,25 @@ export function ProjectSplitView({
             Canvas
           </ToggleGroupItem>
         </ToggleGroup>
-        <div className="w-32" />
+        <div className="flex w-32 items-center justify-end">
+          <SharePopover
+            resourceKind="project"
+            resourceId={project.id}
+            resourceTitle={project.name}
+            initialVisibility={project.visibility}
+            initialPublicSlug={project.publicSlug}
+            workspaceSlug={workspaceSlug}
+          />
+        </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
         {showNotes && (
           <div className={showCanvas ? "w-1/2 border-r" : "flex-1"}>
-            <NotesPane pageId={page.id} initialContent={page.document} />
+            <NotesPane
+              pageId={page.id}
+              initialContent={page.document}
+              initialSettings={page.settings ?? {}}
+            />
           </div>
         )}
         {showCanvas && (

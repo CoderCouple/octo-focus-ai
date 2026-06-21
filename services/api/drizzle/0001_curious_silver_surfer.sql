@@ -1,1 +1,0 @@
-ALTER TABLE "pages" ADD COLUMN "content_md" text DEFAULT '' NOT NULL;

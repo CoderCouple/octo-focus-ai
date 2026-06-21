@@ -2,7 +2,7 @@ import { getMeApi } from "@/api/me-api";
 import { env } from "@/lib/env";
 import { ProjectsPanel } from "../_components/projects-panel";
 
-const DEV_WORKSPACE_ID = "00000000-0000-0000-0000-000000000002";
+const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 
 export default async function WorkspaceHomePage() {
   let workspaceId: string;

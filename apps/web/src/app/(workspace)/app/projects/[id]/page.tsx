@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { createCanvasApi, listCanvasesApi } from "@/api/canvases-api";
+import { getMeApi } from "@/api/me-api";
 import { createPageApi, listPagesApi } from "@/api/pages-api";
 import { getProjectApi } from "@/api/projects-api";
+import { env } from "@/lib/env";
 import { ProjectSplitView } from "./_components/project-split-view";
 
 interface PageProps {
@@ -18,7 +20,14 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const [pages, canvases] = await Promise.all([listPagesApi(id), listCanvasesApi(id)]);
+  const [pages, canvases, me] = await Promise.all([
+    listPagesApi(id),
+    listCanvasesApi(id),
+    env.DEV_AUTH_BYPASS
+      ? Promise.resolve({ memberships: [{ workspace: { slug: "dev-workspace" } }] } as const)
+      : getMeApi(),
+  ]);
+  const workspaceSlug = me.memberships[0]?.workspace.slug ?? "";
 
   const page = pages[0] ?? (await createPageApi(id, { title: "Untitled" }));
   const canvas = canvases[0] ?? (await createCanvasApi(id, { title: "Untitled canvas" }));
@@ -37,6 +46,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       page={page}
       canvas={canvas}
       initialDsl={initialDsl}
+      workspaceSlug={workspaceSlug}
     />
   );
 }

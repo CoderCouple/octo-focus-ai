@@ -1,4 +1,7 @@
 import {
+  bigint,
+  boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -7,8 +10,13 @@ import {
   text,
   timestamp,
   unique,
-  uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { generateId } from "@octofocus/shared";
+
+// =============================================================================
+// Enums
+// =============================================================================
 
 export const workspaceRole = pgEnum("workspace_role", ["OWNER", "ADMIN", "MEMBER"]);
 export const agentStatus = pgEnum("agent_status", ["ACTIVE", "PAUSED", "ARCHIVED"]);
@@ -21,8 +29,31 @@ export const aiRunStatus = pgEnum("ai_run_status", [
 ]);
 export const changeActorType = pgEnum("change_actor_type", ["USER", "AGENT"]);
 
+// Publish + share
+export const visibilityKind = pgEnum("visibility_kind", [
+  "private",
+  "unlisted",
+  "workspace",
+  "public",
+]);
+export const resourceKind = pgEnum("resource_kind", ["project", "page", "canvas"]);
+export const sharePermission = pgEnum("share_permission", [
+  "viewer",
+  "commenter",
+  "editor",
+  "admin",
+]);
+export const shareStatus = pgEnum("share_status", ["active", "pending", "revoked", "expired"]);
+
+// =============================================================================
+// Core identity + workspace
+// =============================================================================
+
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey(),
+  // Set explicitly by the auth guard from the Supabase JWT subject (no
+  // $defaultFn): id = "usr_" + jwt.sub. Keeps our user IDs in lockstep with
+  // Supabase Auth while still being self-describing.
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   avatarUrl: text("avatar_url"),
@@ -31,7 +62,9 @@ export const users = pgTable("users", {
 });
 
 export const workspaces = pgTable("workspaces", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId("wsp")),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -41,11 +74,13 @@ export const workspaces = pgTable("workspaces", {
 export const workspaceMembers = pgTable(
   "workspace_members",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("mem")),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: workspaceRole("role").default("MEMBER").notNull(),
@@ -57,55 +92,77 @@ export const workspaceMembers = pgTable(
   }),
 );
 
+// =============================================================================
+// Project + page + canvas — with publish + settings
+// =============================================================================
+
 export const projects = pgTable(
   "projects",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("prj")),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description"),
     icon: text("icon"),
+    publicSlug: text("public_slug").unique(),
+    visibility: visibilityKind("visibility").default("private").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    lastPublishedAt: timestamp("last_published_at", { withTimezone: true }),
+    settings: jsonb("settings").default(sql`'{}'::jsonb`).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => ({
     workspaceIdx: index("projects_workspace_id_idx").on(table.workspaceId),
+    publicSlugIdx: index("projects_public_slug_idx").on(table.publicSlug),
   }),
 );
 
 export const pages = pgTable(
   "pages",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    projectId: uuid("project_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("pag")),
+    projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     document: jsonb("document").notNull(),
     contentMd: text("content_md").default("").notNull(),
+    publicSlug: text("public_slug").unique(),
+    visibility: visibilityKind("visibility").default("private").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    lastPublishedAt: timestamp("last_published_at", { withTimezone: true }),
+    settings: jsonb("settings").default(sql`'{}'::jsonb`).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     projectIdx: index("pages_project_id_idx").on(table.projectId),
+    publicSlugIdx: index("pages_public_slug_idx").on(table.publicSlug),
   }),
 );
 
 export const pageBlocks = pgTable(
   "page_blocks",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    pageId: uuid("page_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("blk")),
+    pageId: text("page_id")
       .notNull()
       .references(() => pages.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
     content: jsonb("content").notNull(),
     position: integer("position").notNull(),
-    parentBlockId: uuid("parent_block_id"),
+    parentBlockId: text("parent_block_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -118,30 +175,40 @@ export const pageBlocks = pgTable(
 export const canvases = pgTable(
   "canvases",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    projectId: uuid("project_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("cnv")),
+    projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     document: jsonb("document").notNull(),
     diagramSchema: jsonb("diagram_schema"),
+    publicSlug: text("public_slug").unique(),
+    visibility: visibilityKind("visibility").default("private").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    lastPublishedAt: timestamp("last_published_at", { withTimezone: true }),
+    settings: jsonb("settings").default(sql`'{}'::jsonb`).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     projectIdx: index("canvases_project_id_idx").on(table.projectId),
+    publicSlugIdx: index("canvases_public_slug_idx").on(table.publicSlug),
   }),
 );
 
 export const pageCanvasLinks = pgTable(
   "page_canvas_links",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    pageId: uuid("page_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("pcl")),
+    pageId: text("page_id")
       .notNull()
       .references(() => pages.id, { onDelete: "cascade" }),
-    canvasId: uuid("canvas_id")
+    canvasId: text("canvas_id")
       .notNull()
       .references(() => canvases.id, { onDelete: "cascade" }),
     relationType: text("relation_type").notNull(),
@@ -156,8 +223,10 @@ export const pageCanvasLinks = pgTable(
 export const canvasSnapshots = pgTable(
   "canvas_snapshots",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    canvasId: uuid("canvas_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("snp")),
+    canvasId: text("canvas_id")
       .notNull()
       .references(() => canvases.id, { onDelete: "cascade" }),
     document: jsonb("document").notNull(),
@@ -170,14 +239,20 @@ export const canvasSnapshots = pgTable(
   }),
 );
 
+// =============================================================================
+// Agents + AI runs + audit
+// =============================================================================
+
 export const agents = pgTable(
   "agents",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("agt")),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    createdByUserId: uuid("created_by_user_id")
+    createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => users.id),
     name: text("name").notNull(),
@@ -196,15 +271,17 @@ export const agents = pgTable(
 export const aiRuns = pgTable(
   "ai_runs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").references(() => users.id),
-    agentId: uuid("agent_id").references(() => agents.id),
-    workspaceId: uuid("workspace_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("run")),
+    userId: text("user_id").references(() => users.id),
+    agentId: text("agent_id").references(() => agents.id),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    projectId: uuid("project_id").references(() => projects.id),
-    pageId: uuid("page_id").references(() => pages.id),
-    canvasId: uuid("canvas_id").references(() => canvases.id),
+    projectId: text("project_id").references(() => projects.id),
+    pageId: text("page_id").references(() => pages.id),
+    canvasId: text("canvas_id").references(() => canvases.id),
     action: text("action").notNull(),
     status: aiRunStatus("status").default("PENDING").notNull(),
     input: jsonb("input").notNull(),
@@ -228,15 +305,17 @@ export const aiRuns = pgTable(
 export const changeEvents = pgTable(
   "change_events",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("evt")),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     actorType: changeActorType("actor_type").notNull(),
-    userId: uuid("user_id").references(() => users.id),
-    agentId: uuid("agent_id").references(() => agents.id),
+    userId: text("user_id").references(() => users.id),
+    agentId: text("agent_id").references(() => agents.id),
     entityType: text("entity_type").notNull(),
-    entityId: uuid("entity_id").notNull(),
+    entityId: text("entity_id").notNull(),
     action: text("action").notNull(),
     before: jsonb("before"),
     after: jsonb("after"),
@@ -259,3 +338,90 @@ export const changeEvents = pgTable(
     ),
   }),
 );
+
+// =============================================================================
+// Sharing + access control
+// =============================================================================
+
+export const resourceShares = pgTable(
+  "resource_shares",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("shr")),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    resourceKind: resourceKind("resource_kind").notNull(),
+    resourceId: text("resource_id").notNull(),
+    grantedToUserId: text("granted_to_user_id").references(() => users.id, { onDelete: "cascade" }),
+    grantedToEmail: text("granted_to_email"),
+    permission: sharePermission("permission").default("viewer").notNull(),
+    status: shareStatus("status").default("active").notNull(),
+    grantedByUserId: text("granted_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    note: text("note"),
+  },
+  (table) => ({
+    subjectXor: check(
+      "resource_shares_subject_xor",
+      sql`(${table.grantedToUserId} IS NOT NULL AND ${table.grantedToEmail} IS NULL)
+          OR (${table.grantedToUserId} IS NULL AND ${table.grantedToEmail} IS NOT NULL)`,
+    ),
+    statusEmail: check(
+      "resource_shares_status_email",
+      sql`NOT (${table.status} = 'pending' AND ${table.grantedToEmail} IS NULL)`,
+    ),
+    resourceIdx: index("resource_shares_resource_idx").on(table.resourceKind, table.resourceId),
+    userIdx: index("resource_shares_user_idx").on(table.grantedToUserId),
+    pendingEmailIdx: index("resource_shares_pending_email_idx").on(table.grantedToEmail),
+  }),
+);
+
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("lnk")),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    resourceKind: resourceKind("resource_kind").notNull(),
+    resourceId: text("resource_id").notNull(),
+    token: text("token").notNull().unique(),
+    permission: sharePermission("permission").default("viewer").notNull(),
+    passwordHash: text("password_hash"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    maxUses: integer("max_uses"),
+    useCount: bigint("use_count", { mode: "number" }).default(0).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    note: text("note"),
+  },
+  (table) => ({
+    resourceIdx: index("share_links_resource_idx").on(table.resourceKind, table.resourceId),
+    tokenIdx: index("share_links_token_idx").on(table.token),
+  }),
+);
+
+export const userPreferences = pgTable("user_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  defaultNotesFont: text("default_notes_font").default("sans").notNull(),
+  theme: text("theme").default("system").notNull(),
+  sendNotificationEmails: boolean("send_notification_emails").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
