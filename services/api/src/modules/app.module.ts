@@ -17,17 +17,14 @@ import { ProjectsController } from "../routes/projects.controller";
 import { PublicController } from "../routes/public.controller";
 import { PublishController } from "../routes/publish.controller";
 import { SharesController } from "../routes/shares.controller";
-import { WorkspaceMembersController } from "../routes/workspace-members.controller";
-import { WorkspacesController } from "../routes/workspaces.controller";
+import { WorkspacesModule } from "./workspaces.module";
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [DatabaseModule, AuthModule, WorkspacesModule],
   controllers: [
     HealthController,
     MeController,
     PreferencesController,
-    WorkspacesController,
-    WorkspaceMembersController,
     ProjectsController,
     CanvasesController,
     CanvasAssetsController,
