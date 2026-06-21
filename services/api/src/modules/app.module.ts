@@ -17,6 +17,8 @@ import { ProjectsController } from "../routes/projects.controller";
 import { PublicController } from "../routes/public.controller";
 import { PublishController } from "../routes/publish.controller";
 import { SharesController } from "../routes/shares.controller";
+import { WorkspaceMembersController } from "../routes/workspace-members.controller";
+import { WorkspacesController } from "../routes/workspaces.controller";
 
 @Module({
   imports: [DatabaseModule, AuthModule],
@@ -24,6 +26,8 @@ import { SharesController } from "../routes/shares.controller";
     HealthController,
     MeController,
     PreferencesController,
+    WorkspacesController,
+    WorkspaceMembersController,
     ProjectsController,
     CanvasesController,
     CanvasAssetsController,

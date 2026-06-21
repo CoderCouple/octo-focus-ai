@@ -37,6 +37,66 @@ export const CanvasAssetIdSchema = prefixedId(ID_PREFIXES.canvasAsset);
 
 export const WorkspaceRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
+export const WorkspaceCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  slug: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "lowercase letters, digits, hyphens")
+    .optional(),
+});
+
+export const WorkspaceUpdateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  slug: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/)
+    .optional(),
+});
+
+export const WorkspaceSchema = z.object({
+  id: WorkspaceIdSchema,
+  name: z.string(),
+  slug: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const WorkspaceMemberInviteSchema = z.object({
+  email: z.string().email(),
+  role: WorkspaceRoleSchema.default("MEMBER"),
+});
+
+export const WorkspaceMemberUpdateSchema = z.object({
+  role: WorkspaceRoleSchema,
+});
+
+export const WorkspaceMemberSchema = z.object({
+  id: WorkspaceMemberIdSchema,
+  workspaceId: WorkspaceIdSchema,
+  userId: UserIdSchema,
+  role: WorkspaceRoleSchema,
+  createdAt: z.string(),
+  user: z
+    .object({
+      id: UserIdSchema,
+      name: z.string(),
+      email: z.string(),
+      avatarUrl: z.string().nullable(),
+    })
+    .optional(),
+});
+
+export type WorkspaceCreate = z.infer<typeof WorkspaceCreateSchema>;
+export type WorkspaceUpdate = z.infer<typeof WorkspaceUpdateSchema>;
+export type Workspace = z.infer<typeof WorkspaceSchema>;
+export type WorkspaceMemberInvite = z.infer<typeof WorkspaceMemberInviteSchema>;
+export type WorkspaceMemberUpdate = z.infer<typeof WorkspaceMemberUpdateSchema>;
+export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
+
 export const AgentActionSchema = z.enum([
   "page.create",
   "page.update",
