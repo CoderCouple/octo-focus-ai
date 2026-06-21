@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  FileText,
-  Home,
-  LayoutGrid,
-  Network,
-  Search,
-  Settings,
-  Sparkles,
-} from "lucide-react";
+import { FileText, Home, LayoutGrid, Settings } from "lucide-react";
 import * as React from "react";
 
 import { NavMain } from "@/components/nav-main";
@@ -33,9 +25,6 @@ export function AppSidebar({ workspace, memberships, user, ...props }: AppSideba
     { title: "Home", url: "/app", icon: Home },
     { title: "Notes", url: "/app/notes", icon: FileText },
     { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
-    { title: "Agents", url: "/app/agents", icon: Sparkles },
-    { title: "Graph", url: "/app/graph", icon: Network },
-    { title: "Search", url: "/app/search", icon: Search },
     { title: "Settings", url: "/app/settings", icon: Settings },
   ];
 
