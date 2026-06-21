@@ -2,7 +2,6 @@
 
 import {
   FileText,
-  Focus,
   Home,
   LayoutGrid,
   Network,
@@ -14,7 +13,7 @@ import * as React from "react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
+import { TeamSwitcher, type TeamSummary } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -24,45 +23,34 @@ import {
 } from "@/components/ui/sidebar";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  workspace: { name: string; slug: string };
+  workspace: { id: string; name: string; slug: string };
+  memberships: TeamSummary[];
   user: { name: string; email: string; avatarUrl: string | null };
 }
 
-export function AppSidebar({ workspace, user, ...props }: AppSidebarProps) {
-  const data = {
-    user: {
-      name: user.name,
-      email: user.email,
-      avatar: user.avatarUrl ?? "",
-    },
-    teams: [
-      {
-        name: workspace.name,
-        logo: Focus,
-        plan: "Workspace",
-      },
-    ],
-    navMain: [
-      { title: "Home", url: "/app", icon: Home },
-      { title: "Notes", url: "/app/notes", icon: FileText },
-      { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
-      { title: "Agents", url: "/app/agents", icon: Sparkles },
-      { title: "Graph", url: "/app/graph", icon: Network },
-      { title: "Search", url: "/app/search", icon: Search },
-      { title: "Settings", url: "/app/settings", icon: Settings },
-    ],
-  };
+export function AppSidebar({ workspace, memberships, user, ...props }: AppSidebarProps) {
+  const navMain = [
+    { title: "Home", url: "/app", icon: Home },
+    { title: "Notes", url: "/app/notes", icon: FileText },
+    { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
+    { title: "Agents", url: "/app/agents", icon: Sparkles },
+    { title: "Graph", url: "/app/graph", icon: Network },
+    { title: "Search", url: "/app/search", icon: Search },
+    { title: "Settings", url: "/app/settings", icon: Settings },
+  ];
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher activeWorkspaceId={workspace.id} teams={memberships} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser
+          user={{ name: user.name, email: user.email, avatar: user.avatarUrl ?? "" }}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

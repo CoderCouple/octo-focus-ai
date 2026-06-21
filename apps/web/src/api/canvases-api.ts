@@ -38,3 +38,7 @@ export function updateCanvasApi(canvasId: string, body: CanvasUpdate) {
     body: JSON.stringify(body),
   });
 }
+
+export function deleteCanvasApi(canvasId: string) {
+  return serverApiFetch<Canvas>(`/canvases/${canvasId}`, { method: "DELETE" });
+}

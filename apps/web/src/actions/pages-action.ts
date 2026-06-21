@@ -1,7 +1,25 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import type { PageCreate, PageUpdate } from "@octofocus/shared";
-import { createPageApi, getPageApi, listPagesApi, updatePageApi } from "@/api/pages-api";
+import {
+  createPageApi,
+  deletePageApi,
+  getPageApi,
+  listPagesApi,
+  updatePageApi,
+} from "@/api/pages-api";
+
+export async function renamePageAction(pageId: string, title: string) {
+  const row = await updatePageApi(pageId, { title });
+  revalidatePath("/app/notes");
+  return row;
+}
+
+export async function deletePageAction(pageId: string) {
+  await deletePageApi(pageId);
+  revalidatePath("/app/notes");
+}
 
 export async function listPagesAction(projectId: string) {
   return listPagesApi(projectId);

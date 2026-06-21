@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getMeApi, type MeResponse } from "@/api/me-api";
+import { getActiveWorkspaceIdCookie } from "@/actions/workspaces-action";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -48,7 +49,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     me = await getMeApi();
   }
 
-  const active = me.memberships[0];
+  const activeId = await getActiveWorkspaceIdCookie();
+  const active =
+    (activeId && me.memberships.find((m) => m.workspace.id === activeId)) || me.memberships[0];
 
   if (!active) {
     return (
@@ -60,7 +63,16 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <AppSidebar workspace={active.workspace} user={me.user} />
+      <AppSidebar
+        workspace={active.workspace}
+        memberships={me.memberships.map((m) => ({
+          id: m.workspace.id,
+          name: m.workspace.name,
+          slug: m.workspace.slug,
+          role: m.membership.role,
+        }))}
+        user={me.user}
+      />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />

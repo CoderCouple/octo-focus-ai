@@ -39,3 +39,7 @@ export function updatePageApi(pageId: string, body: PageUpdate) {
     body: JSON.stringify(body),
   });
 }
+
+export function deletePageApi(pageId: string) {
+  return serverApiFetch<Page>(`/pages/${pageId}`, { method: "DELETE" });
+}
