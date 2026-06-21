@@ -47,7 +47,8 @@ import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { ChangeEventsService } from "../common/change-events.service";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { Database, DRIZZLE } from "../db/database.module";
-import { users, workspaceMembers } from "../db/schema";
+import { users, workspaceInvites, workspaceMembers } from "../db/schema";
+import { EmailService } from "../common/email.service";
 
 const IdParam = new ZodValidationPipe(z.string().min(1).max(64));
 
@@ -59,6 +60,7 @@ export class WorkspaceMembersController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly changeEvents: ChangeEventsService,
+    private readonly email: EmailService,
   ) {}
 
   @Get()
@@ -94,57 +96,112 @@ export class WorkspaceMembersController {
   ): Promise<WorkspaceMember> {
     await this.assertRole(req.user.id, workspaceId, ["OWNER", "ADMIN"]);
 
+    const email = body.email.toLowerCase().trim();
     const [target] = await this.db
       .select()
       .from(users)
-      .where(eq(users.email, body.email.toLowerCase()))
+      .where(eq(users.email, email))
       .limit(1);
-    if (!target) {
-      throw new BadRequestException(
-        "No user with that email has signed up yet. Ask them to sign up first.",
-      );
+
+    // Existing user: attach immediately.
+    if (target) {
+      const [already] = await this.db
+        .select({ id: workspaceMembers.id })
+        .from(workspaceMembers)
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, workspaceId),
+            eq(workspaceMembers.userId, target.id),
+          ),
+        )
+        .limit(1);
+      if (already) throw new BadRequestException("Already a member of this workspace.");
+
+      const [row] = await this.db
+        .insert(workspaceMembers)
+        .values({ workspaceId, userId: target.id, role: body.role })
+        .returning();
+      if (!row) throw new BadRequestException("Failed to add member.");
+
+      await this.changeEvents.record({
+        workspaceId,
+        actorType: "USER",
+        userId: req.user.id,
+        entityType: "workspace_member",
+        entityId: row.id,
+        action: "member.add",
+        after: row,
+      });
+
+      return {
+        id: row.id,
+        workspaceId: row.workspaceId,
+        userId: row.userId,
+        role: row.role,
+        createdAt: row.createdAt.toISOString(),
+        user: {
+          id: target.id,
+          name: target.name,
+          email: target.email,
+          avatarUrl: target.avatarUrl,
+        },
+      };
     }
 
-    const [already] = await this.db
-      .select({ id: workspaceMembers.id })
-      .from(workspaceMembers)
+    // No user yet — store a pending workspace_invite. /me will pick it up
+    // automatically when the email later signs in.
+    const [existingInvite] = await this.db
+      .select({ id: workspaceInvites.id })
+      .from(workspaceInvites)
       .where(
         and(
-          eq(workspaceMembers.workspaceId, workspaceId),
-          eq(workspaceMembers.userId, target.id),
+          eq(workspaceInvites.workspaceId, workspaceId),
+          eq(workspaceInvites.email, email),
         ),
       )
       .limit(1);
-    if (already) throw new BadRequestException("Already a member of this workspace.");
+    if (existingInvite) throw new BadRequestException("An invite to that email is already pending.");
 
-    const [row] = await this.db
-      .insert(workspaceMembers)
-      .values({ workspaceId, userId: target.id, role: body.role })
+    const [invite] = await this.db
+      .insert(workspaceInvites)
+      .values({
+        workspaceId,
+        email,
+        role: body.role,
+        invitedByUserId: req.user.id,
+      })
       .returning();
-    if (!row) throw new BadRequestException("Failed to add member.");
+    if (!invite) throw new BadRequestException("Failed to create invite.");
+
+    await this.email
+      .sendInvite({
+        to: email,
+        inviter: req.user.email ?? "Someone",
+        resourceKind: "project",
+        resourceId: workspaceId,
+        shareId: invite.id,
+      })
+      .catch(() => undefined);
 
     await this.changeEvents.record({
       workspaceId,
       actorType: "USER",
       userId: req.user.id,
-      entityType: "workspace_member",
-      entityId: row.id,
-      action: "member.add",
-      after: row,
+      entityType: "workspace_invite",
+      entityId: invite.id,
+      action: "member.invite.pending",
+      after: invite,
     });
 
+    // Return shape matches WorkspaceMember at runtime; the userId placeholder
+    // signals "pending" to the UI by carrying the email rather than a real id.
     return {
-      id: row.id,
-      workspaceId: row.workspaceId,
-      userId: row.userId,
-      role: row.role,
-      createdAt: row.createdAt.toISOString(),
-      user: {
-        id: target.id,
-        name: target.name,
-        email: target.email,
-        avatarUrl: target.avatarUrl,
-      },
+      id: invite.id,
+      workspaceId: invite.workspaceId,
+      userId: `usr_${email}` as `usr_${string}`,
+      role: invite.role,
+      createdAt: invite.createdAt.toISOString(),
+      user: { id: `usr_${email}` as `usr_${string}`, name: email, email, avatarUrl: null },
     };
   }
 

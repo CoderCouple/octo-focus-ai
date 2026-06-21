@@ -455,6 +455,31 @@ export const shareLinks = pgTable(
   }),
 );
 
+export const workspaceInvites = pgTable(
+  "workspace_invites",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("win")),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: workspaceRole("role").default("MEMBER").notNull(),
+    invitedByUserId: text("invited_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    status: shareStatus("status").default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => ({
+    workspaceEmailUnique: unique().on(table.workspaceId, table.email),
+    emailIdx: index("workspace_invites_email_idx").on(table.email),
+  }),
+);
+
 export const userPreferences = pgTable("user_preferences", {
   userId: text("user_id")
     .primaryKey()

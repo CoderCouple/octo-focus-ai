@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { deleteCanvasAction } from "@/actions/canvases-action";
+import { deleteCanvasAction, renameCanvasAction } from "@/actions/canvases-action";
 import { DataTable } from "@/components/data-table";
 
 interface RowShape {
@@ -24,6 +24,10 @@ export function CanvasTableShell({ data }: { data: RowShape[] }) {
       resourceLabel="canvas"
       onDelete={async (canvasId) => {
         await deleteCanvasAction(canvasId);
+        router.refresh();
+      }}
+      onRename={async (canvasId, title) => {
+        await renameCanvasAction(canvasId, title);
         router.refresh();
       }}
     />

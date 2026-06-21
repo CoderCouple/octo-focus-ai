@@ -1,9 +1,9 @@
 import { BadRequestException, Controller, Get, Inject, Req, UseGuards } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { AuthenticatedRequest } from "../auth/supabase-auth.guard";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard";
 import { Database, DRIZZLE } from "../db/database.module";
-import { users, workspaceMembers, workspaces } from "../db/schema";
+import { users, workspaceInvites, workspaceMembers, workspaces } from "../db/schema";
 
 // users.id is already `usr_<uuid>` by the time it reaches this controller —
 // the auth guard rewrites Supabase's raw JWT subject into the prefixed form.
@@ -50,6 +50,42 @@ export class MeController {
 
       if (!user) {
         throw new BadRequestException("Failed to upsert user.");
+      }
+
+      // Convert any pending workspace_invites for this email into real
+      // memberships. The invite row is marked accepted; if a duplicate
+      // membership already exists we just drop the invite.
+      const pendingInvites = await tx
+        .select()
+        .from(workspaceInvites)
+        .where(
+          and(
+            eq(workspaceInvites.email, email.toLowerCase()),
+            eq(workspaceInvites.status, "pending"),
+          ),
+        );
+      for (const invite of pendingInvites) {
+        const [existing] = await tx
+          .select({ id: workspaceMembers.id })
+          .from(workspaceMembers)
+          .where(
+            and(
+              eq(workspaceMembers.workspaceId, invite.workspaceId),
+              eq(workspaceMembers.userId, user.id),
+            ),
+          )
+          .limit(1);
+        if (!existing) {
+          await tx.insert(workspaceMembers).values({
+            workspaceId: invite.workspaceId,
+            userId: user.id,
+            role: invite.role,
+          });
+        }
+        await tx
+          .update(workspaceInvites)
+          .set({ status: "active", acceptedAt: new Date() })
+          .where(eq(workspaceInvites.id, invite.id));
       }
 
       let memberships = await tx

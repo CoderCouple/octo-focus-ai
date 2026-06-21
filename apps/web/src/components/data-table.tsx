@@ -122,6 +122,7 @@ export const schema = z.object({
 
 interface RowActionsContextValue {
   onDelete?: (resourceId: string) => Promise<void> | void
+  onRename?: (resourceId: string, nextTitle: string) => Promise<void> | void
   resourceLabel?: string
 }
 
@@ -317,7 +318,7 @@ function RowActionsCell({
   resourceHref?: string
   title: string
 }) {
-  const { onDelete, resourceLabel } = React.useContext(RowActionsContext)
+  const { onDelete, onRename, resourceLabel } = React.useContext(RowActionsContext)
   const [busy, setBusy] = React.useState(false)
 
   const handleDelete = async () => {
@@ -326,6 +327,18 @@ function RowActionsCell({
     setBusy(true)
     try {
       await onDelete(resourceId)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleRename = async () => {
+    if (!onRename || !resourceId) return
+    const next = window.prompt(`Rename ${resourceLabel ?? "item"}`, title)?.trim()
+    if (!next || next === title) return
+    setBusy(true)
+    try {
+      await onRename(resourceId, next)
     } finally {
       setBusy(false)
     }
@@ -349,9 +362,14 @@ function RowActionsCell({
             <a href={resourceHref}>Open</a>
           </DropdownMenuItem>
         ) : null}
+        {onRename && resourceId ? (
+          <DropdownMenuItem disabled={busy} onClick={handleRename}>
+            Rename
+          </DropdownMenuItem>
+        ) : null}
         {onDelete && resourceId ? (
           <>
-            {resourceHref ? <DropdownMenuSeparator /> : null}
+            {(resourceHref || onRename) ? <DropdownMenuSeparator /> : null}
             <DropdownMenuItem
               variant="destructive"
               disabled={busy}
@@ -394,12 +412,14 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
 interface DataTableProps {
   data: z.infer<typeof schema>[]
   onDelete?: (resourceId: string) => Promise<void> | void
+  onRename?: (resourceId: string, nextTitle: string) => Promise<void> | void
   resourceLabel?: string
 }
 
 export function DataTable({
   data: initialData,
   onDelete,
+  onRename,
   resourceLabel,
 }: DataTableProps) {
   const [data, setData] = React.useState(() => initialData)
@@ -463,8 +483,8 @@ export function DataTable({
   }
 
   const rowActionsValue = React.useMemo(
-    () => ({ onDelete, resourceLabel }),
-    [onDelete, resourceLabel],
+    () => ({ onDelete, onRename, resourceLabel }),
+    [onDelete, onRename, resourceLabel],
   )
 
   return (

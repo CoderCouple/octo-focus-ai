@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { deletePageAction } from "@/actions/pages-action";
+import { deletePageAction, renamePageAction } from "@/actions/pages-action";
 import { DataTable } from "@/components/data-table";
 
 interface RowShape {
@@ -24,6 +24,10 @@ export function NotesTableShell({ data }: { data: RowShape[] }) {
       resourceLabel="note"
       onDelete={async (pageId) => {
         await deletePageAction(pageId);
+        router.refresh();
+      }}
+      onRename={async (pageId, title) => {
+        await renamePageAction(pageId, title);
         router.refresh();
       }}
     />

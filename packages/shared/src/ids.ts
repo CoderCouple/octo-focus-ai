@@ -31,6 +31,7 @@ export const ID_PREFIXES = {
   shareLink: "lnk",
   userPreference: "prf",
   canvasAsset: "ast",
+  workspaceInvite: "win",
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
