@@ -10,12 +10,12 @@ import { ChangeEventsController } from "../routes/change-events.controller";
 import { HealthController } from "../routes/health.controller";
 import { MeController } from "../routes/me.controller";
 import { PreferencesController } from "../routes/preferences.controller";
-import { PublicController } from "../routes/public.controller";
-import { PublishController } from "../routes/publish.controller";
-import { SharesController } from "../routes/shares.controller";
 import { CanvasesModule } from "./canvases.module";
 import { PagesModule } from "./pages.module";
 import { ProjectsModule } from "./projects.module";
+import { PublicModule } from "./public.module";
+import { PublishModule } from "./publish.module";
+import { SharingModule } from "./sharing.module";
 import { WorkspacesModule } from "./workspaces.module";
 
 @Module({
@@ -26,6 +26,9 @@ import { WorkspacesModule } from "./workspaces.module";
     ProjectsModule,
     PagesModule,
     CanvasesModule,
+    SharingModule,
+    PublishModule,
+    PublicModule,
   ],
   controllers: [
     HealthController,
@@ -33,9 +36,6 @@ import { WorkspacesModule } from "./workspaces.module";
     PreferencesController,
     AiRunsController,
     ChangeEventsController,
-    PublishController,
-    SharesController,
-    PublicController,
   ],
   providers: [ChangeEventsService, PermissionsService, SlugService, EmailService],
   exports: [ChangeEventsService, PermissionsService, SlugService, EmailService],
