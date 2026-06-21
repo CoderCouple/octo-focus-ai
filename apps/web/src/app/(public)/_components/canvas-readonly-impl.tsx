@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { loadSnapshot, Tldraw, type Editor, type TLStoreSnapshot } from "tldraw";
-import "tldraw/tldraw.css";
 
 export interface CanvasReadOnlyImplProps {
   initialDocument: unknown;

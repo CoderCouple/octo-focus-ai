@@ -15,7 +15,6 @@ import {
   type TLShapeId,
   type TLStoreSnapshot,
 } from "tldraw";
-import "tldraw/tldraw.css";
 import { updateCanvasAction } from "@/actions/canvases-action";
 import { syncDiagramToTldraw } from "./diagram-to-tldraw";
 import { detectShape, type Point } from "./shape-detector";
