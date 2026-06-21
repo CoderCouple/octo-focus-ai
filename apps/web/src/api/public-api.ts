@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { unwrapBaseResponse } from "./base-response";
 
 export type PublicResource =
   | {
@@ -61,7 +62,7 @@ export async function fetchPublicBySlug(
   );
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Public fetch failed (${res.status})`);
-  return (await res.json()) as PublicResource;
+  return unwrapBaseResponse<PublicResource>(await res.json(), "/public/p/...");
 }
 
 export interface ShareTokenResource {
@@ -83,5 +84,6 @@ export async function fetchByShareToken(
   if (res.status === 401) return { resource: null, needsPassword: true };
   if (res.status === 404) return { resource: null, needsPassword: false };
   if (!res.ok) throw new Error(`Share fetch failed (${res.status})`);
-  return { resource: (await res.json()) as ShareTokenResource, needsPassword: false };
+  const resource = unwrapBaseResponse<ShareTokenResource>(await res.json(), "/public/share/...");
+  return { resource, needsPassword: false };
 }

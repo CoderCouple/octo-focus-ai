@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { unwrapBaseResponse } from "./base-response";
 
 export type Visibility = "private" | "unlisted" | "workspace" | "public";
 export type SharePermission = "viewer" | "commenter" | "editor" | "admin";
@@ -50,8 +51,15 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (session) headers.set("authorization", `Bearer ${session.access_token}`);
 
   const res = await fetch(`${env.API_URL}${path}`, { ...init, headers });
-  if (!res.ok) throw new Error(`API ${path} ${res.status}: ${await res.text()}`);
-  return (await res.json()) as T;
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message =
+      body && typeof body === "object" && "message" in body && typeof body.message === "string"
+        ? body.message
+        : `${res.status}`;
+    throw new Error(`API ${path} ${res.status}: ${message}`);
+  }
+  return unwrapBaseResponse<T>(body, path);
 }
 
 export function publishResourceApi(

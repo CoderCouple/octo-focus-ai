@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { unwrapBaseResponse } from "./base-response";
 
 export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const supabase = await createSupabaseServerClient();
@@ -22,15 +23,15 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
     cache: "no-store",
   });
 
+  const body = await response.json().catch(() => null);
+
   if (!response.ok) {
-    let detail = "";
-    try {
-      detail = await response.text();
-    } catch {
-      // ignore
-    }
-    throw new Error(`OctoFocusAI API ${path} ${response.status}: ${detail}`);
+    const message =
+      (body && typeof body === "object" && "message" in body && typeof body.message === "string"
+        ? body.message
+        : "") || `${response.status}`;
+    throw new Error(`OctoFocusAI API ${path} ${response.status}: ${message}`);
   }
 
-  return (await response.json()) as T;
+  return unwrapBaseResponse<T>(body, path);
 }
