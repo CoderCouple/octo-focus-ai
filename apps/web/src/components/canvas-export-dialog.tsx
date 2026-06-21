@@ -101,8 +101,8 @@ function ExportBody({ canvasId, getEditor }: CanvasExportDialogProps) {
         format: "svg",
         content: base64,
         contentType: "image/svg+xml",
-        width: result.width,
-        height: result.height,
+        width: Math.round(result.width),
+        height: Math.round(result.height),
         title: `canvas-${new Date().toISOString().slice(0, 10)}`,
         visibility: "public",
       });
