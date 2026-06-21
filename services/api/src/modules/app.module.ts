@@ -5,13 +5,13 @@ import { EmailService } from "../common/email.service";
 import { PermissionsService } from "../common/permissions.service";
 import { SlugService } from "../common/slug.service";
 import { DatabaseModule } from "../db/database.module";
-import { AiRunsController } from "../routes/ai-runs.controller";
-import { ChangeEventsController } from "../routes/change-events.controller";
-import { HealthController } from "../routes/health.controller";
-import { MeController } from "../routes/me.controller";
-import { PreferencesController } from "../routes/preferences.controller";
+import { AiRunsModule } from "./ai-runs.module";
+import { AuditModule } from "./audit.module";
 import { CanvasesModule } from "./canvases.module";
+import { HealthModule } from "./health.module";
+import { MeModule } from "./me.module";
 import { PagesModule } from "./pages.module";
+import { PreferencesModule } from "./preferences.module";
 import { ProjectsModule } from "./projects.module";
 import { PublicModule } from "./public.module";
 import { PublishModule } from "./publish.module";
@@ -22,6 +22,9 @@ import { WorkspacesModule } from "./workspaces.module";
   imports: [
     DatabaseModule,
     AuthModule,
+    HealthModule,
+    MeModule,
+    PreferencesModule,
     WorkspacesModule,
     ProjectsModule,
     PagesModule,
@@ -29,13 +32,8 @@ import { WorkspacesModule } from "./workspaces.module";
     SharingModule,
     PublishModule,
     PublicModule,
-  ],
-  controllers: [
-    HealthController,
-    MeController,
-    PreferencesController,
-    AiRunsController,
-    ChangeEventsController,
+    AiRunsModule,
+    AuditModule,
   ],
   providers: [ChangeEventsService, PermissionsService, SlugService, EmailService],
   exports: [ChangeEventsService, PermissionsService, SlugService, EmailService],
