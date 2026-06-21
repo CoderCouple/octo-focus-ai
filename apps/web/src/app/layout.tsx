@@ -8,7 +8,7 @@ import "tldraw/tldraw.css";
 
 export const metadata: Metadata = {
   title: "OctoFocusAI",
-  description: "AI focused workspace for Humans and Agents.",
+  description: "The AI workspace for Humans and Agents.",
 };
 
 export default function RootLayout({

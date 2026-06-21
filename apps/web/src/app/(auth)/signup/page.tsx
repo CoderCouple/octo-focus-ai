@@ -15,7 +15,7 @@ export default function SignupPage() {
             <div className="text-xl font-medium tracking-tight">OctoFocusAI</div>
           </div>
           <p className="text-muted-foreground inline-flex flex-wrap items-center justify-center gap-x-1.5 text-sm">
-            AI focused workspace for
+            The AI workspace for
             <Users className="size-3.5" strokeWidth={1.75} aria-hidden />
             Humans and
             <Bot className="size-3.5" strokeWidth={1.75} aria-hidden />
