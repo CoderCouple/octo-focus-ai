@@ -6,29 +6,31 @@ import { PermissionsService } from "../common/permissions.service";
 import { SlugService } from "../common/slug.service";
 import { DatabaseModule } from "../db/database.module";
 import { AiRunsController } from "../routes/ai-runs.controller";
-import { CanvasAssetsController } from "../routes/canvas-assets.controller";
-import { CanvasesController } from "../routes/canvases.controller";
 import { ChangeEventsController } from "../routes/change-events.controller";
 import { HealthController } from "../routes/health.controller";
 import { MeController } from "../routes/me.controller";
-import { PagesController } from "../routes/pages.controller";
 import { PreferencesController } from "../routes/preferences.controller";
-import { ProjectsController } from "../routes/projects.controller";
 import { PublicController } from "../routes/public.controller";
 import { PublishController } from "../routes/publish.controller";
 import { SharesController } from "../routes/shares.controller";
+import { CanvasesModule } from "./canvases.module";
+import { PagesModule } from "./pages.module";
+import { ProjectsModule } from "./projects.module";
 import { WorkspacesModule } from "./workspaces.module";
 
 @Module({
-  imports: [DatabaseModule, AuthModule, WorkspacesModule],
+  imports: [
+    DatabaseModule,
+    AuthModule,
+    WorkspacesModule,
+    ProjectsModule,
+    PagesModule,
+    CanvasesModule,
+  ],
   controllers: [
     HealthController,
     MeController,
     PreferencesController,
-    ProjectsController,
-    CanvasesController,
-    CanvasAssetsController,
-    PagesController,
     AiRunsController,
     ChangeEventsController,
     PublishController,
