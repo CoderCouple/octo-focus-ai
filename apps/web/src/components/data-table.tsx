@@ -114,7 +114,18 @@ export const schema = z.object({
   target: z.string(),
   limit: z.string(),
   reviewer: z.string(),
+  // Optional pointers used when the table is fed real resources. When set the
+  // row dropdown's Delete / Open items call into RowActionsContext.
+  resourceId: z.string().optional(),
+  resourceHref: z.string().optional(),
 })
+
+interface RowActionsContextValue {
+  onDelete?: (resourceId: string) => Promise<void> | void
+  resourceLabel?: string
+}
+
+const RowActionsContext = React.createContext<RowActionsContextValue>({})
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: number }) {
@@ -287,29 +298,73 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     id: "actions",
-    cell: () => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="flex size-8 text-muted-foreground data-[state=open]:bg-muted"
-            size="icon"
-          >
-            <IconDotsVertical />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Make a copy</DropdownMenuItem>
-          <DropdownMenuItem>Favorite</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    cell: ({ row }) => (
+      <RowActionsCell
+        resourceId={row.original.resourceId}
+        resourceHref={row.original.resourceHref}
+        title={row.original.header}
+      />
     ),
   },
 ]
+
+function RowActionsCell({
+  resourceId,
+  resourceHref,
+  title,
+}: {
+  resourceId?: string
+  resourceHref?: string
+  title: string
+}) {
+  const { onDelete, resourceLabel } = React.useContext(RowActionsContext)
+  const [busy, setBusy] = React.useState(false)
+
+  const handleDelete = async () => {
+    if (!onDelete || !resourceId) return
+    if (!confirm(`Delete ${resourceLabel ?? "this item"} "${title}"?`)) return
+    setBusy(true)
+    try {
+      await onDelete(resourceId)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="flex size-8 text-muted-foreground data-[state=open]:bg-muted"
+          size="icon"
+        >
+          <IconDotsVertical />
+          <span className="sr-only">Open menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-36">
+        {resourceHref ? (
+          <DropdownMenuItem asChild>
+            <a href={resourceHref}>Open</a>
+          </DropdownMenuItem>
+        ) : null}
+        {onDelete && resourceId ? (
+          <>
+            {resourceHref ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={busy}
+              onClick={handleDelete}
+            >
+              {busy ? "Deleting…" : "Delete"}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
@@ -336,11 +391,17 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   )
 }
 
+interface DataTableProps {
+  data: z.infer<typeof schema>[]
+  onDelete?: (resourceId: string) => Promise<void> | void
+  resourceLabel?: string
+}
+
 export function DataTable({
   data: initialData,
-}: {
-  data: z.infer<typeof schema>[]
-}) {
+  onDelete,
+  resourceLabel,
+}: DataTableProps) {
   const [data, setData] = React.useState(() => initialData)
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -401,7 +462,13 @@ export function DataTable({
     }
   }
 
+  const rowActionsValue = React.useMemo(
+    () => ({ onDelete, resourceLabel }),
+    [onDelete, resourceLabel],
+  )
+
   return (
+    <RowActionsContext.Provider value={rowActionsValue}>
     <Tabs
       defaultValue="outline"
       className="w-full flex-col justify-start gap-6"
@@ -624,6 +691,7 @@ export function DataTable({
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
     </Tabs>
+    </RowActionsContext.Provider>
   )
 }
 

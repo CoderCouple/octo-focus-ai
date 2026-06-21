@@ -1,8 +1,8 @@
 import { listWorkspaceCanvasesApi } from "@/api/canvases-api";
 import { getMeApi } from "@/api/me-api";
-import { DataTable } from "@/components/data-table";
 import { SectionCards, type SectionMetric } from "@/components/section-cards";
 import { env } from "@/lib/env";
+import { CanvasTableShell } from "./_components/canvas-table-shell";
 
 const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 
@@ -68,6 +68,8 @@ export default async function CanvasListPage() {
     target: summarize(canvas.updatedAt),
     limit: canvas.visibility,
     reviewer: "—",
+    resourceId: canvas.id,
+    resourceHref: `/app/projects/${canvas.projectId}`,
   }));
 
   return (
@@ -75,7 +77,7 @@ export default async function CanvasListPage() {
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
           <SectionCards metrics={metrics} />
-          <DataTable data={tableData} />
+          <CanvasTableShell data={tableData} />
         </div>
       </div>
     </div>

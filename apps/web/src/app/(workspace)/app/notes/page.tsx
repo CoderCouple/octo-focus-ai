@@ -1,8 +1,8 @@
 import { listWorkspacePagesApi } from "@/api/pages-api";
 import { getMeApi } from "@/api/me-api";
-import { DataTable } from "@/components/data-table";
 import { SectionCards, type SectionMetric } from "@/components/section-cards";
 import { env } from "@/lib/env";
+import { NotesTableShell } from "./_components/notes-table-shell";
 
 const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 
@@ -68,6 +68,8 @@ export default async function NotesPage() {
     target: summarize(page.updatedAt),
     limit: page.visibility,
     reviewer: "—",
+    resourceId: page.id,
+    resourceHref: `/app/projects/${page.projectId}`,
   }));
 
   return (
@@ -75,7 +77,7 @@ export default async function NotesPage() {
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
           <SectionCards metrics={metrics} />
-          <DataTable data={tableData} />
+          <NotesTableShell data={tableData} />
         </div>
       </div>
     </div>
