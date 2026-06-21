@@ -51,6 +51,31 @@ export class PagesController {
       .orderBy(desc(pages.updatedAt));
   }
 
+  @Get("workspaces/:workspaceId/pages")
+  async listForWorkspace(
+    @Param("workspaceId", IdParam) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    await this.assertMember(request.user.id, workspaceId);
+    const rows = await this.db
+      .select({
+        id: pages.id,
+        title: pages.title,
+        projectId: pages.projectId,
+        projectName: projects.name,
+        contentMd: pages.contentMd,
+        publicSlug: pages.publicSlug,
+        visibility: pages.visibility,
+        updatedAt: pages.updatedAt,
+        createdAt: pages.createdAt,
+      })
+      .from(pages)
+      .innerJoin(projects, eq(pages.projectId, projects.id))
+      .where(and(eq(projects.workspaceId, workspaceId), isNull(pages.deletedAt)))
+      .orderBy(desc(pages.updatedAt));
+    return rows;
+  }
+
   @Post("projects/:projectId/pages")
   async create(
     @Param("projectId", IdParam) projectId: string,

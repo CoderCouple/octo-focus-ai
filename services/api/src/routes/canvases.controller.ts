@@ -51,6 +51,29 @@ export class CanvasesController {
       .orderBy(desc(canvases.updatedAt));
   }
 
+  @Get("workspaces/:workspaceId/canvases")
+  async listForWorkspace(
+    @Param("workspaceId", IdParam) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    await this.assertMember(request.user.id, workspaceId);
+    return this.db
+      .select({
+        id: canvases.id,
+        title: canvases.title,
+        projectId: canvases.projectId,
+        projectName: projects.name,
+        publicSlug: canvases.publicSlug,
+        visibility: canvases.visibility,
+        createdAt: canvases.createdAt,
+        updatedAt: canvases.updatedAt,
+      })
+      .from(canvases)
+      .innerJoin(projects, eq(canvases.projectId, projects.id))
+      .where(and(eq(projects.workspaceId, workspaceId), isNull(canvases.deletedAt)))
+      .orderBy(desc(canvases.updatedAt));
+  }
+
   @Post("projects/:projectId/canvases")
   async create(
     @Param("projectId", IdParam) projectId: string,

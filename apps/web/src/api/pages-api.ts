@@ -1,6 +1,22 @@
 import "server-only";
-import type { Page, PageCreate, PageUpdate } from "@octofocus/shared";
+import type { Page, PageCreate, PageUpdate, Visibility } from "@octofocus/shared";
 import { serverApiFetch } from "./server-client";
+
+export interface WorkspacePageSummary {
+  id: string;
+  title: string;
+  projectId: string;
+  projectName: string;
+  contentMd: string;
+  publicSlug: string | null;
+  visibility: Visibility;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listWorkspacePagesApi(workspaceId: string) {
+  return serverApiFetch<WorkspacePageSummary[]>(`/workspaces/${workspaceId}/pages`);
+}
 
 export function listPagesApi(projectId: string) {
   return serverApiFetch<Page[]>(`/projects/${projectId}/pages`);

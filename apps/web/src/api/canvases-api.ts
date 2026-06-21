@@ -1,6 +1,21 @@
 import "server-only";
-import type { Canvas, CanvasCreate, CanvasUpdate } from "@octofocus/shared";
+import type { Canvas, CanvasCreate, CanvasUpdate, Visibility } from "@octofocus/shared";
 import { serverApiFetch } from "./server-client";
+
+export interface WorkspaceCanvasSummary {
+  id: string;
+  title: string;
+  projectId: string;
+  projectName: string;
+  publicSlug: string | null;
+  visibility: Visibility;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listWorkspaceCanvasesApi(workspaceId: string) {
+  return serverApiFetch<WorkspaceCanvasSummary[]>(`/workspaces/${workspaceId}/canvases`);
+}
 
 export function listCanvasesApi(projectId: string) {
   return serverApiFetch<Canvas[]>(`/projects/${projectId}/canvases`);
