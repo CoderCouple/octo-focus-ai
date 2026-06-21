@@ -28,11 +28,19 @@ export default async function SharePage({
   }
 
   // Reshape into the same envelope the public-by-slug renderer expects.
+  // For project shares we don't have eager page/canvas children — the link
+  // grants only the project resource itself, so consumers see the header.
   const wrapped =
     resource.kind === "page"
       ? { kind: "page" as const, workspaceSlug: "", data: resource.data as never }
       : resource.kind === "canvas"
         ? { kind: "canvas" as const, workspaceSlug: "", data: resource.data as never }
-        : { kind: "project" as const, workspaceSlug: "", data: resource.data as never };
+        : {
+            kind: "project" as const,
+            workspaceSlug: "",
+            data: resource.data as never,
+            page: null,
+            canvas: null,
+          };
   return <PublicResourceRenderer resource={wrapped} />;
 }

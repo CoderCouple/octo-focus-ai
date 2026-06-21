@@ -1,7 +1,13 @@
 import { env } from "@/lib/env";
 
 export type PublicResource =
-  | { kind: "project"; workspaceSlug: string; data: ProjectData }
+  | {
+      kind: "project";
+      workspaceSlug: string;
+      data: ProjectData;
+      page: PageData | null;
+      canvas: CanvasData | null;
+    }
   | { kind: "page"; workspaceSlug: string; data: PageData }
   | { kind: "canvas"; workspaceSlug: string; data: CanvasData };
 

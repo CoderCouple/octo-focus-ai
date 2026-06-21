@@ -16,7 +16,7 @@ import {
   Post,
   UnauthorizedException,
 } from "@nestjs/common";
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createHash, timingSafeEqual } from "crypto";
 import type { ResourceKind } from "@octofocus/shared";
@@ -43,6 +43,33 @@ export class PublicController {
   ) {
     const hit = await this.permissions.loadPublicByWorkspaceAndSlug(workspaceSlug, slug);
     if (!hit) throw new NotFoundException("Resource not found.");
+
+    // Publishing a project should surface its actual content, not just a
+    // header. Inherit visibility from the project: the first page + first
+    // canvas (newest by updatedAt) ride along in the same payload.
+    if (hit.kind === "project") {
+      const projectId = hit.row.id;
+      const [firstPage] = await this.db
+        .select()
+        .from(pages)
+        .where(and(eq(pages.projectId, projectId), isNull(pages.deletedAt)))
+        .orderBy(desc(pages.updatedAt))
+        .limit(1);
+      const [firstCanvas] = await this.db
+        .select()
+        .from(canvases)
+        .where(and(eq(canvases.projectId, projectId), isNull(canvases.deletedAt)))
+        .orderBy(desc(canvases.updatedAt))
+        .limit(1);
+      return {
+        kind: "project" as const,
+        workspaceSlug: hit.workspaceSlug,
+        data: hit.row,
+        page: firstPage ?? null,
+        canvas: firstCanvas ?? null,
+      };
+    }
+
     return this.shape(hit.kind, hit.row, hit.workspaceSlug);
   }
 

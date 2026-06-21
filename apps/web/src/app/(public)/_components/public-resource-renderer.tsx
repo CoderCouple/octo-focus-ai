@@ -1,9 +1,11 @@
 /**
  * Read-only renderer for public resources.
  *
- *   project → header + description (the project's pages/canvases are not
- *             enumerated yet — published children render at their own URLs)
- *   page    → BlockNote in editable=false mode, with the same custom schema
+ *   project → header + read-only split (page on left, canvas on right) so
+ *             publishing a project surfaces real content, not just metadata.
+ *             Falls back to header-only when the project has no pages or
+ *             canvases yet.
+ *   page    → BlockNote in editable=false mode with the same custom schema
  *             (Mermaid block etc.) the editor uses
  *   canvas  → tldraw with hideUi + isReadonly + zoomToFit
  */
@@ -41,14 +43,37 @@ export function PublicResourceRenderer({ resource }: { resource: PublicResource 
       </div>
     );
   }
+
+  // project
+  const { data, page, canvas } = resource;
+  const hasContent = page || canvas;
+  const showSplit = page && canvas;
   return (
-    <article className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-foreground mb-2 text-3xl font-semibold tracking-tight md:text-4xl">
-        {resource.data.name}
-      </h1>
-      {resource.data.description ? (
-        <p className="text-muted-foreground">{resource.data.description}</p>
-      ) : null}
-    </article>
+    <div className="flex h-[calc(100svh-3rem)] flex-col">
+      <header className="bg-card flex h-12 shrink-0 items-center border-b px-6">
+        <h1 className="text-base font-semibold tracking-tight">{data.name}</h1>
+        {data.description ? (
+          <span className="text-muted-foreground ml-3 truncate text-xs">{data.description}</span>
+        ) : null}
+      </header>
+      {!hasContent ? (
+        <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+          This project has no content yet.
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {page ? (
+            <div key="public-notes" className={showSplit ? "w-1/2 border-r" : "flex-1"}>
+              <NotesReadOnly initialContent={page.document} />
+            </div>
+          ) : null}
+          {canvas ? (
+            <div key="public-canvas" className={showSplit ? "w-1/2" : "flex-1"}>
+              <CanvasReadOnly initialDocument={canvas.document} />
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }
