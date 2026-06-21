@@ -37,10 +37,10 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { MiniCalendar } from "./mini-calendar";
 
 type ViewMode = "day" | "week" | "month" | "year";
 
@@ -227,7 +227,12 @@ function LeftRail({
 }) {
   return (
     <aside className="w-[240px] shrink-0 overflow-y-auto p-3">
-      <MiniCalendar value={selectedDate} onChange={onSelectDate} />
+      <Calendar
+        mode="single"
+        selected={selectedDate}
+        onSelect={(d) => d && onSelectDate(d)}
+        weekStartsOn={1}
+      />
       <Separator className="my-3" />
       <div className="space-y-4 px-1">
         {accountGroups.map((group) => (
