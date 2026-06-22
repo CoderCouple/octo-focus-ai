@@ -34,7 +34,7 @@ export function actionFailure(message: string, errorCode?: string): ActionRespon
   return { success: false, message, ...(errorCode ? { errorCode } : {}) };
 }
 
-function isBaseResponse(value: unknown): value is BaseResponse<unknown> {
+export function isBaseResponse(value: unknown): value is BaseResponse<unknown> {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -52,7 +52,8 @@ export function unwrapBaseResponse<T>(body: unknown, path: string): T {
     return body as T;
   }
   if (!body.success) {
-    throw new Error(`OctoFocusAI API ${path} ${body.statusCode}: ${body.message}`);
+    const code = body.errorCode ? ` [${body.errorCode}]` : "";
+    throw new Error(`OctoFocusAI API ${path} ${body.statusCode}${code}: ${body.message}`);
   }
   return body.result as T;
 }
