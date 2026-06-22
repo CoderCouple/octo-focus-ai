@@ -3,11 +3,11 @@
 import { Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "tldraw";
-import { OctoCanvas } from "@/app/(workspace)/app/canvas/[id]/_components/octo-canvas-dynamic";
-import { CanvasExportDialog } from "@/components/canvas-export-dialog";
 import { DslDrawer } from "@/components/dsl-drawer";
 import { Toggle } from "@/components/ui/toggle";
-import { updateCanvasAction } from "@/actions/canvases-action";
+import { updateCanvasAction } from "../actions/canvases-actions";
+import { CanvasExportDialog } from "./canvas-export-dialog";
+import { OctoCanvas } from "./octo-canvas-dynamic";
 
 const DSL_SAVE_DEBOUNCE_MS = 1000;
 
@@ -38,9 +38,9 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
     setDsl(value);
     if (dslSaveTimer.current) clearTimeout(dslSaveTimer.current);
     dslSaveTimer.current = setTimeout(() => {
-      void updateCanvasAction(canvasId, { diagramSchema: { dsl: value } }).catch((err) =>
-        console.error("DSL save failed", err),
-      );
+      void updateCanvasAction(canvasId, { diagramSchema: { dsl: value } }).then((r) => {
+        if (!r.success) console.error("DSL save failed", r.message);
+      });
     }, DSL_SAVE_DEBOUNCE_MS);
   }
 

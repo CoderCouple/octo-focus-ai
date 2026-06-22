@@ -1,5 +1,4 @@
-import { getCanvasApi } from "@/api/canvases-api";
-import { CanvasPane } from "@/components/canvas-pane";
+import { CanvasPane, extractDsl, getCanvasApi } from "@/features/canvas";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -8,13 +7,7 @@ interface PageProps {
 export default async function CanvasEditorPage({ params }: PageProps) {
   const { id } = await params;
   const canvas = await getCanvasApi(id);
-  const dsl =
-    canvas.diagramSchema &&
-    typeof canvas.diagramSchema === "object" &&
-    "dsl" in canvas.diagramSchema &&
-    typeof (canvas.diagramSchema as Record<string, unknown>).dsl === "string"
-      ? ((canvas.diagramSchema as Record<string, unknown>).dsl as string)
-      : "";
+  const dsl = extractDsl(canvas.diagramSchema);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col">

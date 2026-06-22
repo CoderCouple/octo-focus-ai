@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { createCanvasApi, listCanvasesApi } from "@/api/canvases-api";
 import { createPageApi, listPagesApi } from "@/api/pages-api";
+import { createCanvasApi, extractDsl, listProjectCanvasesApi } from "@/features/canvas";
 import { getProjectApi } from "@/features/projects";
 import { getMeApi } from "@/features/workspaces";
 import { env } from "@/lib/env";
@@ -22,7 +22,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
   const [pages, canvases, me] = await Promise.all([
     listPagesApi(id),
-    listCanvasesApi(id),
+    listProjectCanvasesApi(id),
     env.DEV_AUTH_BYPASS
       ? Promise.resolve({ memberships: [{ workspace: { slug: "dev-workspace" } }] } as const)
       : getMeApi(),
@@ -33,14 +33,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   // them on first open if the project doesn't have them yet.
   const page = pages[0] ?? (await createPageApi(id, { title: project.name }));
   const canvas = canvases[0] ?? (await createCanvasApi(id, { title: project.name }));
-
-  const initialDsl =
-    canvas.diagramSchema &&
-    typeof canvas.diagramSchema === "object" &&
-    "dsl" in canvas.diagramSchema &&
-    typeof (canvas.diagramSchema as Record<string, unknown>).dsl === "string"
-      ? ((canvas.diagramSchema as Record<string, unknown>).dsl as string)
-      : "";
+  const initialDsl = extractDsl(canvas.diagramSchema);
 
   return (
     <ProjectSplitView

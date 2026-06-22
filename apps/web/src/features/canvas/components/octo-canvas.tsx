@@ -15,9 +15,9 @@ import {
   type TLShapeId,
   type TLStoreSnapshot,
 } from "tldraw";
-import { updateCanvasAction } from "@/actions/canvases-action";
-import { syncDiagramToTldraw } from "./diagram-to-tldraw";
-import { detectShape, type Point } from "./shape-detector";
+import { updateCanvasAction } from "../actions/canvases-actions";
+import { syncDiagramToTldraw } from "../lib/diagram-to-tldraw";
+import { detectShape, type Point } from "../lib/shape-detector";
 
 const SAVE_DEBOUNCE_MS = 1200;
 const DSL_PARSE_DEBOUNCE_MS = 500;
@@ -116,9 +116,9 @@ export function OctoCanvas({
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
           const snap = getSnapshot(editor.store);
-          void updateCanvasAction(canvasId, { document: snap }).catch((err) =>
-            console.error("Canvas save failed", err),
-          );
+          void updateCanvasAction(canvasId, { document: snap }).then((r) => {
+            if (!r.success) console.error("Canvas save failed", r.message);
+          });
         }, SAVE_DEBOUNCE_MS);
       },
       { scope: "document", source: "user" },

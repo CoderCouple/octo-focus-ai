@@ -15,8 +15,8 @@ import {
   createCanvasExportApi,
   listCanvasExportsApi,
   revokeCanvasExportApi,
-  type CanvasAsset,
-} from "@/api/canvas-assets-api";
+} from "../api/canvas-assets-api";
+import type { CanvasAsset } from "../types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

@@ -3,7 +3,7 @@
 import type { Canvas, Page, Project } from "@octofocus/shared";
 import { FileText, LayoutGrid, Columns2 } from "lucide-react";
 import { useState } from "react";
-import { CanvasPane } from "@/components/canvas-pane";
+import { CanvasPane } from "@/features/canvas";
 import { NotesPane } from "@/components/notes-pane";
 import { SharePopover } from "@/components/share-popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
