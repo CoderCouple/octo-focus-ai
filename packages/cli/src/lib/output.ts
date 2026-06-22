@@ -5,8 +5,21 @@ export interface OutputOptions {
   json?: boolean;
 }
 
+type Mode = "json" | "pretty";
+
+let defaultMode: Mode = process.stdout.isTTY ? "pretty" : "json";
+
+/**
+ * Override the auto-detected default. Called from the root command after
+ * parsing the global --pretty / --json flags.
+ */
+export function setDefaultMode(mode: Mode): void {
+  defaultMode = mode;
+}
+
 export function emit<T>(data: T, opts: OutputOptions, render: (data: T) => void): void {
-  if (opts.json) {
+  const mode = opts.json === true ? "json" : defaultMode;
+  if (mode === "json") {
     process.stdout.write(JSON.stringify(data, null, 2) + "\n");
     return;
   }

@@ -30,6 +30,7 @@ export const ChangeEventIdSchema = prefixedId(ID_PREFIXES.changeEvent);
 export const ResourceShareIdSchema = prefixedId(ID_PREFIXES.resourceShare);
 export const ShareLinkIdSchema = prefixedId(ID_PREFIXES.shareLink);
 export const CanvasAssetIdSchema = prefixedId(ID_PREFIXES.canvasAsset);
+export const CliTokenIdSchema = prefixedId(ID_PREFIXES.cliToken);
 
 // =============================================================================
 // Existing enums + agent config
@@ -446,6 +447,30 @@ export const UserPreferenceUpdateSchema = z.object({
 });
 
 // =============================================================================
+// CLI / agent tokens
+// =============================================================================
+
+export const CliTokenCreateSchema = z.object({
+  name: z.string().min(1).max(80),
+  expiresInDays: z.number().int().min(1).max(365).optional(),
+});
+
+export const CliTokenSchema = z.object({
+  id: CliTokenIdSchema,
+  userId: UserIdSchema,
+  name: z.string(),
+  tokenPreview: z.string(),
+  lastUsedAt: z.string().nullable(),
+  expiresAt: z.string().nullable(),
+  createdAt: z.string(),
+  revokedAt: z.string().nullable(),
+});
+
+export const CliTokenCreatedSchema = CliTokenSchema.extend({
+  plaintext: z.string(),
+});
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -495,3 +520,7 @@ export type ShareLinkCreate = z.infer<typeof ShareLinkCreateSchema>;
 
 export type UserPreference = z.infer<typeof UserPreferenceSchema>;
 export type UserPreferenceUpdate = z.infer<typeof UserPreferenceUpdateSchema>;
+
+export type CliTokenCreate = z.infer<typeof CliTokenCreateSchema>;
+export type CliToken = z.infer<typeof CliTokenSchema>;
+export type CliTokenCreated = z.infer<typeof CliTokenCreatedSchema>;

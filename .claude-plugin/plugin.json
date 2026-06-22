@@ -1,0 +1,8 @@
+{
+  "name": "octofocus",
+  "version": "0.1.0",
+  "description": "Read, edit, and publish OctoFocusAI workspaces from Claude Code via the @octofocus/cli tool.",
+  "author": { "name": "Sunil Tiwari" },
+  "homepage": "https://github.com/suniltiwari/octo-focus-ai",
+  "license": "MIT"
+}

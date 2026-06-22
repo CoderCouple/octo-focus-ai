@@ -1,0 +1,12 @@
+{
+  "name": "octo-focus-ai",
+  "description": "OctoFocusAI plugin — diagram-as-code + notes + agent runs from the shell.",
+  "owner": { "name": "Sunil Tiwari" },
+  "plugins": [
+    {
+      "name": "octofocus",
+      "source": ".",
+      "description": "Read, edit, and publish OctoFocusAI workspaces via the @octofocus/cli."
+    }
+  ]
+}

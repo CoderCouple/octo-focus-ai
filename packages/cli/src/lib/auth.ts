@@ -48,9 +48,15 @@ export async function verifyMagicCode(email: string, token: string): Promise<Cli
 }
 
 export async function getValidAccessToken(): Promise<string> {
+  const envToken = process.env.OCTOFOCUS_TOKEN;
+  if (envToken && envToken.length > 0) return envToken;
+
   const cfg = await loadConfig();
   if (!cfg.session) {
-    throw new CliError("Not logged in.", "Run `octofocus login` to authenticate.");
+    throw new CliError(
+      "Not logged in.",
+      "Run `octofocus login` interactively, or set OCTOFOCUS_TOKEN for non-interactive use.",
+    );
   }
   const now = Math.floor(Date.now() / 1000);
   if (cfg.session.expiresAt - now > 60) return cfg.session.accessToken;

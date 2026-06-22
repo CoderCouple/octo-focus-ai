@@ -29,6 +29,13 @@
       "when": 1782019181865,
       "tag": "0003_known_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782091649428,
+      "tag": "0004_glossy_firebrand",
+      "breakpoints": true
     }
   ]
 }

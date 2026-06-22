@@ -8,6 +8,7 @@ import { DatabaseModule } from "../db/database.module";
 import { AiRunsModule } from "./ai-runs.module";
 import { AuditModule } from "./audit.module";
 import { CanvasesModule } from "./canvases.module";
+import { CliTokensModule } from "./cli-tokens.module";
 import { HealthModule } from "./health.module";
 import { MeModule } from "./me.module";
 import { PagesModule } from "./pages.module";
@@ -34,6 +35,7 @@ import { WorkspacesModule } from "./workspaces.module";
     PublicModule,
     AiRunsModule,
     AuditModule,
+    CliTokensModule,
   ],
   providers: [ChangeEventsService, PermissionsService, SlugService, EmailService],
   exports: [ChangeEventsService, PermissionsService, SlugService, EmailService],

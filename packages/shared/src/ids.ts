@@ -32,6 +32,7 @@ export const ID_PREFIXES = {
   userPreference: "prf",
   canvasAsset: "ast",
   workspaceInvite: "win",
+  cliToken: "cli",
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];

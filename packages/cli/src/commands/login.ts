@@ -24,6 +24,13 @@ export function loginCommand(): Command {
       if (opts.supabaseAnonKey) patch.supabaseAnonKey = opts.supabaseAnonKey;
       if (Object.keys(patch).length > 0) await saveConfig(patch);
 
+      if (!opts.email && !process.stdin.isTTY) {
+        throw new CliError(
+          "`login` is interactive and requires a TTY.",
+          "Use OCTOFOCUS_TOKEN=<jwt> for non-interactive auth (agents, CI, Claude skills).",
+        );
+      }
+
       const cfg = await loadConfig();
       if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
         throw new CliError(
