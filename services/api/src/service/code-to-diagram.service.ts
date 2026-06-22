@@ -48,15 +48,37 @@ You will be given a snippet of code (docker-compose, terraform, a package manife
 OctoFocusAI DSL grammar (current v1):
 
 \`\`\`
-# comments start with a hash and run to end of line
-Web Client                     # a node is just its name on a line
-"API Gateway"                  # use double quotes if the name has spaces
-API Gateway > Auth Service     # forward edge
-API Gateway > Auth Service: validate token   # labeled edge
+# comments start with a hash
+Web Client                                    # bare node
+"API Gateway"                                 # quoted names allow spaces
+Lambda [icon: aws-lambda]                     # node with attributes
+"Auth Service" [icon: shield, color: orange]
+API Gateway > Auth Service                    # directed edge
+API Gateway > Auth Service: validates         # edge with label
+Web Client > API Gateway [color: green]       # edge attribute
 \`\`\`
+
+Node attributes (all optional):
+  - icon: icon name (see list below)
+  - color: red, orange, yellow, green, blue, violet, light-blue, light-green, grey, black
+  - shape: rectangle (default), oval, ellipse, diamond, hexagon
+  - label: alternate display label
+
+Icon names (the renderer maps these to inline glyphs — unknown icons render as a plain box):
+  - cloud/infra: server, database, cloud, cache, queue, monitor, container
+  - AWS: aws-ec2, aws-lambda, aws-s3, aws-rds, aws-dynamodb, aws-api-gateway, aws-sqs, aws-sns, aws-cloudfront, aws-iam, aws-route53, aws-eks, aws-ecs
+  - GCP: gcp-functions, gcp-storage, gcp-bigquery, gcp-pubsub, gcp-gke
+  - Azure: azure-vm, azure-functions, azure-storage, azure-sql
+  - Kubernetes: kubernetes, k8s-control-plane, k8s-node, k8s-etcd, k8s-kubelet
+  - Data: postgres, mysql, redis, mongodb, kafka, rabbitmq, elasticsearch
+  - SaaS: github, gitlab, slack, stripe, auth0, supabase, vercel, netlify, cloudflare, docker, nginx
+  - People/clients: user, users, admin, developer, client, browser, mobile
+  - Generic: shield, key, lock, mail, bell, bug, zap, gear, brain, sparkles, flag, package, folder
 
 Rules:
 - One declaration or edge per line.
+- ALWAYS add a relevant icon when the code names a known service (S3, Lambda, Postgres, etc.). The icons are what make the diagram readable at a glance — without them it's just rectangles.
+- Reach for color sparingly and only when it carries meaning: orange for external/third-party services, green for success paths, red for danger / write paths, blue or violet for internal services.
 - Quote names that contain spaces or special characters with double quotes.
 - Node names referenced in an edge are auto-declared.
 - Keep names short and human-readable (no IDs, no UUIDs, no file paths).
