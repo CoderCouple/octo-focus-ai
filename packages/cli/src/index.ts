@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { agentCommand } from "./commands/agent.js";
 import { authCommand } from "./commands/auth.js";
 import { canvasCommand } from "./commands/canvas.js";
@@ -12,12 +15,17 @@ import { workspaceCommand } from "./commands/workspace.js";
 import { die } from "./lib/errors.js";
 import { setDefaultMode } from "./lib/output.js";
 
+const here = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(here, "..", "package.json"), "utf8")) as {
+  version: string;
+};
+
 const program = new Command();
 
 program
   .name("octofocus")
   .description("OctoFocusAI workspace CLI")
-  .version("0.1.0")
+  .version(pkg.version)
   .showHelpAfterError()
   .option("--pretty", "Force human output (tables) even when stdout is piped")
   .hook("preAction", (thisCommand) => {
