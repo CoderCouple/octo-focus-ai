@@ -137,6 +137,128 @@ Lambda > Postgres`;
   });
 });
 
+describe("parseDsl — multi-target fan-out", () => {
+  it("declares one edge per target in `A > B, C, D`", () => {
+    const { diagram } = parseDsl("Server > Worker1, Worker2, Worker3");
+    expect(diagram.nodes.map((n) => n.name)).toEqual([
+      "Server",
+      "Worker1",
+      "Worker2",
+      "Worker3",
+    ]);
+    expect(diagram.edges).toHaveLength(3);
+    expect(diagram.edges.map((e) => e.targetId)).toEqual([
+      "worker1-1",
+      "worker2-2",
+      "worker3-3",
+    ]);
+  });
+
+  it("propagates the label and edge attrs to every fan-out edge", () => {
+    const { diagram } = parseDsl("API > Lambda, Worker: invoke [color: green]");
+    expect(diagram.edges).toHaveLength(2);
+    expect(diagram.edges[0]!.label).toBe("invoke");
+    expect(diagram.edges[0]!.color).toBe("green");
+    expect(diagram.edges[1]!.label).toBe("invoke");
+    expect(diagram.edges[1]!.color).toBe("green");
+  });
+
+  it("respects quoted names inside the target list", () => {
+    const { diagram } = parseDsl('Web > "Auth Service", "User DB"');
+    expect(diagram.nodes.map((n) => n.name)).toEqual([
+      "Web",
+      "Auth Service",
+      "User DB",
+    ]);
+    expect(diagram.edges).toHaveLength(2);
+  });
+
+  it("attaches per-target attributes correctly", () => {
+    const { diagram } = parseDsl(
+      "Web > Lambda [icon: aws-lambda], Postgres [icon: aws-rds]",
+    );
+    const lambda = diagram.nodes.find((n) => n.name === "Lambda")!;
+    const postgres = diagram.nodes.find((n) => n.name === "Postgres")!;
+    expect(lambda.icon).toBe("aws-lambda");
+    expect(postgres.icon).toBe("aws-rds");
+  });
+});
+
+describe("parseDsl — groups", () => {
+  it("parses a top-level group with bare children", () => {
+    const src = `
+AWS [icon: aws] {
+  Lambda
+  RDS
+}
+`;
+    const { diagram, errors } = parseDsl(src);
+    expect(errors).toEqual([]);
+    const aws = diagram.nodes.find((n) => n.name === "AWS")!;
+    expect(aws.isGroup).toBe(true);
+    expect(aws.icon).toBe("aws");
+    const lambda = diagram.nodes.find((n) => n.name === "Lambda")!;
+    const rds = diagram.nodes.find((n) => n.name === "RDS")!;
+    expect(lambda.parentId).toBe(aws.id);
+    expect(rds.parentId).toBe(aws.id);
+  });
+
+  it("supports nested groups", () => {
+    const src = `
+VPC [icon: cloud] {
+  PublicSubnet {
+    Bastion [icon: aws-ec2]
+  }
+  PrivateSubnet {
+    AppServer [icon: aws-ec2]
+    Database [icon: aws-rds]
+  }
+}
+`;
+    const { diagram, errors } = parseDsl(src);
+    expect(errors).toEqual([]);
+    const vpc = diagram.nodes.find((n) => n.name === "VPC")!;
+    const pub = diagram.nodes.find((n) => n.name === "PublicSubnet")!;
+    const priv = diagram.nodes.find((n) => n.name === "PrivateSubnet")!;
+    const bastion = diagram.nodes.find((n) => n.name === "Bastion")!;
+    const appServer = diagram.nodes.find((n) => n.name === "AppServer")!;
+    expect(pub.parentId).toBe(vpc.id);
+    expect(priv.parentId).toBe(vpc.id);
+    expect(bastion.parentId).toBe(pub.id);
+    expect(appServer.parentId).toBe(priv.id);
+    expect(vpc.isGroup).toBe(true);
+    expect(pub.isGroup).toBe(true);
+    expect(priv.isGroup).toBe(true);
+  });
+
+  it("flags an unclosed group", () => {
+    const src = `
+AWS {
+  Lambda
+`;
+    const { errors } = parseDsl(src);
+    expect(errors.some((e) => e.message.includes("Unclosed"))).toBe(true);
+  });
+
+  it("flags a stray closing brace", () => {
+    const { errors } = parseDsl("}\nLambda");
+    expect(errors.some((e) => e.message.includes("Unexpected"))).toBe(true);
+  });
+
+  it("allows edges that reference nodes inside groups", () => {
+    const src = `
+AWS {
+  Lambda
+}
+Web > Lambda
+`;
+    const { diagram } = parseDsl(src);
+    expect(diagram.edges).toHaveLength(1);
+    const lambda = diagram.nodes.find((n) => n.name === "Lambda")!;
+    expect(lambda.parentId).toBe(diagram.nodes.find((n) => n.name === "AWS")!.id);
+  });
+});
+
 describe("iconToEmoji", () => {
   it("returns a glyph for known icon names", () => {
     expect(iconToEmoji("aws-lambda")).toBe("λ");

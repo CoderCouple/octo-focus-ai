@@ -44,6 +44,16 @@ export const DiagramNodeSchema = z.object({
   icon: z.string().optional(),
   color: z.string().optional(),
   shape: z.string().optional(),
+  /**
+   * Set on `Name { … }` declarations. Group nodes render as a container
+   * framing their children.
+   */
+  isGroup: z.boolean().optional(),
+  /**
+   * Parent group's id (when this node was declared inside `{ … }`).
+   * Top-level nodes have no parentId.
+   */
+  parentId: z.string().optional(),
   x: z.number().optional(),
   y: z.number().optional(),
   metadata: z.record(z.unknown()).optional(),

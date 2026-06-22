@@ -32,12 +32,43 @@ export function parseDsl(input: string): ParseResult {
   const errors: ParseResult["errors"] = [];
   const nodesByName = new Map<string, DiagramNode>();
   const edges: DiagramEdge[] = [];
+  // Stack of currently-open group node ids. The top of the stack is the
+  // parent for any nodes declared on subsequent lines.
+  const groupStack: string[] = [];
 
   const lines = input.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!;
     const line = stripComment(raw).trim();
     if (!line) continue;
+
+    // Close-brace on its own → pop the open group.
+    if (line === "}") {
+      if (groupStack.length === 0) {
+        errors.push({ line: i + 1, message: "Unexpected `}` with no open group." });
+      } else {
+        groupStack.pop();
+      }
+      continue;
+    }
+
+    const currentParent = groupStack[groupStack.length - 1];
+
+    // Group declaration: line ends with `{` (with optional whitespace).
+    if (line.endsWith("{")) {
+      const head = line.slice(0, -1).trim();
+      const parsed = parseNameWithAttributes(head);
+      if (!parsed) {
+        errors.push({ line: i + 1, message: "Could not parse group declaration." });
+        continue;
+      }
+      const group = upsertNode(parsed.name, parsed.attrs, nodesByName, {
+        parentId: currentParent,
+        isGroup: true,
+      });
+      groupStack.push(group.id);
+      continue;
+    }
 
     const arrowIdx = findTopLevelOperator(line, ">");
 
@@ -47,7 +78,7 @@ export function parseDsl(input: string): ParseResult {
         errors.push({ line: i + 1, message: "Could not parse node declaration." });
         continue;
       }
-      upsertNode(parsed.name, parsed.attrs, nodesByName);
+      upsertNode(parsed.name, parsed.attrs, nodesByName, { parentId: currentParent });
       continue;
     }
 
@@ -77,21 +108,42 @@ export function parseDsl(input: string): ParseResult {
     }
 
     const leftParsed = parseNameWithAttributes(leftRaw);
-    const rightParsed = parseNameWithAttributes(rightSide);
-    if (!leftParsed || !rightParsed) {
-      errors.push({ line: i + 1, message: "Edge must have a source and target." });
+    if (!leftParsed) {
+      errors.push({ line: i + 1, message: "Edge must have a source." });
       continue;
     }
 
-    const source = upsertNode(leftParsed.name, leftParsed.attrs, nodesByName);
-    const target = upsertNode(rightParsed.name, rightParsed.attrs, nodesByName);
+    // Multi-target fan-out: `A > B, C, D` declares one edge per target.
+    const targets = splitTopLevel(rightSide, ",")
+      .map((t) => parseNameWithAttributes(t.trim()))
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+    if (targets.length === 0) {
+      errors.push({ line: i + 1, message: "Edge must have at least one target." });
+      continue;
+    }
+
+    const source = upsertNode(leftParsed.name, leftParsed.attrs, nodesByName, {
+      parentId: currentParent,
+    });
     const edgeColor = edgeAttrs.color;
-    edges.push({
-      id: `edge-${edges.length + 1}`,
-      sourceId: source.id,
-      targetId: target.id,
-      ...(label ? { label } : {}),
-      ...(edgeColor ? { color: edgeColor } : {}),
+    for (const targetParsed of targets) {
+      const target = upsertNode(targetParsed.name, targetParsed.attrs, nodesByName, {
+        parentId: currentParent,
+      });
+      edges.push({
+        id: `edge-${edges.length + 1}`,
+        sourceId: source.id,
+        targetId: target.id,
+        ...(label ? { label } : {}),
+        ...(edgeColor ? { color: edgeColor } : {}),
+      });
+    }
+  }
+
+  if (groupStack.length > 0) {
+    errors.push({
+      line: lines.length,
+      message: `Unclosed group${groupStack.length > 1 ? "s" : ""} at end of input.`,
     });
   }
 
@@ -235,25 +287,7 @@ function stripTrailingAttributes(text: string): {
 
 function parseAttributeList(inner: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const parts: string[] = [];
-  let current = "";
-  let inQuote = false;
-  for (let i = 0; i < inner.length; i++) {
-    const ch = inner[i];
-    if (ch === "\"") {
-      inQuote = !inQuote;
-      current += ch;
-      continue;
-    }
-    if (ch === "," && !inQuote) {
-      parts.push(current);
-      current = "";
-      continue;
-    }
-    current += ch;
-  }
-  if (current.trim()) parts.push(current);
-
+  const parts = splitTopLevel(inner, ",");
   for (const part of parts) {
     const colonIdx = part.indexOf(":");
     if (colonIdx === -1) continue;
@@ -261,6 +295,37 @@ function parseAttributeList(inner: string): Record<string, string> {
     const value = unquote(part.slice(colonIdx + 1).trim());
     if (key && value) out[key] = value;
   }
+  return out;
+}
+
+/**
+ * Split `s` on single-char `op` at the top level — respects quoted
+ * strings and balanced `[...]` brackets.
+ */
+function splitTopLevel(s: string, op: string): string[] {
+  const out: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let bracketDepth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "\"") {
+      inQuote = !inQuote;
+      current += ch;
+      continue;
+    }
+    if (!inQuote) {
+      if (ch === "[") bracketDepth++;
+      else if (ch === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+      else if (bracketDepth === 0 && ch === op) {
+        if (current.trim()) out.push(current);
+        current = "";
+        continue;
+      }
+    }
+    current += ch;
+  }
+  if (current.trim()) out.push(current);
   return out;
 }
 
@@ -275,10 +340,16 @@ function quoteIfNeeded(name: string): string {
   return /[\s>"\[\]:#]/.test(name) ? `"${name}"` : name;
 }
 
+interface UpsertNodeOpts {
+  parentId?: string | undefined;
+  isGroup?: boolean;
+}
+
 function upsertNode(
   name: string,
   attrs: Record<string, string>,
   nodesByName: Map<string, DiagramNode>,
+  opts: UpsertNodeOpts = {},
 ): DiagramNode {
   const existing = nodesByName.get(name);
   if (existing) {
@@ -286,6 +357,12 @@ function upsertNode(
     if (attrs.color) existing.color = attrs.color;
     if (attrs.shape) existing.shape = attrs.shape;
     if (attrs.label) existing.label = attrs.label;
+    if (opts.isGroup) existing.isGroup = true;
+    // First declaration wins for parent — auto-references inside a group
+    // body shouldn't reparent an already-known top-level node.
+    if (opts.parentId !== undefined && existing.parentId === undefined) {
+      existing.parentId = opts.parentId;
+    }
     return existing;
   }
   const node: DiagramNode = {
@@ -296,6 +373,8 @@ function upsertNode(
     ...(attrs.icon ? { icon: attrs.icon } : {}),
     ...(attrs.color ? { color: attrs.color } : {}),
     ...(attrs.shape ? { shape: attrs.shape } : {}),
+    ...(opts.isGroup ? { isGroup: true } : {}),
+    ...(opts.parentId ? { parentId: opts.parentId } : {}),
   };
   nodesByName.set(name, node);
   return node;

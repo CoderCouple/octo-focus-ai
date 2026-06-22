@@ -55,7 +55,28 @@ Lambda [icon: aws-lambda]                     # node with attributes
 "Auth Service" [icon: shield, color: orange]
 API Gateway > Auth Service                    # directed edge
 API Gateway > Auth Service: validates         # edge with label
-Web Client > API Gateway [color: green]       # edge attribute
+Web Client > API Gateway [color: green]       # edge with attribute
+API > Lambda, Worker, Cache                   # fan-out: one edge per target
+
+# Groups — a name followed by { … } makes a labeled container.
+# Render as a dashed box framing the children.
+AWS [icon: aws] {
+  Lambda [icon: aws-lambda]
+  RDS [icon: aws-rds]
+  S3 [icon: aws-s3]
+}
+# Groups can nest:
+VPC [icon: cloud] {
+  PublicSubnet {
+    Bastion [icon: aws-ec2]
+  }
+  PrivateSubnet {
+    AppServer [icon: aws-ec2]
+    Database [icon: aws-rds]
+  }
+}
+# Edges can target nodes inside groups — reference by name:
+Web > Lambda
 \`\`\`
 
 Node attributes (all optional):
@@ -78,12 +99,14 @@ Icon names (the renderer maps these to inline glyphs — unknown icons render as
 Rules:
 - One declaration or edge per line.
 - ALWAYS add a relevant icon when the code names a known service (S3, Lambda, Postgres, etc.). The icons are what make the diagram readable at a glance — without them it's just rectangles.
+- WRAP cloud resources in their provider group. If the code is AWS-flavored, put EC2/Lambda/RDS/S3 inside an \`AWS { ... }\` group. Same for GCP, Azure, Kubernetes. Visually-grouped clusters read 10× better than 8 floating icons.
+- Use fan-out (\`API > Lambda, Worker, Cache\`) when one service hands off to multiple downstreams in parallel — it's both shorter and more visually accurate.
 - Reach for color sparingly and only when it carries meaning: orange for external/third-party services, green for success paths, red for danger / write paths, blue or violet for internal services.
 - Quote names that contain spaces or special characters with double quotes.
 - Node names referenced in an edge are auto-declared.
 - Keep names short and human-readable (no IDs, no UUIDs, no file paths).
 - Prefer 6-15 nodes total. Aim for clarity over completeness.
-- Group related concepts by using the same word stem (e.g. "Auth Service", "Auth DB").
+- Match wording across related items (e.g. "Auth Service", "Auth DB").
 
 Return only the DSL — no markdown fences, no commentary, no preamble. The first line of your output must be either a comment or a node/edge declaration.`;
 

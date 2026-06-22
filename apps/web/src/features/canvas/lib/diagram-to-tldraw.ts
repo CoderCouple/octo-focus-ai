@@ -90,6 +90,9 @@ function asRichText(text: string) {
   };
 }
 
+const GROUP_PADDING = 28;
+const GROUP_LABEL_RESERVE = 24;
+
 export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram) {
   editor.run(() => {
     const existing = editor.getCurrentPageShapes();
@@ -100,22 +103,65 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
     const shapesToCreate: TLShapePartial[] = [];
     const idByNode = new Map<string, ReturnType<typeof createShapeId>>();
     const nodeById = new Map(diagram.nodes.map((n) => [n.id, n] as const));
+    const positionById = new Map(positioned.nodes.map((n) => [n.id, n] as const));
 
-    for (const node of positioned.nodes) {
+    // Build child → parent index for the descent walk that sizes groups.
+    const childrenByParent = new Map<string, string[]>();
+    for (const node of diagram.nodes) {
+      if (!node.parentId) continue;
+      const list = childrenByParent.get(node.parentId) ?? [];
+      list.push(node.id);
+      childrenByParent.set(node.parentId, list);
+    }
+
+    // Groups render BEHIND their children — create them first so they're
+    // lowest in the shape z-order.
+    for (const node of diagram.nodes) {
+      if (!node.isGroup) continue;
+      const bounds = groupBounds(node.id, childrenByParent, positionById, nodeById);
+      if (!bounds) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
-      const meta = nodeById.get(node.id);
+      shapesToCreate.push({
+        id,
+        type: "geo",
+        x: bounds.minX - GROUP_PADDING,
+        y: bounds.minY - GROUP_PADDING - GROUP_LABEL_RESERVE,
+        props: {
+          geo: "rectangle",
+          w: bounds.maxX - bounds.minX + GROUP_PADDING * 2,
+          h:
+            bounds.maxY - bounds.minY +
+            GROUP_PADDING * 2 +
+            GROUP_LABEL_RESERVE,
+          color: toTldrawColor(node.color ?? "grey"),
+          // Groups read better as outline-only — fills would compete with
+          // the contained nodes for attention.
+          fill: "none",
+          dash: "dashed",
+          richText: asRichText(decorateLabel(node.label, node.icon)),
+          verticalAlign: "start",
+        },
+        meta: { octoDsl: true, octoNodeId: node.id, octoGroup: true },
+      });
+    }
+
+    for (const node of positioned.nodes) {
+      const source = nodeById.get(node.id);
+      if (source?.isGroup) continue; // groups handled above
+      const id = createShapeId();
+      idByNode.set(node.id, id);
       shapesToCreate.push({
         id,
         type: "geo",
         x: node.x,
         y: node.y,
         props: {
-          geo: shapeKindFor(meta?.shape),
+          geo: shapeKindFor(source?.shape),
           w: NODE_W,
           h: NODE_H,
-          color: toTldrawColor(meta?.color),
-          richText: asRichText(decorateLabel(node.label, meta?.icon)),
+          color: toTldrawColor(source?.color),
+          richText: asRichText(decorateLabel(node.label, source?.icon)),
         },
         meta: { octoDsl: true, octoNodeId: node.id },
       });
@@ -173,8 +219,45 @@ interface PositionedNode {
   y: number;
 }
 
+/**
+ * Bounding box of every leaf descendant of `groupId`. Returns null when
+ * the group has no positioned descendants (which only happens for an
+ * empty group).
+ */
+function groupBounds(
+  groupId: string,
+  childrenByParent: Map<string, string[]>,
+  positionById: Map<string, PositionedNode>,
+  nodeById: Map<string, { isGroup?: boolean }>,
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const stack = [...(childrenByParent.get(groupId) ?? [])];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (nodeById.get(id)?.isGroup) {
+      const grandchildren = childrenByParent.get(id) ?? [];
+      stack.push(...grandchildren);
+      continue;
+    }
+    const pos = positionById.get(id);
+    if (!pos) continue;
+    minX = Math.min(minX, pos.x);
+    minY = Math.min(minY, pos.y);
+    maxX = Math.max(maxX, pos.x + NODE_W);
+    maxY = Math.max(maxY, pos.y + NODE_H);
+  }
+  if (minX === Infinity) return null;
+  return { minX, minY, maxX, maxY };
+}
+
 function layout(diagram: OctoFocusAIDiagram): { nodes: PositionedNode[] } {
-  const ranks = computeRanks(diagram);
+  // Leaf nodes only — groups are positioned as bounding boxes around
+  // their descendants in syncDiagramToTldraw.
+  const leafNodes = diagram.nodes.filter((n) => !n.isGroup);
+  const ranks = computeRanks(diagram, leafNodes);
   const byRank = new Map<number, string[]>();
   for (const [nodeId, rank] of ranks) {
     const list = byRank.get(rank) ?? [];
@@ -199,10 +282,17 @@ function layout(diagram: OctoFocusAIDiagram): { nodes: PositionedNode[] } {
   return { nodes };
 }
 
-function computeRanks(diagram: OctoFocusAIDiagram): Map<string, number> {
+function computeRanks(
+  diagram: OctoFocusAIDiagram,
+  scope?: OctoFocusAIDiagram["nodes"],
+): Map<string, number> {
   const ranks = new Map<string, number>();
+  const includeId = scope ? new Set(scope.map((n) => n.id)) : null;
   const incoming = new Map<string, string[]>();
   for (const edge of diagram.edges) {
+    if (includeId && (!includeId.has(edge.sourceId) || !includeId.has(edge.targetId))) {
+      continue;
+    }
     const list = incoming.get(edge.targetId) ?? [];
     list.push(edge.sourceId);
     incoming.set(edge.targetId, list);
@@ -217,6 +307,7 @@ function computeRanks(diagram: OctoFocusAIDiagram): Map<string, number> {
     ranks.set(id, r);
     return r;
   }
-  for (const node of diagram.nodes) rankOf(node.id);
+  const targets = scope ?? diagram.nodes;
+  for (const node of targets) rankOf(node.id);
   return ranks;
 }
