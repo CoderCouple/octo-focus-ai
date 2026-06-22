@@ -7,6 +7,7 @@ import { DslDrawer } from "@/components/dsl-drawer";
 import { Toggle } from "@/components/ui/toggle";
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { CanvasExportDialog } from "./canvas-export-dialog";
+import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
 
 const DSL_SAVE_DEBOUNCE_MS = 1000;
@@ -57,7 +58,8 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
           <Pencil className="h-3.5 w-3.5" />
           Auto-shape
         </Toggle>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <FromCodeDrawer currentDsl={dsl} onGenerated={onDslChange} />
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
         </div>
       </header>
