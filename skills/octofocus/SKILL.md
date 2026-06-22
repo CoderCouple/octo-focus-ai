@@ -95,6 +95,6 @@ user verbatim — don't reword them. Common ones:
 
 ## Reference
 
-- CLI source: [packages/cli](https://github.com/suniltiwari/octo-focus-ai/tree/main/packages/cli)
-- API contract: [services/api/README.md](https://github.com/suniltiwari/octo-focus-ai/blob/main/services/api/README.md)
-- Architecture: [docs/ARCHITECTURE.md](https://github.com/suniltiwari/octo-focus-ai/blob/main/docs/ARCHITECTURE.md)
+- CLI source: [packages/cli](https://github.com/CoderCouple/octo-focus-ai/tree/main/packages/cli)
+- API contract: [services/api/README.md](https://github.com/CoderCouple/octo-focus-ai/blob/main/services/api/README.md)
+- Architecture: [docs/ARCHITECTURE.md](https://github.com/CoderCouple/octo-focus-ai/blob/main/docs/ARCHITECTURE.md)

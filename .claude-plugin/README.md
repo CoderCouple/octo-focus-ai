@@ -8,7 +8,7 @@ your OctoFocusAI workspace via the `octofocus` CLI.
 In any Claude Code session:
 
 ```
-/plugin marketplace add suniltiwari/octo-focus-ai
+/plugin marketplace add CoderCouple/octo-focus-ai
 /plugin install octofocus@octo-focus-ai
 /reload-plugins
 ```

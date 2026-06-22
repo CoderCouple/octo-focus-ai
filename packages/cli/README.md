@@ -1,6 +1,6 @@
 # @octofocus/cli
 
-Command-line interface for the [OctoFocusAI](https://github.com/suniltiwari/octo-focus-ai) workspace.
+Command-line interface for the [OctoFocusAI](https://github.com/CoderCouple/octo-focus-ai) workspace.
 
 Built so AI agents — and humans who like terminals — can read, edit, and publish
 notes, canvases, and diagram-as-code from the shell.
@@ -117,7 +117,7 @@ A Claude Code plugin is shipped from the same repo (see
 `claude-plugin/`). Install:
 
 ```
-/plugin marketplace add suniltiwari/octo-focus-ai
+/plugin marketplace add CoderCouple/octo-focus-ai
 /plugin install octofocus@octo-focus-ai
 ```
 
@@ -134,9 +134,9 @@ you to run `octofocus login` if it's missing.
 
 ## Architecture
 
-See the repo's [`docs/ARCHITECTURE.md`](https://github.com/suniltiwari/octo-focus-ai/blob/main/docs/ARCHITECTURE.md)
+See the repo's [`docs/ARCHITECTURE.md`](https://github.com/CoderCouple/octo-focus-ai/blob/main/docs/ARCHITECTURE.md)
 for the backend layout and
-[`services/api/README.md`](https://github.com/suniltiwari/octo-focus-ai/blob/main/services/api/README.md)
+[`services/api/README.md`](https://github.com/CoderCouple/octo-focus-ai/blob/main/services/api/README.md)
 for the api contract this CLI consumes.
 
 ## License

@@ -52,9 +52,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/suniltiwari/octo-focus-ai.git",
+    "url": "https://github.com/CoderCouple/octo-focus-ai.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/suniltiwari/octo-focus-ai/tree/main/packages/cli#readme",
-  "bugs": "https://github.com/suniltiwari/octo-focus-ai/issues"
+  "homepage": "https://github.com/CoderCouple/octo-focus-ai/tree/main/packages/cli#readme",
+  "bugs": "https://github.com/CoderCouple/octo-focus-ai/issues"
 }
