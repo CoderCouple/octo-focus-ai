@@ -9,7 +9,10 @@ export {
   setActiveWorkspaceAction,
   updateMemberRoleAction,
 } from "./actions/workspaces-actions";
-export { getMeApi, listWorkspaceMembersApi } from "./api/workspaces-api";
+// Server-only api fetchers are NOT re-exported here — importing this barrel
+// from a client component (settings-panel, team-switcher) would otherwise
+// pull `import "server-only"` into the client bundle and fail the build.
+// RSC routes import directly from `./api/workspaces-api`.
 export { workspaceKeys, ACTIVE_WORKSPACE_COOKIE } from "./constants";
 export type {
   MeResponse,

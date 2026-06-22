@@ -11,14 +11,8 @@ export {
   renameNoteAction,
   updateNoteAction,
 } from "./actions/notes-actions";
-export {
-  createNoteApi,
-  deleteNoteApi,
-  getNoteApi,
-  listProjectNotesApi,
-  listWorkspaceNotesApi,
-  updateNoteApi,
-} from "./api/notes-api";
+// Server-only api fetchers are NOT re-exported here — barrel must stay
+// client-safe. RSCs import directly from `./api/notes-api`.
 export { updateNoteClientApi, updateNoteSettingsApi } from "./api/notes-client-api";
 export type { Page, PageCreate, PageUpdate } from "./types";
 export { useWorkspaceNotes, useRenameNote, useDeleteNote } from "./hooks/use-notes";

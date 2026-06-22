@@ -8,7 +8,8 @@ export {
   listProjectsAction,
   renameProjectAction,
 } from "./actions/projects-actions";
-export { getProjectApi } from "./api/projects-api";
+// Server-only api fetchers are NOT re-exported here — barrel must stay
+// client-safe. RSCs import directly from `./api/projects-api`.
 export {
   useCreateProject,
   useDeleteProject,

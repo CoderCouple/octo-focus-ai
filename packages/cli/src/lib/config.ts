@@ -5,7 +5,11 @@ import { dirname, join } from "node:path";
 const CONFIG_DIR = process.env.OCTOFOCUS_CONFIG_DIR ?? join(homedir(), ".octofocus");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
-const DEFAULT_API_URL = "http://localhost:4000";
+// Production defaults — what an npm-installed CLI talks to out of the box.
+// Local dev callers override with --api-url / --web-url or env vars.
+const DEFAULT_API_URL = "https://api.octofocus.ai";
+const DEFAULT_WEB_ORIGIN = "https://www.octofocus.ai";
+
 const DEFAULT_SUPABASE_URL =
   process.env.OCTOFOCUS_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const DEFAULT_SUPABASE_ANON_KEY =
@@ -27,8 +31,6 @@ export interface CliConfig {
   session: CliSession | null;
 }
 
-const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
-
 const DEFAULT_CONFIG: CliConfig = {
   apiUrl: process.env.OCTOFOCUS_API_URL ?? DEFAULT_API_URL,
   webOrigin: process.env.OCTOFOCUS_WEB_URL ?? DEFAULT_WEB_ORIGIN,
@@ -40,12 +42,24 @@ const DEFAULT_CONFIG: CliConfig = {
 
 let cached: CliConfig | null = null;
 
+// Stale URLs from the first published CLI builds, which shipped
+// localhost defaults. We migrate them forward silently on load so users
+// upgrading from those builds don't have to wipe ~/.octofocus/config.json.
+const STALE_API_URLS = new Set(["http://localhost:4000"]);
+const STALE_WEB_ORIGINS = new Set(["http://localhost:3000"]);
+
 export async function loadConfig(): Promise<CliConfig> {
   if (cached) return cached;
   try {
     const raw = await readFile(CONFIG_PATH, "utf8");
     const parsed = JSON.parse(raw) as Partial<CliConfig>;
     cached = { ...DEFAULT_CONFIG, ...parsed };
+    if (cached.apiUrl && STALE_API_URLS.has(cached.apiUrl)) {
+      cached.apiUrl = DEFAULT_CONFIG.apiUrl;
+    }
+    if (cached.webOrigin && STALE_WEB_ORIGINS.has(cached.webOrigin)) {
+      cached.webOrigin = DEFAULT_CONFIG.webOrigin;
+    }
   } catch {
     cached = { ...DEFAULT_CONFIG };
   }

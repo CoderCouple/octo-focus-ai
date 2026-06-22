@@ -1,9 +1,5 @@
-import {
-  getActiveWorkspaceIdCookie,
-  getMeApi,
-  listWorkspaceMembersApi,
-  resolveActiveMembership,
-} from "@/features/workspaces";
+import { getActiveWorkspaceIdCookie, resolveActiveMembership } from "@/features/workspaces";
+import { getMeApi, listWorkspaceMembersApi } from "@/features/workspaces/api/workspaces-api";
 import { env } from "@/lib/env";
 import { SettingsPanel } from "./_components/settings-panel";
 

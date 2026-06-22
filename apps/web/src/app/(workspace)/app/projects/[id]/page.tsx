@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
-import { createCanvasApi, extractDsl, listProjectCanvasesApi } from "@/features/canvas";
-import { createNoteApi, listProjectNotesApi } from "@/features/notes";
-import { getProjectApi } from "@/features/projects";
-import { getMeApi } from "@/features/workspaces";
+import { extractDsl } from "@/features/canvas";
+import { createCanvasApi, listProjectCanvasesApi } from "@/features/canvas/api/canvases-api";
+import { createNoteApi, listProjectNotesApi } from "@/features/notes/api/notes-api";
+import { getProjectApi } from "@/features/projects/api/projects-api";
+import { getMeApi } from "@/features/workspaces/api/workspaces-api";
 import { env } from "@/lib/env";
 import { ProjectSplitView } from "./_components/project-split-view";
 

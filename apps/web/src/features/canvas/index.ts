@@ -6,7 +6,8 @@ export type { OctoCanvasProps } from "./components/octo-canvas";
 export { canvasStatusLabel, deriveCanvasStats } from "./lib/derive-canvas-stats";
 export type { CanvasStats } from "./lib/derive-canvas-stats";
 export { extractDsl } from "./lib/extract-dsl";
-export { getCanvasApi, createCanvasApi, listProjectCanvasesApi } from "./api/canvases-api";
+// Server-only api fetchers are NOT re-exported here — barrel must stay
+// client-safe. RSCs import directly from `./api/canvases-api`.
 export {
   createCanvasAction,
   deleteCanvasAction,

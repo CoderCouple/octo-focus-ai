@@ -1,4 +1,5 @@
-import { CanvasPane, extractDsl, getCanvasApi } from "@/features/canvas";
+import { CanvasPane, extractDsl } from "@/features/canvas";
+import { getCanvasApi } from "@/features/canvas/api/canvases-api";
 
 interface PageProps {
   params: Promise<{ id: string }>;

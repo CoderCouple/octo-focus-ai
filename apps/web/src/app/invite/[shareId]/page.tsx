@@ -15,7 +15,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AuthBackdrop } from "@/features/auth";
-import { acceptResourceShareApi, friendlyInviteError } from "@/features/sharing";
+import { acceptResourceShareApi } from "@/features/sharing/api/share-accept-api";
+import { friendlyInviteError } from "@/features/sharing";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

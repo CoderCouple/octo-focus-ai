@@ -5,10 +5,10 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   getActiveWorkspaceIdCookie,
-  getMeApi,
   resolveActiveMembership,
   type MeResponse,
 } from "@/features/workspaces";
+import { getMeApi } from "@/features/workspaces/api/workspaces-api";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

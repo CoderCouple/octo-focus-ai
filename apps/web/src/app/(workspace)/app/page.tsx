@@ -1,5 +1,5 @@
 import { ProjectsPanel } from "@/features/projects";
-import { getMeApi } from "@/features/workspaces";
+import { getMeApi } from "@/features/workspaces/api/workspaces-api";
 import { env } from "@/lib/env";
 
 const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
