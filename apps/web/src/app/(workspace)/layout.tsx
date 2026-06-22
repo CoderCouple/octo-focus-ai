@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
-import { getMeApi, type MeResponse } from "@/api/me-api";
-import { getActiveWorkspaceIdCookie } from "@/actions/workspaces-action";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  getActiveWorkspaceIdCookie,
+  getMeApi,
+  resolveActiveMembership,
+  type MeResponse,
+} from "@/features/workspaces";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -41,17 +45,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
-
+    if (!user) redirect("/login");
     me = await getMeApi();
   }
 
   const activeId = await getActiveWorkspaceIdCookie();
-  const active =
-    (activeId && me.memberships.find((m) => m.workspace.id === activeId)) || me.memberships[0];
+  const active = resolveActiveMembership(me.memberships, activeId);
 
   if (!active) {
     return (

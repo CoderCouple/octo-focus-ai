@@ -1,11 +1,11 @@
-import { getMeApi } from "@/api/me-api";
-import { env } from "@/lib/env";
 import {
   deriveNotesStats,
   NotesStats,
   NotesTable,
   listWorkspaceNotesAction,
 } from "@/features/notes";
+import { getMeApi } from "@/features/workspaces";
+import { env } from "@/lib/env";
 
 const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 

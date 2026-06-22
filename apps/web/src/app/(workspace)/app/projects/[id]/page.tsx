@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { createCanvasApi, listCanvasesApi } from "@/api/canvases-api";
-import { getMeApi } from "@/api/me-api";
 import { createPageApi, listPagesApi } from "@/api/pages-api";
-import { getProjectApi } from "@/api/projects-api";
+import { getProjectApi } from "@/features/projects";
+import { getMeApi } from "@/features/workspaces";
 import { env } from "@/lib/env";
 import { ProjectSplitView } from "./_components/project-split-view";
 

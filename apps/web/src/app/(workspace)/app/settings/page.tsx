@@ -1,6 +1,9 @@
-import { getActiveWorkspaceIdCookie } from "@/actions/workspaces-action";
-import { getMeApi } from "@/api/me-api";
-import { listWorkspaceMembersApi } from "@/api/workspaces-api";
+import {
+  getActiveWorkspaceIdCookie,
+  getMeApi,
+  listWorkspaceMembersApi,
+  resolveActiveMembership,
+} from "@/features/workspaces";
 import { env } from "@/lib/env";
 import { SettingsPanel } from "./_components/settings-panel";
 
@@ -17,9 +20,7 @@ export default async function SettingsPage() {
   } else {
     const me = await getMeApi();
     const activeId = await getActiveWorkspaceIdCookie();
-    const active =
-      (activeId && me.memberships.find((m) => m.workspace.id === activeId)) ||
-      me.memberships[0];
+    const active = resolveActiveMembership(me.memberships, activeId);
     if (!active) return null;
     workspaceId = active.workspace.id;
     workspaceName = active.workspace.name;

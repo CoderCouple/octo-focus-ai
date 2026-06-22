@@ -1,5 +1,5 @@
 import { listWorkspaceCanvasesApi } from "@/api/canvases-api";
-import { getMeApi } from "@/api/me-api";
+import { getMeApi } from "@/features/workspaces";
 import { SectionCards, type SectionMetric } from "@/components/section-cards";
 import { env } from "@/lib/env";
 import { CanvasTableShell } from "./_components/canvas-table-shell";

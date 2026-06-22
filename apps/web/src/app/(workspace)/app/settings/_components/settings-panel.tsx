@@ -9,7 +9,7 @@ import {
   removeMemberAction,
   renameWorkspaceAction,
   updateMemberRoleAction,
-} from "@/actions/workspaces-action";
+} from "@/features/workspaces";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,14 +93,13 @@ export function SettingsPanel({
     if (!name.trim() || name === initialName) return;
     setRenaming(true);
     setRenameError(null);
-    try {
-      await renameWorkspaceAction(workspaceId, name.trim());
-      router.refresh();
-    } catch (err) {
-      setRenameError(err instanceof Error ? err.message : "Rename failed.");
-    } finally {
-      setRenaming(false);
+    const r = await renameWorkspaceAction(workspaceId, name.trim());
+    setRenaming(false);
+    if (!r.success) {
+      setRenameError(r.message);
+      return;
     }
+    router.refresh();
   };
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -108,58 +107,56 @@ export function SettingsPanel({
     if (!inviteEmail) return;
     setInviting(true);
     setInviteError(null);
-    try {
-      const m = await inviteMemberAction(workspaceId, inviteEmail.trim(), inviteRole);
-      setMembers((prev) => [
-        ...prev,
-        {
-          id: m.id,
-          userId: m.userId,
-          role: m.role,
-          createdAt: m.createdAt,
-          user: m.user ?? { id: m.userId, name: m.userId, email: inviteEmail, avatarUrl: null },
-        },
-      ]);
-      setInviteEmail("");
-    } catch (err) {
-      setInviteError(err instanceof Error ? err.message : "Invite failed.");
-    } finally {
-      setInviting(false);
+    const r = await inviteMemberAction(workspaceId, inviteEmail.trim(), inviteRole);
+    setInviting(false);
+    if (!r.success) {
+      setInviteError(r.message);
+      return;
     }
+    const m = r.data;
+    setMembers((prev) => [
+      ...prev,
+      {
+        id: m.id,
+        userId: m.userId,
+        role: m.role,
+        createdAt: m.createdAt,
+        user: m.user ?? { id: m.userId, name: m.userId, email: inviteEmail, avatarUrl: null },
+      },
+    ]);
+    setInviteEmail("");
   };
 
   const handleRoleChange = async (userId: string, role: Role) => {
-    try {
-      await updateMemberRoleAction(workspaceId, userId, role);
-      setMembers((prev) =>
-        prev.map((m) => (m.userId === userId ? { ...m, role } : m)),
-      );
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Role update failed.");
+    const r = await updateMemberRoleAction(workspaceId, userId, role);
+    if (!r.success) {
+      alert(r.message);
+      return;
     }
+    setMembers((prev) => prev.map((m) => (m.userId === userId ? { ...m, role } : m)));
   };
 
   const handleRemove = async (userId: string) => {
     if (!confirm("Remove this member from the workspace?")) return;
-    try {
-      await removeMemberAction(workspaceId, userId);
-      setMembers((prev) => prev.filter((m) => m.userId !== userId));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Remove failed.");
+    const r = await removeMemberAction(workspaceId, userId);
+    if (!r.success) {
+      alert(r.message);
+      return;
     }
+    setMembers((prev) => prev.filter((m) => m.userId !== userId));
   };
 
   const handleDelete = async () => {
     if (confirmName !== initialName) return;
     setDeleting(true);
-    try {
-      await deleteWorkspaceAction(workspaceId);
-      router.push("/app");
-      router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Delete failed.");
+    const r = await deleteWorkspaceAction(workspaceId);
+    if (!r.success) {
+      alert(r.message);
       setDeleting(false);
+      return;
     }
+    router.push("/app");
+    router.refresh();
   };
 
   return (

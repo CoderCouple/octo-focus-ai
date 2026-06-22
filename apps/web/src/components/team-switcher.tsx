@@ -7,7 +7,7 @@ import { Check, ChevronsUpDown, Focus, Loader2, Plus } from "lucide-react";
 import {
   createWorkspaceAction,
   setActiveWorkspaceAction,
-} from "@/actions/workspaces-action";
+} from "@/features/workspaces";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -161,16 +161,15 @@ function CreateWorkspaceDialog({
     if (!name.trim()) return;
     setBusy(true);
     setError(null);
-    try {
-      await createWorkspaceAction({ name: name.trim() });
-      reset();
-      onOpenChange(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create workspace.");
-    } finally {
-      setBusy(false);
+    const r = await createWorkspaceAction({ name: name.trim() });
+    setBusy(false);
+    if (!r.success) {
+      setError(r.message);
+      return;
     }
+    reset();
+    onOpenChange(false);
+    router.refresh();
   };
 
   return (
