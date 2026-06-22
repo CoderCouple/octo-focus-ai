@@ -275,6 +275,36 @@ first boot, skipping Supabase auth.
 
 ---
 
+## Environment variables
+
+Required:
+
+| Var | What | Where set |
+|---|---|---|
+| `DATABASE_URL` | Postgres connection string | Railway / `.env` |
+| `SUPABASE_URL` | Supabase project URL | Railway / `.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase key (NOT the anon key) | Railway / `.env` |
+| `WEB_ORIGIN` | Browser origin for CORS (e.g. `https://www.octofocus.ai`) | Railway / `.env` |
+
+Optional, but required for the features they enable:
+
+| Var | Enables | Default |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | `POST /v1/canvases/from-code` (code → diagram) and any future Claude-backed endpoint | — (feature throws on first call when unset; service still boots) |
+| `ANTHROPIC_MODEL` | Override the default Claude model | `claude-opus-4-7` (pin to `claude-sonnet-4-6` for ~5× cheaper DSL generation) |
+| `RESEND_API_KEY` | Transactional email (invites, share notifications) | — |
+| `RESEND_FROM` | From-address for Resend emails | `OctoFocusAI <onboarding@resend.dev>` |
+| `PUBLIC_APP_URL` | Used in email links + asset URL prefix | `https://www.octofocus.ai` |
+| `DEV_AUTH_BYPASS` | Seed a dev user/workspace and skip Supabase JWT verification | `false` |
+| `DB_POOL_SIZE` | Postgres connection pool size | `10` |
+| `PORT` / `HOST` | Bind port + host (Railway injects PORT) | `4000` / `127.0.0.1` (local), `0.0.0.0` (when PORT injected) |
+
+LLM cost note: `ANTHROPIC_MODEL=claude-sonnet-4-6` works well for DSL
+generation and is significantly cheaper than Opus. Swap to Opus only
+if you see meaningful quality loss on real prompts.
+
+---
+
 ## Conventions
 
 - **Prefixed IDs** everywhere. `usr_<uuid>`, `wsp_<uuid>`, `prj_<uuid>`,

@@ -59,7 +59,16 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
           Auto-shape
         </Toggle>
         <div className="ml-auto flex items-center gap-1">
-          <FromCodeDrawer currentDsl={dsl} onGenerated={onDslChange} />
+          <FromCodeDrawer
+            currentDsl={dsl}
+            onGenerated={(next) => {
+              onDslChange(next);
+              // Open the DSL drawer so the user can read and tweak what
+              // Claude just produced — otherwise the result is invisible
+              // until they manually expand the drawer.
+              setDslOpen(true);
+            }}
+          />
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
         </div>
       </header>
