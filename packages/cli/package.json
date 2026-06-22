@@ -1,6 +1,6 @@
 {
   "name": "@octofocus/cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Command-line interface for the OctoFocusAI workspace — built so AI agents can read, edit, and publish notes, canvases, and diagrams from the shell.",
   "type": "module",
   "main": "dist/index.js",
