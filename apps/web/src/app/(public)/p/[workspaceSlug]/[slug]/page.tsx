@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { fetchPublicBySlug } from "@/api/public-api";
-import { PublicResourceRenderer } from "../../../_components/public-resource-renderer";
+import { fetchPublicBySlug, PublicResourceRenderer } from "@/features/public";
 
 export const revalidate = 60;
 

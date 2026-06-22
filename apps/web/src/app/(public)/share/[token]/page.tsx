@@ -1,5 +1,4 @@
-import { fetchByShareToken } from "@/api/public-api";
-import { PublicResourceRenderer } from "../../_components/public-resource-renderer";
+import { fetchByShareToken, PublicResourceRenderer } from "@/features/public";
 import { SharePasswordGate } from "./_components/share-password-gate";
 
 export default async function SharePage({
@@ -14,9 +13,7 @@ export default async function SharePage({
   const { resource, needsPassword } = await fetchByShareToken(token, pw);
 
   if (!resource) {
-    if (needsPassword) {
-      return <SharePasswordGate token={token} />;
-    }
+    if (needsPassword) return <SharePasswordGate token={token} />;
     return (
       <div className="mx-auto max-w-md px-6 py-20 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Link expired</h1>

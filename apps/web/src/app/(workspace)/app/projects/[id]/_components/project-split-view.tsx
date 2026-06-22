@@ -5,7 +5,7 @@ import { FileText, LayoutGrid, Columns2 } from "lucide-react";
 import { useState } from "react";
 import { CanvasPane } from "@/features/canvas";
 import { NotesPane } from "@/components/notes-pane";
-import { SharePopover } from "@/components/share-popover";
+import { SharePopover } from "@/features/sharing";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Mode = "notes" | "both" | "canvas";

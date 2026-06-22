@@ -13,9 +13,9 @@
 import { ArrowRight, Check, Focus, LogIn, XCircle } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { acceptResourceShareApi } from "@/api/share-accept-api";
 import { AuthBackdrop } from "@/app/(auth)/_components/auth-backdrop";
 import { Button } from "@/components/ui/button";
+import { acceptResourceShareApi, friendlyInviteError } from "@/features/sharing";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -107,13 +107,7 @@ function NotLoggedIn() {
 }
 
 function FailedInvite({ message }: { message: string }) {
-  const friendly = message.includes("different email")
-    ? "This invite was sent to a different email address. Sign in with the email it was sent to."
-    : message.includes("not pending")
-      ? "This invite has already been accepted or revoked."
-      : message.includes("not found")
-        ? "This invite link is no longer valid."
-        : message;
+  const friendly = friendlyInviteError(message);
 
   return (
     <Shell>
