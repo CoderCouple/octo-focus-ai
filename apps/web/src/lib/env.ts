@@ -1,16 +1,15 @@
-function readEnv(value: string | undefined, name: string): string {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
+/**
+ * @deprecated — re-exports from `@/env/client`. Existing call sites use
+ * the legacy short names (`env.SUPABASE_URL`); we keep them working
+ * while features migrate one-by-one.
+ *
+ * New code should import directly from `@/env/client`.
+ */
+import { env as clientEnv } from "@/env/client";
 
 export const env = {
-  SUPABASE_URL: readEnv(process.env.NEXT_PUBLIC_SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL"),
-  SUPABASE_ANON_KEY: readEnv(
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  ),
-  API_URL: readEnv(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL"),
-  DEV_AUTH_BYPASS: process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true",
+  SUPABASE_URL: clientEnv.NEXT_PUBLIC_SUPABASE_URL,
+  SUPABASE_ANON_KEY: clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  API_URL: clientEnv.NEXT_PUBLIC_API_URL,
+  DEV_AUTH_BYPASS: clientEnv.NEXT_PUBLIC_DEV_AUTH_BYPASS,
 };
