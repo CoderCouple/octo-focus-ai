@@ -3,10 +3,10 @@
 import { Code2, FileText } from "lucide-react";
 import { useState } from "react";
 import type { PageSettings } from "@octofocus/shared";
-import { updatePageSettingsApi } from "@/api/pages-client-api";
-import { NotesEditor } from "@/app/(workspace)/app/projects/[id]/_components/notes-editor";
 import { FontPicker, type NoteFont } from "@/components/font-picker";
 import { Toggle } from "@/components/ui/toggle";
+import { updateNoteSettingsApi } from "../api/notes-client-api";
+import { NotesEditor } from "./notes-editor";
 
 interface NotesPaneProps {
   pageId: string;
@@ -23,7 +23,7 @@ export function NotesPane({ pageId, initialContent, initialSettings }: NotesPane
   const handleFontChange = async (next: NoteFont) => {
     setFont(next);
     // Fire-and-forget; the UI is already optimistic. Errors surface in console.
-    void updatePageSettingsApi(pageId, { ...initialSettings, font: next }).catch((err) => {
+    void updateNoteSettingsApi(pageId, { ...initialSettings, font: next }).catch((err) => {
       console.error("Failed to persist font", err);
     });
   };

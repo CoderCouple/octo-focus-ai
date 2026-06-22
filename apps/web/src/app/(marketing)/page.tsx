@@ -1,7 +1,7 @@
 import { ArrowRight, Bot, FileText, Focus, LayoutGrid, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AuthBackdrop } from "../(auth)/_components/auth-backdrop";
+import { AuthBackdrop } from "@/features/auth";
 import { AgentDemo } from "./_components/agent-demo";
 import { CanvasDemo } from "./_components/canvas-demo";
 import { FeatureSection } from "./_components/feature-section";

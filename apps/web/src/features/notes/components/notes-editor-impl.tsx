@@ -17,7 +17,7 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { Workflow } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { updatePageAction } from "@/actions/pages-action";
+import { updateNoteAction } from "../actions/notes-actions";
 import { MermaidBlock } from "./mermaid-block";
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -100,9 +100,9 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
       } catch (err) {
         console.error("Markdown conversion failed", err);
       }
-      void updatePageAction(pageId, { document: { blocks }, contentMd }).catch((err) =>
-        console.error("Page save failed", err),
-      );
+      void updateNoteAction(pageId, { document: { blocks }, contentMd }).then((r) => {
+        if (!r.success) console.error("Page save failed", r.message);
+      });
     }, SAVE_DEBOUNCE_MS);
   }
 

@@ -1,54 +1,18 @@
+/**
+ * Server-side fetchers for the public reading surface. These are special
+ * compared to the rest of the api in that:
+ *
+ *   - they don't carry the viewer's Supabase JWT — public reads are
+ *     anonymous on purpose
+ *   - they cache: `/p/<workspace>/<slug>` is revalidated every 60s and
+ *     tagged so a publish action can invalidate it surgically
+ *
+ * Used by the (public) routes and the /invite acceptance page.
+ */
+import "server-only";
+import { unwrapBaseResponse } from "@/lib/api/base-response";
 import { env } from "@/lib/env";
-import { unwrapBaseResponse } from "./base-response";
-
-export type PublicResource =
-  | {
-      kind: "project";
-      workspaceSlug: string;
-      data: ProjectData;
-      page: PageData | null;
-      canvas: CanvasData | null;
-    }
-  | { kind: "page"; workspaceSlug: string; data: PageData }
-  | { kind: "canvas"; workspaceSlug: string; data: CanvasData };
-
-export interface ProjectData {
-  id: string;
-  name: string;
-  description: string | null;
-  icon: string | null;
-  publicSlug: string;
-  visibility: string;
-  publishedAt: string | null;
-  lastPublishedAt: string | null;
-  settings: Record<string, unknown>;
-}
-
-export interface PageData {
-  id: string;
-  projectId: string;
-  title: string;
-  document: unknown;
-  contentMd: string;
-  publicSlug: string;
-  visibility: string;
-  publishedAt: string | null;
-  lastPublishedAt: string | null;
-  settings: { font?: "sans" | "serif" | "mono"; lineWidth?: string };
-}
-
-export interface CanvasData {
-  id: string;
-  projectId: string;
-  title: string;
-  document: unknown;
-  diagramSchema: unknown;
-  publicSlug: string;
-  visibility: string;
-  publishedAt: string | null;
-  lastPublishedAt: string | null;
-  settings: Record<string, unknown>;
-}
+import type { PublicResource, ShareTokenResource } from "../types";
 
 const REVALIDATE_SECONDS = 60;
 
@@ -63,12 +27,6 @@ export async function fetchPublicBySlug(
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Public fetch failed (${res.status})`);
   return unwrapBaseResponse<PublicResource>(await res.json(), "/public/p/...");
-}
-
-export interface ShareTokenResource {
-  kind: "project" | "page" | "canvas";
-  permission: "viewer" | "commenter" | "editor" | "admin";
-  data: ProjectData | PageData | CanvasData;
 }
 
 export async function fetchByShareToken(

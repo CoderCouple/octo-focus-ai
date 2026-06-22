@@ -9,7 +9,7 @@
  *             (Mermaid block etc.) the editor uses
  *   canvas  → tldraw with hideUi + isReadonly + zoomToFit
  */
-import type { PublicResource } from "@/api/public-api";
+import type { PublicResource } from "../types";
 import { CanvasReadOnly } from "./canvas-readonly";
 import { NotesReadOnly } from "./notes-readonly";
 

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { createPageApi, listPagesApi } from "@/api/pages-api";
 import { createCanvasApi, extractDsl, listProjectCanvasesApi } from "@/features/canvas";
+import { createNoteApi, listProjectNotesApi } from "@/features/notes";
 import { getProjectApi } from "@/features/projects";
 import { getMeApi } from "@/features/workspaces";
 import { env } from "@/lib/env";
@@ -21,7 +21,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   }
 
   const [pages, canvases, me] = await Promise.all([
-    listPagesApi(id),
+    listProjectNotesApi(id),
     listProjectCanvasesApi(id),
     env.DEV_AUTH_BYPASS
       ? Promise.resolve({ memberships: [{ workspace: { slug: "dev-workspace" } }] } as const)
@@ -31,7 +31,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
   // 1:1 model — every project has exactly one note and one canvas. Create
   // them on first open if the project doesn't have them yet.
-  const page = pages[0] ?? (await createPageApi(id, { title: project.name }));
+  const page = pages[0] ?? (await createNoteApi(id, { title: project.name }));
   const canvas = canvases[0] ?? (await createCanvasApi(id, { title: project.name }));
   const initialDsl = extractDsl(canvas.diagramSchema);
 

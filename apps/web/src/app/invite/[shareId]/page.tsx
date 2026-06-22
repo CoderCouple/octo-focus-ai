@@ -13,8 +13,8 @@
 import { ArrowRight, Check, Focus, LogIn, XCircle } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthBackdrop } from "@/app/(auth)/_components/auth-backdrop";
 import { Button } from "@/components/ui/button";
+import { AuthBackdrop } from "@/features/auth";
 import { acceptResourceShareApi, friendlyInviteError } from "@/features/sharing";
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

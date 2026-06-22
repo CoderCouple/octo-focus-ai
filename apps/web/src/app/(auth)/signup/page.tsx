@@ -1,6 +1,5 @@
 import { Bot, Focus, Users } from "lucide-react";
-import { AuthBackdrop } from "../_components/auth-backdrop";
-import { LoginForm } from "../_components/login-form";
+import { AuthBackdrop, LoginForm } from "@/features/auth";
 
 export default function SignupPage() {
   return (

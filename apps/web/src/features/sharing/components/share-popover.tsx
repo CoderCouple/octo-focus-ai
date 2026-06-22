@@ -35,13 +35,16 @@ import {
   resendInviteApi,
   revokeShareApi,
   revokeShareLinkApi,
-  type PublishedResource,
-  type ResourceKind,
-  type ResourceShare,
-  type SharePermission,
-  type ShareLink,
-  type Visibility,
-} from "@/api/shares-api";
+} from "../api/shares-api";
+import { PERMISSION_LABEL, VISIBILITY_LABEL } from "../constants";
+import type {
+  PublishedResource,
+  ResourceKind,
+  ResourceShare,
+  SharePermission,
+  ShareLink,
+  Visibility,
+} from "../types";
 
 export interface SharePopoverProps {
   resourceKind: ResourceKind;
@@ -51,20 +54,6 @@ export interface SharePopoverProps {
   initialPublicSlug: string | null;
   workspaceSlug: string;
 }
-
-const PERMISSION_LABEL: Record<SharePermission, string> = {
-  viewer: "Viewer",
-  commenter: "Commenter",
-  editor: "Editor",
-  admin: "Admin",
-};
-
-const VISIBILITY_LABEL: Record<Visibility, string> = {
-  private: "Private",
-  workspace: "Workspace",
-  unlisted: "Anyone with link",
-  public: "Public",
-};
 
 export function SharePopover(props: SharePopoverProps) {
   return (

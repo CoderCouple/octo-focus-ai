@@ -5,7 +5,7 @@ import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
-import { MermaidBlock } from "@/app/(workspace)/app/projects/[id]/_components/mermaid-block";
+import { MermaidBlock } from "@/features/notes/components/mermaid-block";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: {
