@@ -20,14 +20,18 @@ export interface CliSession {
 
 export interface CliConfig {
   apiUrl: string;
+  webOrigin: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
   defaultWorkspaceId: string | null;
   session: CliSession | null;
 }
 
+const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
+
 const DEFAULT_CONFIG: CliConfig = {
   apiUrl: process.env.OCTOFOCUS_API_URL ?? DEFAULT_API_URL,
+  webOrigin: process.env.OCTOFOCUS_WEB_URL ?? DEFAULT_WEB_ORIGIN,
   supabaseUrl: DEFAULT_SUPABASE_URL,
   supabaseAnonKey: DEFAULT_SUPABASE_ANON_KEY,
   defaultWorkspaceId: null,

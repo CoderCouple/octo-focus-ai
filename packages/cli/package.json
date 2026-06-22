@@ -1,6 +1,6 @@
 {
   "name": "@octofocus/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Command-line interface for the OctoFocusAI workspace — built so AI agents can read, edit, and publish notes, canvases, and diagrams from the shell.",
   "type": "module",
   "main": "dist/index.js",
@@ -52,7 +52,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/CoderCouple/octo-focus-ai.git",
+    "url": "git+https://github.com/CoderCouple/octo-focus-ai.git",
     "directory": "packages/cli"
   },
   "homepage": "https://github.com/CoderCouple/octo-focus-ai/tree/main/packages/cli#readme",

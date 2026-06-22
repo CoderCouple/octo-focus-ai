@@ -39,8 +39,21 @@ Two modes:
 
 | Mode | Use for | How |
 |---|---|---|
-| Interactive | Humans on a dev machine | `octofocus login` → enter email → paste the 6-digit code from your inbox |
+| Browser (default) | Humans on a laptop | `octofocus login` → email arrives → click the link → CLI signs in via a localhost callback |
+| OTP paste | Humans on a remote machine or when the browser flow can't reach localhost | `octofocus login --otp` → email arrives → paste the 6-digit code |
 | Token | Agents, CI, Claude skills | Set `OCTOFOCUS_TOKEN=<token>` in the environment |
+
+The browser flow requires Supabase to allow `<webOrigin>/cli/callback` in its
+**Redirect URLs** allowlist. In Supabase dashboard → **Authentication → URL
+Configuration**, add (alongside the existing `/auth/callback` entries):
+
+```
+http://localhost:3000/cli/callback
+https://<your-prod-domain>/cli/callback
+```
+
+…or use a wildcard like `http://localhost:3000/**` if you already have that
+configured.
 
 Tokens are minted from the OctoFocusAI web app under **Settings → CLI tokens**
 (coming soon) or via `octofocus auth token create` once logged in.
@@ -50,6 +63,8 @@ the location with `OCTOFOCUS_CONFIG_DIR`. Other env knobs:
 
 - `OCTOFOCUS_API_URL` — defaults to `http://localhost:4000`. Set to your
   deployed API origin.
+- `OCTOFOCUS_WEB_URL` — defaults to `http://localhost:3000`. Where the
+  browser-callback redirects to. Must match a Supabase Redirect URL.
 - `OCTOFOCUS_SUPABASE_URL` / `OCTOFOCUS_SUPABASE_ANON_KEY` — required for
   interactive login only.
 
