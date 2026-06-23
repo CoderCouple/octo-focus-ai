@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Req, Res, UseGuards } from "@nestjs/common";
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AuthenticatedRequest } from "../../../auth/supabase-auth.guard";
 import { SupabaseAuthGuard } from "../../../auth/supabase-auth.guard";
 import { SkipResponseInterceptor } from "../../../common/interceptor/skip-response-interceptor.decorator";
@@ -55,9 +55,22 @@ export class CodeToDiagramController {
   @SkipResponseInterceptor()
   async fromCodeStream(
     @Body(new ZodValidationPipe(CodeToDiagramRequestSchema)) body: CodeToDiagramRequest,
+    @Req() request: AuthenticatedRequest & { raw: IncomingMessage },
     @Res() reply: { raw: ServerResponse },
   ): Promise<void> {
     const raw = reply.raw;
+
+    // Writing to reply.raw bypasses Fastify's reply pipeline where Nest's
+    // enableCors normally attaches Access-Control-Allow-Origin, so we have
+    // to set the CORS headers ourselves. Preflight (OPTIONS) is still
+    // handled by the global CORS plugin — only this raw response needs
+    // the origin echoed back.
+    const origin =
+      request.raw.headers.origin ?? process.env.WEB_ORIGIN ?? "*";
+    raw.setHeader("Access-Control-Allow-Origin", origin);
+    raw.setHeader("Access-Control-Allow-Credentials", "true");
+    raw.setHeader("Vary", "Origin");
+
     raw.setHeader("Content-Type", "text/event-stream");
     raw.setHeader("Cache-Control", "no-cache, no-transform");
     raw.setHeader("Connection", "keep-alive");
