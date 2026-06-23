@@ -1,10 +1,19 @@
-import { iconToEmoji, type OctoFocusAIDiagram } from "@octofocus/diagrams";
+import dagre from "@dagrejs/dagre";
+import {
+  iconToEmoji,
+  type DiagramEdge,
+  type DiagramNode,
+  type EdgeOperator,
+  type OctoFocusAIDiagram,
+} from "@octofocus/diagrams";
 import { createShapeId, type Editor, type TLShapePartial } from "tldraw";
 
 const NODE_W = 180;
 const NODE_H = 56;
-const NODE_GAP_X = 80;
-const NODE_GAP_Y = 60;
+const GROUP_PADDING = 28;
+const GROUP_LABEL_RESERVE = 24;
+const RANK_SEP = 90;
+const NODE_SEP = 50;
 
 type TldrawColor =
   | "black"
@@ -21,10 +30,6 @@ type TldrawColor =
   | "red"
   | "white";
 
-/**
- * Map our DSL `[color: …]` value onto a tldraw geo color. Tldraw enforces
- * its enum at runtime — invalid colors fall back to "black".
- */
 function toTldrawColor(value: string | undefined): TldrawColor {
   if (!value) return "black";
   const v = value.toLowerCase().trim();
@@ -61,7 +66,9 @@ function toTldrawColor(value: string | undefined): TldrawColor {
   }
 }
 
-function shapeKindFor(shape: string | undefined): "rectangle" | "ellipse" | "oval" | "diamond" | "hexagon" {
+function shapeKindFor(
+  shape: string | undefined,
+): "rectangle" | "ellipse" | "oval" | "diamond" | "hexagon" {
   switch ((shape ?? "").toLowerCase()) {
     case "oval":
     case "ellipse":
@@ -90,8 +97,49 @@ function asRichText(text: string) {
   };
 }
 
-const GROUP_PADDING = 28;
-const GROUP_LABEL_RESERVE = 24;
+/**
+ * Map the parsed edge operator onto tldraw arrow visual props.
+ *
+ *   ">"   forward arrow, solid line
+ *   "<>"  arrowheads at both ends, solid
+ *   "-"   no arrowhead, solid
+ *   "--"  no arrowhead, dashed
+ *   "-->" forward arrow, dashed
+ */
+function arrowPropsFor(operator: EdgeOperator | undefined): {
+  arrowheadStart: "none" | "arrow";
+  arrowheadEnd: "none" | "arrow";
+  dash: "solid" | "dashed";
+} {
+  const op = operator ?? ">";
+  switch (op) {
+    case "<>":
+      return { arrowheadStart: "arrow", arrowheadEnd: "arrow", dash: "solid" };
+    case "-":
+      return { arrowheadStart: "none", arrowheadEnd: "none", dash: "solid" };
+    case "--":
+      return { arrowheadStart: "none", arrowheadEnd: "none", dash: "dashed" };
+    case "-->":
+      return { arrowheadStart: "none", arrowheadEnd: "arrow", dash: "dashed" };
+    case ">":
+    default:
+      return { arrowheadStart: "none", arrowheadEnd: "arrow", dash: "solid" };
+  }
+}
+
+function dagreRankdir(direction: OctoFocusAIDiagram["direction"]): "TB" | "BT" | "LR" | "RL" {
+  switch (direction) {
+    case "down":
+      return "TB";
+    case "up":
+      return "BT";
+    case "left":
+      return "RL";
+    case "right":
+    default:
+      return "LR";
+  }
+}
 
 export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram) {
   editor.run(() => {
@@ -99,26 +147,17 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
     const ours = existing.filter((s) => s.meta?.octoDsl === true);
     if (ours.length > 0) editor.deleteShapes(ours.map((s) => s.id));
 
-    const positioned = layout(diagram);
+    const layout = computeLayout(diagram);
     const shapesToCreate: TLShapePartial[] = [];
     const idByNode = new Map<string, ReturnType<typeof createShapeId>>();
     const nodeById = new Map(diagram.nodes.map((n) => [n.id, n] as const));
-    const positionById = new Map(positioned.nodes.map((n) => [n.id, n] as const));
+    const childrenByParent = childrenIndex(diagram.nodes);
 
-    // Build child → parent index for the descent walk that sizes groups.
-    const childrenByParent = new Map<string, string[]>();
-    for (const node of diagram.nodes) {
-      if (!node.parentId) continue;
-      const list = childrenByParent.get(node.parentId) ?? [];
-      list.push(node.id);
-      childrenByParent.set(node.parentId, list);
-    }
-
-    // Groups render BEHIND their children — create them first so they're
-    // lowest in the shape z-order.
+    // Groups first — they sit BEHIND their children so the dashed border
+    // doesn't fight with the contained shapes.
     for (const node of diagram.nodes) {
       if (!node.isGroup) continue;
-      const bounds = groupBounds(node.id, childrenByParent, positionById, nodeById);
+      const bounds = groupBounds(node.id, childrenByParent, layout.positions, nodeById);
       if (!bounds) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
@@ -135,8 +174,6 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
             GROUP_PADDING * 2 +
             GROUP_LABEL_RESERVE,
           color: toTldrawColor(node.color ?? "grey"),
-          // Groups read better as outline-only — fills would compete with
-          // the contained nodes for attention.
           fill: "none",
           dash: "dashed",
           richText: asRichText(decorateLabel(node.label, node.icon)),
@@ -146,22 +183,23 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
       });
     }
 
-    for (const node of positioned.nodes) {
-      const source = nodeById.get(node.id);
-      if (source?.isGroup) continue; // groups handled above
+    for (const node of diagram.nodes) {
+      if (node.isGroup) continue;
+      const pos = layout.positions.get(node.id);
+      if (!pos) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
       shapesToCreate.push({
         id,
         type: "geo",
-        x: node.x,
-        y: node.y,
+        x: pos.x,
+        y: pos.y,
         props: {
-          geo: shapeKindFor(source?.shape),
+          geo: shapeKindFor(node.shape),
           w: NODE_W,
           h: NODE_H,
-          color: toTldrawColor(source?.color),
-          richText: asRichText(decorateLabel(node.label, source?.icon)),
+          color: toTldrawColor(node.color),
+          richText: asRichText(decorateLabel(node.label, node.icon)),
         },
         meta: { octoDsl: true, octoNodeId: node.id },
       });
@@ -171,6 +209,7 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
       const fromId = idByNode.get(edge.sourceId);
       const toId = idByNode.get(edge.targetId);
       if (!fromId || !toId) continue;
+      const arrowProps = arrowPropsFor(edge.operator);
       shapesToCreate.push({
         id: createShapeId(),
         type: "arrow",
@@ -178,6 +217,9 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
         y: 0,
         props: {
           color: toTldrawColor(edge.color),
+          arrowheadStart: arrowProps.arrowheadStart,
+          arrowheadEnd: arrowProps.arrowheadEnd,
+          dash: arrowProps.dash,
           richText: asRichText(edge.label ?? ""),
         },
         meta: { octoDsl: true, octoEdgeId: edge.id },
@@ -199,36 +241,83 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
           fromId: arrow.id,
           toId: fromId,
           type: "arrow",
-          props: { terminal: "start", normalizedAnchor: { x: 1, y: 0.5 }, isExact: false, isPrecise: true },
+          props: { terminal: "start", normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false },
         },
         {
           fromId: arrow.id,
           toId: toId,
           type: "arrow",
-          props: { terminal: "end", normalizedAnchor: { x: 0, y: 0.5 }, isExact: false, isPrecise: true },
+          props: { terminal: "end", normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false },
         },
       ]);
     }
   });
 }
 
-interface PositionedNode {
-  id: string;
-  label: string;
+interface NodePosition {
   x: number;
   y: number;
 }
 
+interface ComputedLayout {
+  positions: Map<string, NodePosition>;
+}
+
 /**
- * Bounding box of every leaf descendant of `groupId`. Returns null when
- * the group has no positioned descendants (which only happens for an
- * empty group).
+ * Layout via Dagre. Only leaf nodes are added to the dagre graph;
+ * groups are sized afterwards from their children's bounding boxes.
+ * Keeping groups out of the rank graph stops them from competing with
+ * their own children for column space.
  */
+function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
+  const g = new dagre.graphlib.Graph({ compound: false });
+  g.setGraph({
+    rankdir: dagreRankdir(diagram.direction),
+    nodesep: NODE_SEP,
+    ranksep: RANK_SEP,
+    marginx: 20,
+    marginy: 20,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  for (const node of diagram.nodes) {
+    if (node.isGroup) continue;
+    g.setNode(node.id, { width: NODE_W, height: NODE_H });
+  }
+
+  for (const edge of diagram.edges) {
+    if (g.hasNode(edge.sourceId) && g.hasNode(edge.targetId)) {
+      g.setEdge(edge.sourceId, edge.targetId);
+    }
+  }
+
+  dagre.layout(g);
+
+  const positions = new Map<string, NodePosition>();
+  for (const id of g.nodes()) {
+    const n = g.node(id);
+    // Dagre centres nodes; tldraw places by top-left.
+    positions.set(id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 });
+  }
+  return { positions };
+}
+
+function childrenIndex(nodes: DiagramNode[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const node of nodes) {
+    if (!node.parentId) continue;
+    const list = out.get(node.parentId) ?? [];
+    list.push(node.id);
+    out.set(node.parentId, list);
+  }
+  return out;
+}
+
 function groupBounds(
   groupId: string,
   childrenByParent: Map<string, string[]>,
-  positionById: Map<string, PositionedNode>,
-  nodeById: Map<string, { isGroup?: boolean }>,
+  positions: Map<string, NodePosition>,
+  nodeById: Map<string, DiagramNode>,
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let minX = Infinity;
   let minY = Infinity;
@@ -242,7 +331,7 @@ function groupBounds(
       stack.push(...grandchildren);
       continue;
     }
-    const pos = positionById.get(id);
+    const pos = positions.get(id);
     if (!pos) continue;
     minX = Math.min(minX, pos.x);
     minY = Math.min(minY, pos.y);
@@ -253,61 +342,4 @@ function groupBounds(
   return { minX, minY, maxX, maxY };
 }
 
-function layout(diagram: OctoFocusAIDiagram): { nodes: PositionedNode[] } {
-  // Leaf nodes only — groups are positioned as bounding boxes around
-  // their descendants in syncDiagramToTldraw.
-  const leafNodes = diagram.nodes.filter((n) => !n.isGroup);
-  const ranks = computeRanks(diagram, leafNodes);
-  const byRank = new Map<number, string[]>();
-  for (const [nodeId, rank] of ranks) {
-    const list = byRank.get(rank) ?? [];
-    list.push(nodeId);
-    byRank.set(rank, list);
-  }
-
-  const nodes: PositionedNode[] = [];
-  const labelById = new Map(diagram.nodes.map((n) => [n.id, n.label]));
-  const sortedRanks = Array.from(byRank.keys()).sort((a, b) => a - b);
-  for (const rank of sortedRanks) {
-    const ids = byRank.get(rank)!;
-    ids.forEach((id, i) => {
-      nodes.push({
-        id,
-        label: labelById.get(id) ?? id,
-        x: rank * (NODE_W + NODE_GAP_X),
-        y: i * (NODE_H + NODE_GAP_Y),
-      });
-    });
-  }
-  return { nodes };
-}
-
-function computeRanks(
-  diagram: OctoFocusAIDiagram,
-  scope?: OctoFocusAIDiagram["nodes"],
-): Map<string, number> {
-  const ranks = new Map<string, number>();
-  const includeId = scope ? new Set(scope.map((n) => n.id)) : null;
-  const incoming = new Map<string, string[]>();
-  for (const edge of diagram.edges) {
-    if (includeId && (!includeId.has(edge.sourceId) || !includeId.has(edge.targetId))) {
-      continue;
-    }
-    const list = incoming.get(edge.targetId) ?? [];
-    list.push(edge.sourceId);
-    incoming.set(edge.targetId, list);
-  }
-  function rankOf(id: string, stack = new Set<string>()): number {
-    if (ranks.has(id)) return ranks.get(id)!;
-    if (stack.has(id)) return 0;
-    stack.add(id);
-    const parents = incoming.get(id) ?? [];
-    const r = parents.length === 0 ? 0 : Math.max(...parents.map((p) => rankOf(p, stack))) + 1;
-    stack.delete(id);
-    ranks.set(id, r);
-    return r;
-  }
-  const targets = scope ?? diagram.nodes;
-  for (const node of targets) rankOf(node.id);
-  return ranks;
-}
+export type { DiagramEdge, OctoFocusAIDiagram };

@@ -259,6 +259,104 @@ Web > Lambda
   });
 });
 
+describe("parseDsl — edge operators", () => {
+  it("defaults to forward `>` operator", () => {
+    const { diagram } = parseDsl("Web > API");
+    expect(diagram.edges[0]!.operator).toBe(">");
+  });
+
+  it("normalises `<` by swapping source and target", () => {
+    const { diagram } = parseDsl("Web < API");
+    const web = diagram.nodes.find((n) => n.name === "Web")!;
+    const api = diagram.nodes.find((n) => n.name === "API")!;
+    expect(diagram.edges[0]!.sourceId).toBe(api.id);
+    expect(diagram.edges[0]!.targetId).toBe(web.id);
+    expect(diagram.edges[0]!.operator).toBe(">");
+  });
+
+  it("preserves the `<>` bidirectional operator", () => {
+    const { diagram } = parseDsl("Web <> Cache");
+    expect(diagram.edges[0]!.operator).toBe("<>");
+  });
+
+  it("preserves the `-` line connector", () => {
+    const { diagram } = parseDsl("Web - LoadBalancer");
+    expect(diagram.edges[0]!.operator).toBe("-");
+  });
+
+  it("preserves the `--` dashed-line connector", () => {
+    const { diagram } = parseDsl("Web -- Mirror");
+    expect(diagram.edges[0]!.operator).toBe("--");
+  });
+
+  it("preserves the `-->` dashed-arrow connector", () => {
+    const { diagram } = parseDsl("Producer --> Queue: async publish");
+    expect(diagram.edges[0]!.operator).toBe("-->");
+    expect(diagram.edges[0]!.label).toBe("async publish");
+  });
+
+  it("does NOT treat the hyphen in `aws-lambda` as the `-` operator", () => {
+    const { diagram, errors } = parseDsl("Lambda [icon: aws-lambda]");
+    expect(errors).toEqual([]);
+    expect(diagram.nodes).toHaveLength(1);
+    expect(diagram.edges).toHaveLength(0);
+    expect(diagram.nodes[0]!.icon).toBe("aws-lambda");
+  });
+});
+
+describe("parseDsl — chained connections", () => {
+  it("declares one edge per hop in `A > B > C`", () => {
+    const { diagram } = parseDsl("Issue > Bug > Duplicate?");
+    expect(diagram.nodes.map((n) => n.name)).toEqual(["Issue", "Bug", "Duplicate?"]);
+    expect(diagram.edges).toHaveLength(2);
+    expect(diagram.edges[0]!.label).toBeUndefined();
+    expect(diagram.edges[1]!.label).toBeUndefined();
+  });
+
+  it("attaches the label only to the LAST hop", () => {
+    const { diagram } = parseDsl("A > B > C: final");
+    expect(diagram.edges).toHaveLength(2);
+    expect(diagram.edges[0]!.label).toBeUndefined();
+    expect(diagram.edges[1]!.label).toBe("final");
+  });
+
+  it("supports mixed operators along a chain", () => {
+    const { diagram } = parseDsl("A > B --> C");
+    expect(diagram.edges[0]!.operator).toBe(">");
+    expect(diagram.edges[1]!.operator).toBe("-->");
+  });
+
+  it("supports fan-out only on the final hop", () => {
+    const { diagram } = parseDsl("A > B > X, Y, Z");
+    expect(diagram.edges).toHaveLength(4); // A→B, then B→X, B→Y, B→Z
+  });
+});
+
+describe("parseDsl — direction directive", () => {
+  it("defaults to right", () => {
+    const { diagram } = parseDsl("Web > API");
+    expect(diagram.direction).toBe("right");
+  });
+
+  it("recognises `direction down`", () => {
+    const { diagram } = parseDsl("direction down\nA > B");
+    expect(diagram.direction).toBe("down");
+  });
+
+  it("recognises every direction value", () => {
+    for (const dir of ["down", "up", "right", "left"] as const) {
+      const { diagram } = parseDsl(`direction ${dir}`);
+      expect(diagram.direction).toBe(dir);
+    }
+  });
+
+  it("errors on unknown direction", () => {
+    const { errors } = parseDsl("direction sideways");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/Unknown direction/);
+  });
+});
+
 describe("iconToEmoji", () => {
   it("returns a glyph for known icon names", () => {
     expect(iconToEmoji("aws-lambda")).toBe("λ");

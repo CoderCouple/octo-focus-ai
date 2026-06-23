@@ -1,4 +1,23 @@
-import type { DiagramEdge, DiagramNode, OctoFocusAIDiagram } from "./index";
+import type {
+  DiagramDirection,
+  DiagramEdge,
+  DiagramNode,
+  EdgeOperator,
+  OctoFocusAIDiagram,
+} from "./index";
+
+/**
+ * Edge operator tokens (longest first — the parser tries them in order
+ * so `-->` wins over `--` wins over `>` etc.). All must be surrounded
+ * by whitespace to be recognised as operators, otherwise `aws-lambda`
+ * and similar hyphenated names would parse as edges.
+ */
+const EDGE_OPERATORS: EdgeOperator[] = ["-->", "<>", "--", ">", "-"];
+// `<` is special-cased: at parse time the operator is normalised to `>`
+// and the source / target are swapped. This keeps the rest of the
+// pipeline edge-direction-aware without needing to handle backward
+// arrows everywhere.
+const BACK_OPERATOR = "<" as const;
 
 export interface ParseResult {
   diagram: OctoFocusAIDiagram;
@@ -28,12 +47,13 @@ export interface ParseResult {
  * sequence blocks, ER fields, etc.) is documented in
  * `packages/diagrams/DSL.md` and lands as DSL v2.
  */
+const DIRECTION_VALUES = new Set(["down", "up", "right", "left"]);
+
 export function parseDsl(input: string): ParseResult {
   const errors: ParseResult["errors"] = [];
   const nodesByName = new Map<string, DiagramNode>();
   const edges: DiagramEdge[] = [];
-  // Stack of currently-open group node ids. The top of the stack is the
-  // parent for any nodes declared on subsequent lines.
+  let direction: DiagramDirection = "right";
   const groupStack: string[] = [];
 
   const lines = input.split(/\r?\n/);
@@ -42,7 +62,6 @@ export function parseDsl(input: string): ParseResult {
     const line = stripComment(raw).trim();
     if (!line) continue;
 
-    // Close-brace on its own → pop the open group.
     if (line === "}") {
       if (groupStack.length === 0) {
         errors.push({ line: i + 1, message: "Unexpected `}` with no open group." });
@@ -52,9 +71,22 @@ export function parseDsl(input: string): ParseResult {
       continue;
     }
 
+    // Diagram-level directive: `direction <value>` at top level.
+    if (line.startsWith("direction ")) {
+      const value = line.slice("direction ".length).trim();
+      if (DIRECTION_VALUES.has(value)) {
+        direction = value as DiagramDirection;
+      } else {
+        errors.push({
+          line: i + 1,
+          message: `Unknown direction "${value}". Expected down | up | right | left.`,
+        });
+      }
+      continue;
+    }
+
     const currentParent = groupStack[groupStack.length - 1];
 
-    // Group declaration: line ends with `{` (with optional whitespace).
     if (line.endsWith("{")) {
       const head = line.slice(0, -1).trim();
       const parsed = parseNameWithAttributes(head);
@@ -70,9 +102,9 @@ export function parseDsl(input: string): ParseResult {
       continue;
     }
 
-    const arrowIdx = findTopLevelOperator(line, ">");
-
-    if (arrowIdx === -1) {
+    // Try to find an edge operator. If none, this line is a node decl.
+    const firstOp = findFirstEdgeOperator(line, 0);
+    if (firstOp === null) {
       const parsed = parseNameWithAttributes(line);
       if (!parsed) {
         errors.push({ line: i + 1, message: "Could not parse node declaration." });
@@ -82,61 +114,87 @@ export function parseDsl(input: string): ParseResult {
       continue;
     }
 
-    const leftRaw = line.slice(0, arrowIdx).trim();
-    const afterArrow = line.slice(arrowIdx + 1).trim();
-
-    // Disambiguation rule:
-    //   `A > B [attrs]`              → [attrs] is on B (the target node)
-    //   `A > B: label`               → label only, no attrs anywhere
-    //   `A > B [b-attrs]: label`     → [b-attrs] on B, no edge attrs
-    //   `A > B: label [edge-attrs]`  → [edge-attrs] on the edge
-    //   `A > B [b-attrs]: label [edge-attrs]`  → both
-    let rightSide: string;
+    // Pull the label + edge attrs off the END of the line first.
+    // Disambiguation rule (carried over from v1.1):
+    //   `A > B [attrs]`             → [attrs] on the LAST target
+    //   `A > B: label [attrs]`      → [attrs] on the edge
+    let body = line;
     let label: string | undefined;
     let edgeAttrs: Record<string, string> = {};
-
-    const colonIdx = findTopLevelOperator(afterArrow, ":");
-    if (colonIdx === -1) {
-      // No label — the whole tail is "<TargetName> [target-attrs]?"
-      rightSide = afterArrow;
-    } else {
-      rightSide = afterArrow.slice(0, colonIdx).trim();
-      const afterColon = afterArrow.slice(colonIdx + 1).trim();
+    const lastColonIdx = findLastTopLevelColon(body);
+    if (lastColonIdx !== -1) {
+      const beforeColon = body.slice(0, lastColonIdx).trim();
+      const afterColon = body.slice(lastColonIdx + 1).trim();
       const stripped = stripTrailingAttributes(afterColon);
       label = stripped.body.trim() || undefined;
       edgeAttrs = stripped.attrs;
+      body = beforeColon;
     }
 
-    const leftParsed = parseNameWithAttributes(leftRaw);
-    if (!leftParsed) {
-      errors.push({ line: i + 1, message: "Edge must have a source." });
+    // Split body into chain segments: [seg0, op0, seg1, op1, seg2, …].
+    // `opAfter` may include `<` here — `normaliseEdgeOperator` rewrites
+    // it into the canonical (source, target, EdgeOperator) tuple.
+    const chain: Array<{ segment: string; opAfter?: string }> = [];
+    let cursor = 0;
+    while (cursor < body.length) {
+      const op = findFirstEdgeOperator(body, cursor);
+      if (op === null) {
+        chain.push({ segment: body.slice(cursor).trim() });
+        break;
+      }
+      chain.push({
+        segment: body.slice(cursor, op.index).trim(),
+        opAfter: op.operator,
+      });
+      cursor = op.index + op.length;
+    }
+    if (chain.length < 2) {
+      errors.push({ line: i + 1, message: "Edge must have a source and target." });
       continue;
     }
 
-    // Multi-target fan-out: `A > B, C, D` declares one edge per target.
-    const targets = splitTopLevel(rightSide, ",")
+    // The last segment may be a fan-out target list (`A > B, C, D`).
+    // Intermediate segments in a chain are single names — we don't
+    // support `A > B, C > D` because the semantics are unclear.
+    const intermediates = chain.slice(0, -1).map((seg) => parseNameWithAttributes(seg.segment));
+    const lastSegment = chain[chain.length - 1]!;
+    const fanOutTargets = splitTopLevel(lastSegment.segment, ",")
       .map((t) => parseNameWithAttributes(t.trim()))
       .filter((p): p is NonNullable<typeof p> => p !== null);
-    if (targets.length === 0) {
-      errors.push({ line: i + 1, message: "Edge must have at least one target." });
+
+    if (intermediates.some((p) => !p) || fanOutTargets.length === 0) {
+      errors.push({ line: i + 1, message: "Edge has an unparseable name." });
       continue;
     }
 
-    const source = upsertNode(leftParsed.name, leftParsed.attrs, nodesByName, {
-      parentId: currentParent,
-    });
+    const intermediateNodes = intermediates.map((parsed) =>
+      upsertNode(parsed!.name, parsed!.attrs, nodesByName, { parentId: currentParent }),
+    );
+
+    // Walk through the chain, emitting one edge per (left, op, right) triple.
+    // Fan-out only applies on the final hop.
     const edgeColor = edgeAttrs.color;
-    for (const targetParsed of targets) {
-      const target = upsertNode(targetParsed.name, targetParsed.attrs, nodesByName, {
-        parentId: currentParent,
-      });
-      edges.push({
-        id: `edge-${edges.length + 1}`,
-        sourceId: source.id,
-        targetId: target.id,
-        ...(label ? { label } : {}),
-        ...(edgeColor ? { color: edgeColor } : {}),
-      });
+    for (let k = 0; k < chain.length - 1; k++) {
+      const op = chain[k]!.opAfter!;
+      const isLastHop = k === chain.length - 2;
+      const leftNode = intermediateNodes[k]!;
+      const rightNodesForHop = isLastHop
+        ? fanOutTargets.map((parsed) =>
+            upsertNode(parsed.name, parsed.attrs, nodesByName, { parentId: currentParent }),
+          )
+        : [intermediateNodes[k + 1]!];
+
+      for (const rightNode of rightNodesForHop) {
+        const normalised = normaliseEdgeOperator(op, leftNode, rightNode);
+        edges.push({
+          id: `edge-${edges.length + 1}`,
+          sourceId: normalised.sourceId,
+          targetId: normalised.targetId,
+          operator: normalised.operator,
+          ...(label && isLastHop ? { label } : {}),
+          ...(edgeColor ? { color: edgeColor } : {}),
+        });
+      }
     }
   }
 
@@ -152,11 +210,28 @@ export function parseDsl(input: string): ParseResult {
     diagram: {
       type: "flowchart",
       title: "Untitled",
+      direction,
       nodes,
       edges,
     },
     errors,
   };
+}
+
+/**
+ * Map the parsed operator + source/target onto the normalised edge
+ * vocabulary. `<` swaps direction; `>`, `<>`, `-`, `--`, `-->` are
+ * kept verbatim.
+ */
+function normaliseEdgeOperator(
+  op: string,
+  left: DiagramNode,
+  right: DiagramNode,
+): { sourceId: string; targetId: string; operator: EdgeOperator } {
+  if (op === BACK_OPERATOR) {
+    return { sourceId: right.id, targetId: left.id, operator: ">" };
+  }
+  return { sourceId: left.id, targetId: right.id, operator: op as EdgeOperator };
 }
 
 export function serializeDsl(diagram: OctoFocusAIDiagram): string {
@@ -165,6 +240,11 @@ export function serializeDsl(diagram: OctoFocusAIDiagram): string {
   );
   const referenced = new Set<string>();
   const lines: string[] = [];
+
+  // Diagram-level directives come first.
+  if (diagram.direction && diagram.direction !== "right") {
+    lines.push(`direction ${diagram.direction}`);
+  }
 
   // Emit standalone node declarations first (just the ones with attrs we
   // want to preserve — bare names ride along in edges below).
@@ -179,7 +259,8 @@ export function serializeDsl(diagram: OctoFocusAIDiagram): string {
     if (!source || !target) continue;
     referenced.add(edge.sourceId);
     referenced.add(edge.targetId);
-    let line = `${quoteIfNeeded(source)} > ${quoteIfNeeded(target)}`;
+    const op = edge.operator ?? ">";
+    let line = `${quoteIfNeeded(source)} ${op} ${quoteIfNeeded(target)}`;
     if (edge.label) line += `: ${edge.label}`;
     if (edge.color) line += ` [color: ${edge.color}]`;
     lines.push(line);
@@ -232,6 +313,80 @@ function findTopLevelOperator(s: string, op: string): number {
     else if (ch === "]") bracketDepth = Math.max(0, bracketDepth - 1);
   }
   return -1;
+}
+
+/**
+ * Find the FIRST edge operator (>, <, <>, -, --, -->) at or after `from`
+ * that is at the top level (not inside quotes or brackets) AND is
+ * surrounded by whitespace (or at line edges) — the whitespace rule
+ * disambiguates `Web > API` (operator) from `aws-lambda` (name).
+ *
+ * Returns null when no operator is found.
+ */
+function findFirstEdgeOperator(
+  s: string,
+  from: number,
+): { index: number; length: number; operator: string } | null {
+  // Operators sorted longest-first so `-->` wins over `--` wins over `-`.
+  const ordered = ["-->", "<>", "--", ">", "<", "-"];
+
+  let inQuote = false;
+  let bracketDepth = 0;
+  for (let i = from; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "\"") {
+      inQuote = !inQuote;
+      continue;
+    }
+    if (inQuote) continue;
+    if (ch === "[") {
+      bracketDepth++;
+      continue;
+    }
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+    if (bracketDepth !== 0) continue;
+
+    for (const op of ordered) {
+      if (!s.startsWith(op, i)) continue;
+      const before = i === 0 ? " " : s[i - 1];
+      const after = i + op.length >= s.length ? " " : s[i + op.length];
+      if (/\s/.test(before!) && /\s/.test(after!)) {
+        return { index: i, length: op.length, operator: op };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Find the LAST top-level `:` in `s`. Used to split the optional label
+ * off the end of an edge line (`A > B: label` or `A > B > C: label`).
+ */
+function findLastTopLevelColon(s: string): number {
+  let inQuote = false;
+  let bracketDepth = 0;
+  let last = -1;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "\"") {
+      inQuote = !inQuote;
+      continue;
+    }
+    if (inQuote) continue;
+    if (ch === "[") {
+      bracketDepth++;
+      continue;
+    }
+    if (ch === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+    if (bracketDepth === 0 && ch === ":") last = i;
+  }
+  return last;
 }
 
 interface ParsedNameAttrs {

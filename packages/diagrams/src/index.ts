@@ -59,18 +59,39 @@ export const DiagramNodeSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+/**
+ * Connection operator vocabulary, mirroring Eraser. The renderer
+ * resolves each to arrowhead + dash style:
+ *
+ *   ">"   forward arrow, solid line
+ *   "<"   normalised to ">" at parse time (source/target swapped)
+ *   "<>"  arrowheads at both ends, solid
+ *   "-"   no arrowhead, solid line
+ *   "--"  no arrowhead, dashed line
+ *   "-->" forward arrow, dashed line
+ */
+export const EdgeOperatorSchema = z.enum([">", "<>", "-", "--", "-->"]);
+
 export const DiagramEdgeSchema = z.object({
   id: z.string(),
   sourceId: z.string(),
   targetId: z.string(),
   label: z.string().optional(),
   color: z.string().optional(),
+  operator: EdgeOperatorSchema.default(">"),
   metadata: z.record(z.unknown()).optional(),
 });
+
+/**
+ * Layout direction for the whole diagram. Set via the top-level
+ * `direction down|up|right|left` directive; defaults to "right".
+ */
+export const DiagramDirectionSchema = z.enum(["down", "up", "right", "left"]);
 
 export const OctoFocusAIDiagramSchema = z.object({
   type: DiagramTypeSchema,
   title: z.string(),
+  direction: DiagramDirectionSchema.default("right"),
   nodes: z.array(DiagramNodeSchema),
   edges: z.array(DiagramEdgeSchema),
   metadata: z.record(z.unknown()).optional(),
@@ -78,8 +99,10 @@ export const OctoFocusAIDiagramSchema = z.object({
 
 export type DiagramColor = (typeof DIAGRAM_COLORS)[number];
 export type DiagramType = z.infer<typeof DiagramTypeSchema>;
+export type DiagramDirection = z.infer<typeof DiagramDirectionSchema>;
 export type DiagramNode = z.infer<typeof DiagramNodeSchema>;
 export type DiagramEdge = z.infer<typeof DiagramEdgeSchema>;
+export type EdgeOperator = z.infer<typeof EdgeOperatorSchema>;
 export type OctoFocusAIDiagram = z.infer<typeof OctoFocusAIDiagramSchema>;
 
 export { parseDsl, serializeDsl } from "./dsl";

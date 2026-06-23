@@ -57,6 +57,13 @@ API Gateway > Auth Service                    # directed edge
 API Gateway > Auth Service: validates         # edge with label
 Web Client > API Gateway [color: green]       # edge with attribute
 API > Lambda, Worker, Cache                   # fan-out: one edge per target
+Producer --> Queue                            # dashed arrow (async)
+Worker <> Cache                               # bidirectional
+Web - "Load Balancer"                         # plain line, no arrowhead
+A > B > C                                     # chained: emits A→B and B→C
+
+# Diagram-level layout direction (default: right). Set at top of file.
+direction down                                # down | up | right | left
 
 # Groups — a name followed by { … } makes a labeled container.
 # Render as a dashed box framing the children.
@@ -99,6 +106,12 @@ Icon names (the renderer maps these to inline glyphs — unknown icons render as
 Rules:
 - One declaration or edge per line.
 - ALWAYS add a relevant icon when the code names a known service (S3, Lambda, Postgres, etc.). The icons are what make the diagram readable at a glance — without them it's just rectangles.
+- Choose the arrow style that fits the relationship:
+    \`>\` for direct synchronous calls (HTTP, RPC)
+    \`-->\` for async / queue-driven / event-driven flows
+    \`<>\` for symmetric mutual access (replication, sync)
+    \`-\` for grouping or annotation (no implied direction)
+  Picking the right operator gives the diagram semantic meaning at a glance.
 - WRAP cloud resources in their provider group. If the code is AWS-flavored, put EC2/Lambda/RDS/S3 inside an \`AWS { ... }\` group. Same for GCP, Azure, Kubernetes. Visually-grouped clusters read 10× better than 8 floating icons.
 - Use fan-out (\`API > Lambda, Worker, Cache\`) when one service hands off to multiple downstreams in parallel — it's both shorter and more visually accurate.
 - Reach for color sparingly and only when it carries meaning: orange for external/third-party services, green for success paths, red for danger / write paths, blue or violet for internal services.
