@@ -18,6 +18,11 @@ import {
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { syncDiagramToTldraw } from "../lib/diagram-to-tldraw";
 import { detectShape, type Point } from "../lib/shape-detector";
+import { OctoCardShapeUtil } from "../shapes/octo-card";
+
+// Custom shape utils registered with Tldraw — extends the default set
+// with our DSL-rendered `octo-card` shape.
+const SHAPE_UTILS = [OctoCardShapeUtil];
 
 const SAVE_DEBOUNCE_MS = 1200;
 const DSL_PARSE_DEBOUNCE_MS = 500;
@@ -149,7 +154,7 @@ export function OctoCanvas({
   return (
     <div className="relative h-full w-full">
       <div className="absolute inset-0">
-        <Tldraw onMount={onMount} />
+        <Tldraw onMount={onMount} shapeUtils={SHAPE_UTILS} />
       </div>
     </div>
   );

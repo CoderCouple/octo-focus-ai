@@ -158,23 +158,24 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
       if (!bounds) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
+      // The `octo-card` shape is custom and not in tldraw's closed
+      // TLShape union; cast via unknown to keep the rest of the
+      // TLShapePartial machinery happy.
       shapesToCreate.push({
         id,
-        type: "geo",
+        type: "octo-card",
         x: bounds.x,
         y: bounds.y,
         props: {
-          geo: "rectangle",
           w: bounds.width,
           h: bounds.height,
-          color: toTldrawColor(node.color ?? "grey"),
-          fill: "none",
-          dash: "dashed",
-          richText: asRichText(decorateLabel(node.label, node.icon)),
-          verticalAlign: "start",
+          label: node.label,
+          icon: node.icon ?? "",
+          color: node.color ?? "grey",
+          isGroup: true,
         },
         meta: { octoDsl: true, octoNodeId: node.id, octoGroup: true },
-      });
+      } as unknown as TLShapePartial);
     }
 
     for (const node of diagram.nodes) {
@@ -185,18 +186,19 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
       idByNode.set(node.id, id);
       shapesToCreate.push({
         id,
-        type: "geo",
+        type: "octo-card",
         x: pos.x,
         y: pos.y,
         props: {
-          geo: shapeKindFor(node.shape),
           w: NODE_W,
           h: NODE_H,
-          color: toTldrawColor(node.color),
-          richText: asRichText(decorateLabel(node.label, node.icon)),
+          label: node.label,
+          icon: node.icon ?? "",
+          color: node.color ?? "black",
+          isGroup: false,
         },
         meta: { octoDsl: true, octoNodeId: node.id },
-      });
+      } as unknown as TLShapePartial);
     }
 
     for (const edge of diagram.edges) {
