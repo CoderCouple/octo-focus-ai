@@ -21,7 +21,7 @@ import {
   type TLBaseShape,
   type TLResizeInfo,
 } from "tldraw";
-import { getIconComponent } from "./icon-registry";
+import { hasIcon, NodeIcon } from "./icon-registry";
 
 export type OctoCardShape = TLBaseShape<
   "octo-card",
@@ -121,7 +121,7 @@ export class OctoCardShapeUtil extends ShapeUtil<OctoCardShape> {
   override component(shape: OctoCardShape) {
     const { label, icon, color, isGroup, w, h } = shape.props;
     const stroke = resolveColor(color);
-    const Icon = getIconComponent(icon);
+    const iconAvailable = hasIcon(icon);
 
     if (isGroup) {
       // Dashed outline container — children render on top.
@@ -147,7 +147,7 @@ export class OctoCardShapeUtil extends ShapeUtil<OctoCardShape> {
           }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            {Icon ? <Icon size={14} /> : null}
+            {iconAvailable ? <NodeIcon name={icon} size={14} /> : null}
             <span>{label}</span>
           </span>
         </HTMLContainer>
@@ -177,7 +177,7 @@ export class OctoCardShapeUtil extends ShapeUtil<OctoCardShape> {
           pointerEvents: "all",
         }}
       >
-        {Icon ? (
+        {iconAvailable ? (
           <span
             style={{
               flex: "0 0 auto",
@@ -191,7 +191,7 @@ export class OctoCardShapeUtil extends ShapeUtil<OctoCardShape> {
               color: stroke,
             }}
           >
-            <Icon size={16} />
+            <NodeIcon name={icon} size={18} />
           </span>
         ) : null}
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
