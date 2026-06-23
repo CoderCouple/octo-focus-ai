@@ -32,6 +32,12 @@ export interface OctoCanvasProps {
   dsl: string;
   /** Fires once tldraw has finished mounting; gives the parent the live editor. */
   onEditorReady?: (editor: Editor) => void;
+  /**
+   * Monotonic counter the parent bumps after From-code or Refine produces a
+   * brand-new DSL. Triggers a zoom-to-fit ~600ms later — past the dsl-parse
+   * debounce — so the freshly-generated diagram lands centred in view.
+   */
+  fitToContent?: number;
 }
 
 export function OctoCanvas({
@@ -40,6 +46,7 @@ export function OctoCanvas({
   autoShape,
   dsl,
   onEditorReady,
+  fitToContent,
 }: OctoCanvasProps) {
   const editorRef = useRef<Editor | null>(null);
   const autoShapeRef = useRef(autoShape);
@@ -83,6 +90,16 @@ export function OctoCanvas({
       lastSyncedDsl.current = dsl;
     }, DSL_PARSE_DEBOUNCE_MS);
   }, [dsl]);
+
+  // Auto-fit after a parent-requested regeneration. Waits past the
+  // DSL-parse debounce so the shapes exist before we zoom.
+  useEffect(() => {
+    if (!fitToContent) return;
+    const t = setTimeout(() => {
+      editorRef.current?.zoomToFit({ animation: { duration: 240 } });
+    }, DSL_PARSE_DEBOUNCE_MS + 120);
+    return () => clearTimeout(t);
+  }, [fitToContent]);
 
   function onMount(editor: Editor) {
     editorRef.current = editor;

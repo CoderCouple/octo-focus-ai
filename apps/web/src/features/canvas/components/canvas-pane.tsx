@@ -23,6 +23,9 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
   const [autoShape, setAutoShape] = useState(false);
   const [dslOpen, setDslOpen] = useState(false);
   const [dsl, setDsl] = useState(initialDsl);
+  // Bumped after From-code / Refine. OctoCanvas watches this and zooms-to-fit
+  // once the regenerated DSL has been parsed and synced to tldraw shapes.
+  const [fitToken, setFitToken] = useState(0);
   const dslSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const handleEditorReady = useCallback((e: Editor) => {
@@ -68,6 +71,7 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
               // Claude just produced — otherwise the result is invisible
               // until they manually expand the drawer.
               setDslOpen(true);
+              setFitToken((t) => t + 1);
             }}
           />
           <RefineDiagramDialog
@@ -75,6 +79,7 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
             onRefined={(next) => {
               onDslChange(next);
               setDslOpen(true);
+              setFitToken((t) => t + 1);
             }}
           />
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
@@ -86,6 +91,7 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
           initialDocument={initialDocument}
           autoShape={autoShape}
           dsl={dsl}
+          fitToContent={fitToken}
           onEditorReady={handleEditorReady}
         />
       </div>
