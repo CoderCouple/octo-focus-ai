@@ -17,6 +17,7 @@ import {
 import { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { BaseResponse, successResponse } from "../../api/v1/response/base.response";
+import { SKIP_RESPONSE_INTERCEPTOR } from "./skip-response-interceptor.decorator";
 
 function isBaseResponse(value: unknown): value is BaseResponse {
   return (
@@ -34,6 +35,12 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, BaseResponse<T
     context: ExecutionContext,
     next: CallHandler<T>,
   ): Observable<BaseResponse<T> | T> {
+    // Streaming endpoints (and other raw-response writers) opt out via
+    // `@SkipResponseInterceptor()` — the controller has already written
+    // to the wire by the time we'd try to wrap.
+    const skip = Reflect.getMetadata(SKIP_RESPONSE_INTERCEPTOR, context.getHandler());
+    if (skip) return next.handle();
+
     return next.handle().pipe(
       map((value: T) => {
         if (value instanceof StreamableFile) return value;

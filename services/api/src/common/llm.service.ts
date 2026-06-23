@@ -43,9 +43,8 @@ export class LlmService {
 
   /**
    * Run a single completion against Claude. Returns the assistant's
-   * concatenated text content. Tool use, streaming, and multi-turn are
-   * out of scope here — call sites that need them should reach into the
-   * SDK directly via `this.client()`.
+   * concatenated text content. Tool use and multi-turn are out of scope
+   * here — call sites that need them reach into `this.client()` directly.
    */
   async completeText(opts: {
     system: string;
@@ -68,5 +67,36 @@ export class LlmService {
       this.logger.warn("Claude returned no text content");
     }
     return out.trim();
+  }
+
+  /**
+   * Stream a completion as text deltas. Returns an AsyncGenerator that
+   * yields the next chunk of text each iteration. End of stream means
+   * Claude is done; errors are thrown back to the caller.
+   *
+   * Used by the from-code-stream endpoint to push DSL into the browser
+   * as it's being produced.
+   */
+  async *streamText(opts: {
+    system: string;
+    user: string;
+    options?: CompletionOptions;
+  }): AsyncGenerator<string, void, void> {
+    const { system, user, options } = opts;
+    const stream = this.client().messages.stream({
+      model: options?.model ?? DEFAULT_MODEL,
+      max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+      temperature: options?.temperature ?? 0,
+      system,
+      messages: [{ role: "user", content: user }],
+    });
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        yield event.delta.text;
+      }
+    }
   }
 }

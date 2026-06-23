@@ -139,6 +139,36 @@ export class CodeToDiagramService {
     const detectedKind = detectKind(input.hint, dsl);
     return { dsl, detectedKind };
   }
+
+  /**
+   * Streaming variant. Yields raw text deltas as Claude produces them.
+   * The caller is responsible for assembling the chunks and doing the
+   * final fence strip / kind detection on the full buffer.
+   */
+  async *generateStream(input: CodeToDiagramInput): AsyncGenerator<string, void, void> {
+    const userPrompt = buildUserPrompt(input);
+    for await (const chunk of this.llm.streamText({
+      system: SYSTEM_PROMPT,
+      user: userPrompt,
+      options: { temperature: 0.2, maxTokens: 1500 },
+    })) {
+      yield chunk;
+    }
+  }
+}
+
+/**
+ * Buffer-side fence strip — same logic as `stripFences` but exported so
+ * the streaming controller can call it after the stream ends.
+ */
+export function stripFencesFromBuffer(raw: string): string {
+  return stripFences(raw);
+}
+
+export function detectKindFromHint(
+  hint: CodeToDiagramHint | undefined,
+): CodeToDiagramOutput["detectedKind"] {
+  return detectKind(hint, "");
 }
 
 function buildUserPrompt(input: CodeToDiagramInput): string {

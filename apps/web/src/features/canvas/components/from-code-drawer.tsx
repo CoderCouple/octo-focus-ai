@@ -32,7 +32,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { codeToDiagramApi, type CodeToDiagramHint } from "../api/code-to-diagram-api";
+import {
+  streamCodeToDiagramApi,
+  type CodeToDiagramHint,
+} from "../api/code-to-diagram-api";
 import { CODE_EXAMPLES } from "../lib/code-examples";
 
 interface FromCodeDrawerProps {
@@ -74,25 +77,34 @@ export function FromCodeDrawer({ currentDsl, onGenerated }: FromCodeDrawerProps)
   const [hint, setHint] = useState<CodeToDiagramHint>("auto");
   const [refine, setRefine] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [streamingPreview, setStreamingPreview] = useState("");
 
   const handleGenerate = async () => {
     if (!code.trim()) return;
     setBusy(true);
-    try {
-      const result = await codeToDiagramApi({
+    setStreamingPreview("");
+    await streamCodeToDiagramApi(
+      {
         code: code.trim(),
         hint,
         ...(refine && currentDsl ? { currentDsl } : {}),
-      });
-      onGenerated(result.dsl);
-      toast.success(`Generated ${result.detectedKind} diagram`);
-      setOpen(false);
-      setCode("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Generation failed");
-    } finally {
-      setBusy(false);
-    }
+      },
+      {
+        onChunk: (chunk) => setStreamingPreview((prev) => prev + chunk),
+        onComplete: (dsl, detectedKind) => {
+          onGenerated(dsl);
+          toast.success(`Generated ${detectedKind} diagram`);
+          setOpen(false);
+          setCode("");
+          setStreamingPreview("");
+          setBusy(false);
+        },
+        onError: (msg) => {
+          toast.error(msg);
+          setBusy(false);
+        },
+      },
+    );
   };
 
   const canRefine = currentDsl.trim().length > 0;
@@ -176,6 +188,16 @@ export function FromCodeDrawer({ currentDsl, onGenerated }: FromCodeDrawerProps)
             disabled={busy}
             className="flex-1 resize-none font-mono text-xs leading-[1.65]"
           />
+
+          {busy ? (
+            <div className="bg-muted/40 flex max-h-40 flex-col gap-1 overflow-auto rounded-md border p-2 font-mono text-[11px] leading-[1.55]">
+              <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+                <Loader2 className="size-3 animate-spin" />
+                Claude is writing
+              </div>
+              <pre className="whitespace-pre-wrap break-words">{streamingPreview || "…"}</pre>
+            </div>
+          ) : null}
         </div>
 
         <SheetFooter className="border-t bg-card px-6 py-4">
