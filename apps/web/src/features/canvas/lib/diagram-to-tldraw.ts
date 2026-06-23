@@ -2,7 +2,6 @@ import dagre from "@dagrejs/dagre";
 import {
   iconToEmoji,
   type DiagramEdge,
-  type DiagramNode,
   type EdgeOperator,
   type OctoFocusAIDiagram,
 } from "@octofocus/diagrams";
@@ -150,29 +149,24 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
     const layout = computeLayout(diagram);
     const shapesToCreate: TLShapePartial[] = [];
     const idByNode = new Map<string, ReturnType<typeof createShapeId>>();
-    const nodeById = new Map(diagram.nodes.map((n) => [n.id, n] as const));
-    const childrenByParent = childrenIndex(diagram.nodes);
 
     // Groups first — they sit BEHIND their children so the dashed border
     // doesn't fight with the contained shapes.
     for (const node of diagram.nodes) {
       if (!node.isGroup) continue;
-      const bounds = groupBounds(node.id, childrenByParent, layout.positions, nodeById);
+      const bounds = layout.groupBounds.get(node.id);
       if (!bounds) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
       shapesToCreate.push({
         id,
         type: "geo",
-        x: bounds.minX - GROUP_PADDING,
-        y: bounds.minY - GROUP_PADDING - GROUP_LABEL_RESERVE,
+        x: bounds.x,
+        y: bounds.y,
         props: {
           geo: "rectangle",
-          w: bounds.maxX - bounds.minX + GROUP_PADDING * 2,
-          h:
-            bounds.maxY - bounds.minY +
-            GROUP_PADDING * 2 +
-            GROUP_LABEL_RESERVE,
+          w: bounds.width,
+          h: bounds.height,
           color: toTldrawColor(node.color ?? "grey"),
           fill: "none",
           dash: "dashed",
@@ -259,18 +253,33 @@ interface NodePosition {
   y: number;
 }
 
+interface NodeBounds {
+  x: number; // top-left
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface ComputedLayout {
+  /** Top-left positions for leaf nodes. */
   positions: Map<string, NodePosition>;
+  /** Top-left + width/height for groups, computed by Dagre's compound layout. */
+  groupBounds: Map<string, NodeBounds>;
 }
 
 /**
- * Layout via Dagre. Only leaf nodes are added to the dagre graph;
- * groups are sized afterwards from their children's bounding boxes.
- * Keeping groups out of the rank graph stops them from competing with
- * their own children for column space.
+ * Layout via Dagre with `compound: true`. Groups are real Dagre nodes
+ * (with their children attached via `setParent`), so each group is
+ * laid out as its own internal sub-graph. Children of a group stay
+ * adjacent — the group's container is sized to fit them and the whole
+ * group flows through the outer ranking together.
+ *
+ * This replaces the previous "lay out leaves, then bounding-box the
+ * groups" approach, which produced surprising layouts when a group's
+ * children were edge-connected to nodes outside the group.
  */
 function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
-  const g = new dagre.graphlib.Graph({ compound: false });
+  const g = new dagre.graphlib.Graph({ compound: true });
   g.setGraph({
     rankdir: dagreRankdir(diagram.direction),
     nodesep: NODE_SEP,
@@ -280,9 +289,25 @@ function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
   });
   g.setDefaultEdgeLabel(() => ({}));
 
+  // Groups go in first so leaves can reference them as parents.
+  for (const node of diagram.nodes) {
+    if (!node.isGroup) continue;
+    // Empty width/height — Dagre computes them from children + padding.
+    g.setNode(node.id, {
+      // Reserve some space for the group's label at the top.
+      padding: GROUP_PADDING,
+      paddingTop: GROUP_PADDING + GROUP_LABEL_RESERVE,
+    });
+  }
+
   for (const node of diagram.nodes) {
     if (node.isGroup) continue;
     g.setNode(node.id, { width: NODE_W, height: NODE_H });
+  }
+
+  // Parent relationships — works for both leaf-in-group and group-in-group.
+  for (const node of diagram.nodes) {
+    if (node.parentId) g.setParent(node.id, node.parentId);
   }
 
   for (const edge of diagram.edges) {
@@ -294,52 +319,26 @@ function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
   dagre.layout(g);
 
   const positions = new Map<string, NodePosition>();
+  const groupBoundsOut = new Map<string, NodeBounds>();
   for (const id of g.nodes()) {
-    const n = g.node(id);
-    // Dagre centres nodes; tldraw places by top-left.
-    positions.set(id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 });
-  }
-  return { positions };
-}
-
-function childrenIndex(nodes: DiagramNode[]): Map<string, string[]> {
-  const out = new Map<string, string[]>();
-  for (const node of nodes) {
-    if (!node.parentId) continue;
-    const list = out.get(node.parentId) ?? [];
-    list.push(node.id);
-    out.set(node.parentId, list);
-  }
-  return out;
-}
-
-function groupBounds(
-  groupId: string,
-  childrenByParent: Map<string, string[]>,
-  positions: Map<string, NodePosition>,
-  nodeById: Map<string, DiagramNode>,
-): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  const stack = [...(childrenByParent.get(groupId) ?? [])];
-  while (stack.length > 0) {
-    const id = stack.pop()!;
-    if (nodeById.get(id)?.isGroup) {
-      const grandchildren = childrenByParent.get(id) ?? [];
-      stack.push(...grandchildren);
-      continue;
+    const dagreNode = g.node(id);
+    if (!dagreNode) continue;
+    const diagramNode = diagram.nodes.find((n) => n.id === id);
+    if (!diagramNode) continue;
+    if (diagramNode.isGroup) {
+      // Dagre returns the group's centre + total bounds (children
+      // included). Convert to top-left for tldraw.
+      groupBoundsOut.set(id, {
+        x: dagreNode.x - dagreNode.width / 2,
+        y: dagreNode.y - dagreNode.height / 2,
+        width: dagreNode.width,
+        height: dagreNode.height,
+      });
+    } else {
+      positions.set(id, { x: dagreNode.x - NODE_W / 2, y: dagreNode.y - NODE_H / 2 });
     }
-    const pos = positions.get(id);
-    if (!pos) continue;
-    minX = Math.min(minX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxX = Math.max(maxX, pos.x + NODE_W);
-    maxY = Math.max(maxY, pos.y + NODE_H);
   }
-  if (minX === Infinity) return null;
-  return { minX, minY, maxX, maxY };
+  return { positions, groupBounds: groupBoundsOut };
 }
 
 export type { DiagramEdge, OctoFocusAIDiagram };
