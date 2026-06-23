@@ -9,6 +9,7 @@ import { updateCanvasAction } from "../actions/canvases-actions";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
+import { RefineDiagramDialog } from "./refine-diagram-dialog";
 
 const DSL_SAVE_DEBOUNCE_MS = 1000;
 
@@ -66,6 +67,13 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
               // Open the DSL drawer so the user can read and tweak what
               // Claude just produced — otherwise the result is invisible
               // until they manually expand the drawer.
+              setDslOpen(true);
+            }}
+          />
+          <RefineDiagramDialog
+            currentDsl={dsl}
+            onRefined={(next) => {
+              onDslChange(next);
               setDslOpen(true);
             }}
           />

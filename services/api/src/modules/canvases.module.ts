@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { CanvasAssetsController } from "../api/v1/controller/canvas-assets.controller";
 import { CanvasesController } from "../api/v1/controller/canvases.controller";
 import { CodeToDiagramController } from "../api/v1/controller/code-to-diagram.controller";
+import { RefineDiagramController } from "../api/v1/controller/refine-diagram.controller";
 import { AuthModule } from "../auth/auth.module";
 import { ChangeEventsService } from "../common/change-events.service";
 import { LlmService } from "../common/llm.service";
@@ -13,18 +14,25 @@ import { CanvasesRepository } from "../db/repository/canvases.repository";
 import { CanvasAssetsService } from "../service/canvas-assets.service";
 import { CanvasesService } from "../service/canvases.service";
 import { CodeToDiagramService } from "../service/code-to-diagram.service";
+import { RefineDiagramService } from "../service/refine-diagram.service";
 import { ProjectsModule } from "./projects.module";
 import { WorkspacesModule } from "./workspaces.module";
 
 @Module({
   imports: [DatabaseModule, AuthModule, WorkspacesModule, ProjectsModule],
-  controllers: [CanvasesController, CanvasAssetsController, CodeToDiagramController],
+  controllers: [
+    CanvasesController,
+    CanvasAssetsController,
+    CodeToDiagramController,
+    RefineDiagramController,
+  ],
   providers: [
     CanvasesRepository,
     CanvasAssetsRepository,
     CanvasesService,
     CanvasAssetsService,
     CodeToDiagramService,
+    RefineDiagramService,
     LlmService,
     PermissionsService,
     SlugService,
