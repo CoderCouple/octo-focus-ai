@@ -10,23 +10,14 @@ const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const DEFAULT_API_URL = "https://api.octofocus.ai";
 const DEFAULT_WEB_ORIGIN = "https://www.octofocus.ai";
 
-const DEFAULT_SUPABASE_URL =
-  process.env.OCTOFOCUS_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const DEFAULT_SUPABASE_ANON_KEY =
-  process.env.OCTOFOCUS_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
 export interface CliSession {
   accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
   email: string | null;
 }
 
 export interface CliConfig {
   apiUrl: string;
   webOrigin: string;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
   defaultWorkspaceId: string | null;
   session: CliSession | null;
 }
@@ -34,8 +25,6 @@ export interface CliConfig {
 const DEFAULT_CONFIG: CliConfig = {
   apiUrl: process.env.OCTOFOCUS_API_URL ?? DEFAULT_API_URL,
   webOrigin: process.env.OCTOFOCUS_WEB_URL ?? DEFAULT_WEB_ORIGIN,
-  supabaseUrl: DEFAULT_SUPABASE_URL,
-  supabaseAnonKey: DEFAULT_SUPABASE_ANON_KEY,
   defaultWorkspaceId: null,
   session: null,
 };
@@ -43,8 +32,8 @@ const DEFAULT_CONFIG: CliConfig = {
 let cached: CliConfig | null = null;
 
 // Stale URLs from the first published CLI builds, which shipped
-// localhost defaults. We migrate them forward silently on load so users
-// upgrading from those builds don't have to wipe ~/.octofocus/config.json.
+// localhost defaults. Migrate them forward silently so users upgrading
+// don't have to wipe ~/.octofocus/config.json.
 const STALE_API_URLS = new Set(["http://localhost:4000"]);
 const STALE_WEB_ORIGINS = new Set(["http://localhost:3000"]);
 
@@ -52,8 +41,26 @@ export async function loadConfig(): Promise<CliConfig> {
   if (cached) return cached;
   try {
     const raw = await readFile(CONFIG_PATH, "utf8");
-    const parsed = JSON.parse(raw) as Partial<CliConfig>;
-    cached = { ...DEFAULT_CONFIG, ...parsed };
+    const parsed = JSON.parse(raw) as Partial<CliConfig> & {
+      supabaseUrl?: unknown;
+      supabaseAnonKey?: unknown;
+      session?: (Partial<CliSession> & { refreshToken?: unknown; expiresAt?: unknown }) | null;
+    };
+
+    // Drop legacy Supabase-session fields if present from CLI <=0.2.x.
+    let session: CliSession | null = null;
+    if (parsed.session && parsed.session.accessToken) {
+      session = {
+        accessToken: parsed.session.accessToken,
+        email: parsed.session.email ?? null,
+      };
+    }
+
+    cached = {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      session,
+    };
     if (cached.apiUrl && STALE_API_URLS.has(cached.apiUrl)) {
       cached.apiUrl = DEFAULT_CONFIG.apiUrl;
     }

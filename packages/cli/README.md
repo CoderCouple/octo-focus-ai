@@ -39,34 +39,26 @@ Two modes:
 
 | Mode | Use for | How |
 |---|---|---|
-| Browser (default) | Humans on a laptop | `octofocus login` → email arrives → click the link → CLI signs in via a localhost callback |
-| OTP paste | Humans on a remote machine or when the browser flow can't reach localhost | `octofocus login --otp` → email arrives → paste the 6-digit code |
+| Browser (default) | Humans on a laptop | `octofocus login` → browser opens to the web app's `/cli/connect` confirm page → you click Authorize → the CLI receives a long-lived token |
 | Token | Agents, CI, Claude skills | Set `OCTOFOCUS_TOKEN=<token>` in the environment |
 
-The browser flow requires Supabase to allow `<webOrigin>/cli/callback` in its
-**Redirect URLs** allowlist. In Supabase dashboard → **Authentication → URL
-Configuration**, add (alongside the existing `/auth/callback` entries):
+The browser flow has no email step, no Supabase rate limits, no redirect-URL
+allowlist to configure. It works because your web session (cookie auth) on
+`<webOrigin>` mints a CLI token directly via the OctoFocusAI API.
 
-```
-http://localhost:3000/cli/callback
-https://<your-prod-domain>/cli/callback
-```
-
-…or use a wildcard like `http://localhost:3000/**` if you already have that
-configured.
-
-Tokens are minted from the OctoFocusAI web app under **Settings → CLI tokens**
-(coming soon) or via `octofocus auth token create` once logged in.
+Additional tokens for CI / agents / other machines can be minted via
+`octofocus auth token create` after you're logged in, or via the web app at
+`<webOrigin>/settings/cli-tokens`.
 
 Session and config live at `~/.octofocus/config.json` (mode `0600`). Override
-the location with `OCTOFOCUS_CONFIG_DIR`. Other env knobs:
+the location with `OCTOFOCUS_CONFIG_DIR`. Env knobs:
 
-- `OCTOFOCUS_API_URL` — defaults to `http://localhost:4000`. Set to your
-  deployed API origin.
-- `OCTOFOCUS_WEB_URL` — defaults to `http://localhost:3000`. Where the
-  browser-callback redirects to. Must match a Supabase Redirect URL.
-- `OCTOFOCUS_SUPABASE_URL` / `OCTOFOCUS_SUPABASE_ANON_KEY` — required for
-  interactive login only.
+- `OCTOFOCUS_API_URL` — defaults to `https://api.octofocus.ai`. Override for
+  local dev with `--api-url http://localhost:4000`.
+- `OCTOFOCUS_WEB_URL` — defaults to `https://www.octofocus.ai`. Where the
+  browser bridge sends the user. Override for local dev with
+  `--web-url http://localhost:3000`.
+- `OCTOFOCUS_TOKEN` — bypass the config file entirely. Used by agents.
 
 ## Commands
 

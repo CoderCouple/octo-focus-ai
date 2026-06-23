@@ -1,18 +1,19 @@
 /**
- * One-shot loopback HTTP server for browser-callback OAuth.
+ * One-shot loopback HTTP server for the browser → token bridge.
  *
- * Bind to 127.0.0.1:0 (kernel-assigned port). The browser, after
- * landing on apps/web's /cli/callback page, fetches
- * http://127.0.0.1:<port>/cb?state=<nonce>&code=<auth-code> with
- * `mode: 'no-cors'`. We validate the state matches what we minted,
- * surface the code to the awaiter, and shut down.
+ * Bind to 127.0.0.1:0 (kernel-assigned port). The web app's
+ * /cli/connect/relay client fetches
+ * http://127.0.0.1:<port>/cb?state=<nonce>&token=<oft_…>&email=<…>.
+ * We validate the state matches what we minted, surface the token to
+ * the awaiter, and shut down.
  *
  * Bound to loopback only — never reachable off the host.
  */
 import { createServer, type Server } from "node:http";
 
 export interface LoopbackResult {
-  code: string;
+  token: string;
+  email: string | null;
 }
 
 export interface LoopbackHandle {
@@ -23,7 +24,7 @@ export interface LoopbackHandle {
 
 export interface StartLoopbackOptions {
   expectedState: string;
-  /** Defaults to 5 minutes — Supabase magic links expire faster than that. */
+  /** Defaults to 5 minutes. */
   timeoutMs?: number;
 }
 
@@ -55,12 +56,13 @@ export function startLoopback({
       if (url.pathname !== "/cb") return respond(404, "not found");
 
       const state = url.searchParams.get("state");
-      const code = url.searchParams.get("code");
+      const token = url.searchParams.get("token");
+      const email = url.searchParams.get("email");
       if (!state || state !== expectedState) return respond(400, "state mismatch");
-      if (!code) return respond(400, "missing code");
+      if (!token) return respond(400, "missing token");
 
       respond(200, "OK — you can close this browser tab.");
-      resolveResult({ code });
+      resolveResult({ token, email: email ?? null });
     });
 
     server.on("error", (err) => {
@@ -79,7 +81,7 @@ export function startLoopback({
       const timeoutHandle = setTimeout(() => {
         rejectResult(
           new Error(
-            `Login timed out after ${Math.round(timeoutMs / 1000)}s — no sign-in link was clicked.`,
+            `Login timed out after ${Math.round(timeoutMs / 1000)}s — no token was received from the browser.`,
           ),
         );
         server.close();

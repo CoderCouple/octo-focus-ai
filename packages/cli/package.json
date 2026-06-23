@@ -1,6 +1,6 @@
 {
   "name": "@octofocus/cli",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Command-line interface for the OctoFocusAI workspace — built so AI agents can read, edit, and publish notes, canvases, and diagrams from the shell.",
   "type": "module",
   "main": "dist/index.js",
@@ -19,18 +19,14 @@
     "prepublishOnly": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
     "commander": "^12.1.0",
     "gray-matter": "^4.0.3",
-    "prompts": "^2.4.2",
-    "typescript": "^5.7.2",
-    "zod": "^3.24.1"
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "@types/prompts": "^2.4.9",
     "tsx": "^4.19.2"
   },
   "keywords": [
