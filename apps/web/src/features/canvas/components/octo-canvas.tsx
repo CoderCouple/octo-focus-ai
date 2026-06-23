@@ -15,6 +15,7 @@ import {
   type TLShapeId,
   type TLStoreSnapshot,
 } from "tldraw";
+import { env } from "@/env/client";
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { syncDiagramToTldraw } from "../lib/diagram-to-tldraw";
 import { detectShape, type Point } from "../lib/shape-detector";
@@ -23,6 +24,12 @@ import { OctoCardShapeUtil } from "../shapes/octo-card";
 // Custom shape utils registered with Tldraw — extends the default set
 // with our DSL-rendered `octo-card` shape.
 const SHAPE_UTILS = [OctoCardShapeUtil];
+
+// tldraw enforces a 5-second license timeout on production hostnames.
+// NEXT_PUBLIC_TLDRAW_LICENSE_KEY suppresses that gate (or attaches the
+// watermark, depending on the tier). Pass undefined locally / in dev so
+// the SDK uses its free-development behaviour.
+const TLDRAW_LICENSE_KEY = env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined;
 
 const SAVE_DEBOUNCE_MS = 1200;
 const DSL_PARSE_DEBOUNCE_MS = 500;
@@ -154,7 +161,11 @@ export function OctoCanvas({
   return (
     <div className="relative h-full w-full">
       <div className="absolute inset-0">
-        <Tldraw onMount={onMount} shapeUtils={SHAPE_UTILS} />
+        <Tldraw
+          onMount={onMount}
+          shapeUtils={SHAPE_UTILS}
+          licenseKey={TLDRAW_LICENSE_KEY}
+        />
       </div>
     </div>
   );

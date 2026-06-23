@@ -2,6 +2,12 @@
 
 import { useMemo } from "react";
 import { loadSnapshot, Tldraw, type Editor, type TLStoreSnapshot } from "tldraw";
+import { env } from "@/env/client";
+
+// Same license-gate suppression as the editable canvas — the
+// read-only view is rendered on the public domain too and would
+// otherwise hit the 5-second watermark dialog.
+const TLDRAW_LICENSE_KEY = env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined;
 
 export interface CanvasReadOnlyImplProps {
   initialDocument: unknown;
@@ -41,7 +47,7 @@ export function CanvasReadOnlyImpl({ initialDocument }: CanvasReadOnlyImplProps)
   return (
     <div className="bg-background relative h-full w-full">
       <div className="absolute inset-0">
-        <Tldraw onMount={onMount} hideUi />
+        <Tldraw onMount={onMount} hideUi licenseKey={TLDRAW_LICENSE_KEY} />
       </div>
     </div>
   );
