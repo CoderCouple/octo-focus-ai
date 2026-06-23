@@ -1,15 +1,36 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Pencil, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "tldraw";
 import { DslDrawer } from "@/components/dsl-drawer";
+import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
 import { RefineDiagramDialog } from "./refine-diagram-dialog";
+
+/** Cycle through layout directions in the order most useful for tinkering. */
+const DIRECTION_CYCLE = ["right", "down", "left", "up"] as const;
+
+/**
+ * Toggle the `direction <…>` directive on the DSL — adds the line if it
+ * isn't there yet, otherwise advances it through right → down → left → up.
+ */
+function flipDirection(dsl: string): string {
+  const trimmed = dsl.replace(/\r/g, "");
+  const match = trimmed.match(/^([ \t]*)direction\s+(\w+)/m);
+  if (match) {
+    const current = match[2] as (typeof DIRECTION_CYCLE)[number];
+    const idx = DIRECTION_CYCLE.indexOf(current);
+    const next = DIRECTION_CYCLE[(idx + 1) % DIRECTION_CYCLE.length];
+    return trimmed.replace(/^([ \t]*)direction\s+\w+/m, `$1direction ${next}`);
+  }
+  // No existing directive — drop one at the top.
+  return `direction down\n${trimmed}`;
+}
 
 const DSL_SAVE_DEBOUNCE_MS = 1000;
 
@@ -82,6 +103,22 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
               setFitToken((t) => t + 1);
             }}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            disabled={!dsl.trim()}
+            onClick={() => {
+              const next = flipDirection(dsl);
+              if (next === dsl) return;
+              onDslChange(next);
+              setFitToken((t) => t + 1);
+            }}
+            title="Cycle layout direction (right → down → left → up)"
+          >
+            <RefreshCw className="size-3.5" />
+            Re-layout
+          </Button>
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
         </div>
       </header>

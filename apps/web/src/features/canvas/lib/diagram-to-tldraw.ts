@@ -9,10 +9,14 @@ import { createShapeId, type Editor, type TLShapePartial } from "tldraw";
 
 const NODE_W = 180;
 const NODE_H = 56;
-const GROUP_PADDING = 28;
-const GROUP_LABEL_RESERVE = 24;
-const RANK_SEP = 90;
-const NODE_SEP = 50;
+// Layout spacing — tuned for diagrams with nested groups and ~30-40 leaves
+// (the typical architecture diagram). Earlier defaults (28/24/90/50) had
+// the right shape for a flat ~10-node diagram but crowded everything
+// uncomfortably for the larger compound case.
+const GROUP_PADDING = 40;
+const GROUP_LABEL_RESERVE = 36;
+const RANK_SEP = 130;
+const NODE_SEP = 70;
 
 type TldrawColor =
   | "black"
