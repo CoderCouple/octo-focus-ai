@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { codeToDiagramApi, type CodeToDiagramHint } from "../api/code-to-diagram-api";
+import { CODE_EXAMPLES } from "../lib/code-examples";
 
 interface FromCodeDrawerProps {
   /** the current DSL — passed so Claude can refine it instead of starting over */
@@ -117,6 +118,26 @@ export function FromCodeDrawer({ currentDsl, onGenerated }: FromCodeDrawerProps)
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-3 overflow-hidden px-6">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-muted-foreground mr-1 text-[11px]">Try with:</span>
+            {CODE_EXAMPLES.map((ex) => (
+              <Button
+                key={ex.id}
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 px-2 text-[11px]"
+                disabled={busy}
+                onClick={() => {
+                  setCode(ex.code);
+                  setHint(ex.hint);
+                }}
+                title={ex.description}
+              >
+                {ex.label}
+              </Button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-xs">Diagram type</span>
             <Select value={hint} onValueChange={(v) => setHint(v as CodeToDiagramHint)}>
