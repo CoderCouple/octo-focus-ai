@@ -276,11 +276,28 @@ interface ComputedLayout {
  * adjacent — the group's container is sized to fit them and the whole
  * group flows through the outer ranking together.
  *
- * This replaces the previous "lay out leaves, then bounding-box the
- * groups" approach, which produced surprising layouts when a group's
- * children were edge-connected to nodes outside the group.
+ * Dagre's compound mode can crash on some pathological structures
+ * (ER-style entity bodies that reuse field names across entities, or
+ * inter-group edges between mostly-empty groups). When that happens we
+ * fall back to a flat layout that ignores `parentId` — groups still
+ * render via bounding-box around their children, just with looser
+ * positioning. Better a slightly-imperfect diagram than a crashed
+ * canvas.
  */
 function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
+  if (diagram.nodes.length === 0) {
+    return { positions: new Map(), groupBounds: new Map() };
+  }
+  try {
+    return computeLayoutCompound(diagram);
+  } catch (err) {
+    // Don't kill the canvas just because Dagre's compound layout choked.
+    console.warn("Dagre compound layout failed, falling back to flat", err);
+    return computeLayoutFlat(diagram);
+  }
+}
+
+function computeLayoutCompound(diagram: OctoFocusAIDiagram): ComputedLayout {
   const g = new dagre.graphlib.Graph({ compound: true });
   g.setGraph({
     rankdir: dagreRankdir(diagram.direction),
@@ -341,6 +358,115 @@ function computeLayout(diagram: OctoFocusAIDiagram): ComputedLayout {
     }
   }
   return { positions, groupBounds: groupBoundsOut };
+}
+
+/**
+ * Fallback when compound layout crashes (e.g. ER-style diagrams where
+ * field names collide across entities, which we don't yet rewrite into
+ * scoped ids). Lays the leaves out flat via plain Dagre, then computes
+ * each group's bounding box from its descendants — same approach we
+ * shipped pre-compound in v1.2.
+ */
+function computeLayoutFlat(diagram: OctoFocusAIDiagram): ComputedLayout {
+  const g = new dagre.graphlib.Graph({ compound: false });
+  g.setGraph({
+    rankdir: dagreRankdir(diagram.direction),
+    nodesep: NODE_SEP,
+    ranksep: RANK_SEP,
+    marginx: 20,
+    marginy: 20,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  for (const node of diagram.nodes) {
+    if (node.isGroup) continue;
+    g.setNode(node.id, { width: NODE_W, height: NODE_H });
+  }
+
+  for (const edge of diagram.edges) {
+    if (g.hasNode(edge.sourceId) && g.hasNode(edge.targetId)) {
+      g.setEdge(edge.sourceId, edge.targetId);
+    }
+  }
+
+  // If the diagram is "all groups with no inter-leaf edges" (the ER-style
+  // case that crashed compound), we still need to position leaves. Add a
+  // single column per group so children stack vertically.
+  const placed = new Set(g.nodes());
+  let extraX = 0;
+  let extraY = 0;
+  for (const node of diagram.nodes) {
+    if (node.isGroup) continue;
+    if (!placed.has(node.id)) {
+      g.setNode(node.id, { width: NODE_W, height: NODE_H });
+      placed.add(node.id);
+    }
+  }
+
+  dagre.layout(g);
+
+  const positions = new Map<string, NodePosition>();
+  for (const id of g.nodes()) {
+    const dagreNode = g.node(id);
+    if (!dagreNode) continue;
+    positions.set(id, { x: dagreNode.x - NODE_W / 2, y: dagreNode.y - NODE_H / 2 });
+  }
+
+  // If a leaf still has no position (graph had no edges and only one
+  // node-set call), drop it into a simple column. Belt-and-braces — the
+  // earlier loop already covers this, but if Dagre returned zero rows
+  // for some reason this keeps the renderer happy.
+  for (const node of diagram.nodes) {
+    if (node.isGroup) continue;
+    if (positions.has(node.id)) continue;
+    positions.set(node.id, { x: extraX, y: extraY });
+    extraY += NODE_H + NODE_SEP;
+    if (extraY > 800) {
+      extraY = 0;
+      extraX += NODE_W + NODE_SEP;
+    }
+  }
+
+  // Groups: bounding box around descendants + padding.
+  const childrenByParent = new Map<string, string[]>();
+  for (const node of diagram.nodes) {
+    if (!node.parentId) continue;
+    const list = childrenByParent.get(node.parentId) ?? [];
+    list.push(node.id);
+    childrenByParent.set(node.parentId, list);
+  }
+  const groupBounds = new Map<string, NodeBounds>();
+  for (const node of diagram.nodes) {
+    if (!node.isGroup) continue;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const stack = [...(childrenByParent.get(node.id) ?? [])];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      const child = diagram.nodes.find((n) => n.id === id);
+      if (child?.isGroup) {
+        stack.push(...(childrenByParent.get(id) ?? []));
+        continue;
+      }
+      const pos = positions.get(id);
+      if (!pos) continue;
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + NODE_W);
+      maxY = Math.max(maxY, pos.y + NODE_H);
+    }
+    if (minX === Infinity) continue;
+    groupBounds.set(node.id, {
+      x: minX - GROUP_PADDING,
+      y: minY - GROUP_PADDING - GROUP_LABEL_RESERVE,
+      width: maxX - minX + GROUP_PADDING * 2,
+      height: maxY - minY + GROUP_PADDING * 2 + GROUP_LABEL_RESERVE,
+    });
+  }
+
+  return { positions, groupBounds };
 }
 
 export type { DiagramEdge, OctoFocusAIDiagram };
