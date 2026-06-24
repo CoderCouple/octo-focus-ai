@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { PageSettings } from "@octofocus/shared";
 import { FontPicker, type NoteFont } from "@/components/font-picker";
 import { Toggle } from "@/components/ui/toggle";
+import { SharePopover, type Visibility } from "@/features/sharing";
 import { updateNoteSettingsApi } from "../api/notes-client-api";
 import { NotesEditor } from "./notes-editor";
 
@@ -12,9 +13,26 @@ interface NotesPaneProps {
   pageId: string;
   initialContent: unknown;
   initialSettings: PageSettings;
+  /**
+   * Per-note publish props. When provided, surfaces a Share popover in
+   * the header that publishes THIS note independently of any parent
+   * project. Omit when share lives elsewhere on the page.
+   */
+  noteTitle?: string;
+  initialVisibility?: Visibility;
+  initialPublicSlug?: string | null;
+  workspaceSlug?: string;
 }
 
-export function NotesPane({ pageId, initialContent, initialSettings }: NotesPaneProps) {
+export function NotesPane({
+  pageId,
+  initialContent,
+  initialSettings,
+  noteTitle,
+  initialVisibility,
+  initialPublicSlug,
+  workspaceSlug,
+}: NotesPaneProps) {
   const [raw, setRaw] = useState(false);
   const [font, setFont] = useState<NoteFont>(
     (initialSettings.font as NoteFont | undefined) ?? "sans",
@@ -27,6 +45,9 @@ export function NotesPane({ pageId, initialContent, initialSettings }: NotesPane
       console.error("Failed to persist font", err);
     });
   };
+
+  const canShare =
+    initialVisibility !== undefined && workspaceSlug !== undefined && noteTitle !== undefined;
 
   return (
     <div className="flex h-full flex-col">
@@ -44,6 +65,16 @@ export function NotesPane({ pageId, initialContent, initialSettings }: NotesPane
             {raw ? <FileText className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
             {raw ? "Editor" : "Raw"}
           </Toggle>
+          {canShare ? (
+            <SharePopover
+              resourceKind="page"
+              resourceId={pageId}
+              resourceTitle={noteTitle!}
+              initialVisibility={initialVisibility!}
+              initialPublicSlug={initialPublicSlug ?? null}
+              workspaceSlug={workspaceSlug!}
+            />
+          ) : null}
         </div>
       </header>
       <div className="flex-1 overflow-hidden" data-notes-font={font}>

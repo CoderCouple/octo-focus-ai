@@ -77,6 +77,10 @@ export function ProjectSplitView({
               pageId={page.id}
               initialContent={page.document}
               initialSettings={page.settings ?? {}}
+              noteTitle={page.title}
+              initialVisibility={page.visibility}
+              initialPublicSlug={page.publicSlug}
+              workspaceSlug={workspaceSlug}
             />
           </div>
         )}
@@ -86,6 +90,10 @@ export function ProjectSplitView({
               canvasId={canvas.id}
               initialDocument={canvas.document}
               initialDsl={initialDsl}
+              canvasTitle={canvas.title}
+              initialVisibility={canvas.visibility}
+              initialPublicSlug={canvas.publicSlug}
+              workspaceSlug={workspaceSlug}
             />
           </div>
         )}

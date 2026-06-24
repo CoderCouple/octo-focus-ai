@@ -6,6 +6,7 @@ import type { Editor } from "tldraw";
 import { DslDrawer } from "@/components/dsl-drawer";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { SharePopover, type Visibility } from "@/features/sharing";
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
@@ -28,7 +29,6 @@ function flipDirection(dsl: string): string {
     const next = DIRECTION_CYCLE[(idx + 1) % DIRECTION_CYCLE.length];
     return trimmed.replace(/^([ \t]*)direction\s+\w+/m, `$1direction ${next}`);
   }
-  // No existing directive — drop one at the top.
   return `direction down\n${trimmed}`;
 }
 
@@ -38,14 +38,29 @@ interface CanvasPaneProps {
   canvasId: string;
   initialDocument: unknown;
   initialDsl: string;
+  /**
+   * Per-canvas publish props. When provided, surfaces a Share popover in
+   * the header that publishes THIS canvas independently of any parent
+   * project. Omit when share lives elsewhere on the page.
+   */
+  canvasTitle?: string;
+  initialVisibility?: Visibility;
+  initialPublicSlug?: string | null;
+  workspaceSlug?: string;
 }
 
-export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPaneProps) {
+export function CanvasPane({
+  canvasId,
+  initialDocument,
+  initialDsl,
+  canvasTitle,
+  initialVisibility,
+  initialPublicSlug,
+  workspaceSlug,
+}: CanvasPaneProps) {
   const [autoShape, setAutoShape] = useState(false);
   const [dslOpen, setDslOpen] = useState(false);
   const [dsl, setDsl] = useState(initialDsl);
-  // Bumped after From-code / Refine. OctoCanvas watches this and zooms-to-fit
-  // once the regenerated DSL has been parsed and synced to tldraw shapes.
   const [fitToken, setFitToken] = useState(0);
   const dslSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -70,6 +85,9 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
     }, DSL_SAVE_DEBOUNCE_MS);
   }
 
+  const canShare =
+    initialVisibility !== undefined && workspaceSlug !== undefined && canvasTitle !== undefined;
+
   return (
     <div className="flex h-full flex-col">
       <header className="bg-card flex h-10 shrink-0 items-center gap-1 border-b px-2">
@@ -88,9 +106,6 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
             currentDsl={dsl}
             onGenerated={(next) => {
               onDslChange(next);
-              // Open the DSL drawer so the user can read and tweak what
-              // Claude just produced — otherwise the result is invisible
-              // until they manually expand the drawer.
               setDslOpen(true);
               setFitToken((t) => t + 1);
             }}
@@ -120,6 +135,16 @@ export function CanvasPane({ canvasId, initialDocument, initialDsl }: CanvasPane
             Re-layout
           </Button>
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
+          {canShare ? (
+            <SharePopover
+              resourceKind="canvas"
+              resourceId={canvasId}
+              resourceTitle={canvasTitle!}
+              initialVisibility={initialVisibility!}
+              initialPublicSlug={initialPublicSlug ?? null}
+              workspaceSlug={workspaceSlug!}
+            />
+          ) : null}
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
