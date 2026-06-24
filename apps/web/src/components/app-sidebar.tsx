@@ -22,11 +22,11 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ workspace, memberships, user, ...props }: AppSidebarProps) {
   const navMain = [
-    { title: "Projects", url: "/app/projects", icon: FolderKanban },
-    { title: "Notes", url: "/app/notes", icon: FileText },
-    { title: "Canvas", url: "/app/canvas", icon: LayoutGrid },
-    { title: "Meetings", url: "/app/meetings", icon: Video },
-    { title: "Settings", url: "/app/settings", icon: Settings },
+    { title: "Projects", url: "/workspace/projects", icon: FolderKanban },
+    { title: "Notes", url: "/workspace/notes", icon: FileText },
+    { title: "Canvas", url: "/workspace/canvas", icon: LayoutGrid },
+    { title: "Meetings", url: "/workspace/meetings", icon: Video },
+    { title: "Settings", url: "/workspace/settings", icon: Settings },
   ];
 
   return (

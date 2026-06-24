@@ -79,7 +79,7 @@ export function CanvasesTable({
                 <TableRow key={canvas.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/app/projects/${canvas.projectId}`}
+                      href={`/workspace/projects/${canvas.projectId}`}
                       className="hover:underline underline-offset-4"
                     >
                       {canvas.title}
@@ -115,7 +115,7 @@ export function CanvasesTable({
                           Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/app/projects/${canvas.projectId}`}>Open project</Link>
+                          <Link href={`/workspace/projects/${canvas.projectId}`}>Open project</Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

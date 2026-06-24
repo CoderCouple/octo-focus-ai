@@ -27,7 +27,7 @@ export async function getNoteAction(pageId: string) {
 export async function createNoteAction(projectId: string, body: PageCreate) {
   return runAction(async () => {
     const row = await createNoteApi(projectId, body);
-    revalidatePath("/app/notes");
+    revalidatePath("/workspace/notes");
     return row;
   });
 }
@@ -35,7 +35,7 @@ export async function createNoteAction(projectId: string, body: PageCreate) {
 export async function updateNoteAction(pageId: string, body: PageUpdate) {
   return runAction(async () => {
     const row = await updateNoteApi(pageId, body);
-    revalidatePath("/app/notes");
+    revalidatePath("/workspace/notes");
     return row;
   });
 }
@@ -43,7 +43,7 @@ export async function updateNoteAction(pageId: string, body: PageUpdate) {
 export async function renameNoteAction(pageId: string, title: string) {
   return runAction(async () => {
     const row = await updateNoteApi(pageId, { title });
-    revalidatePath("/app/notes");
+    revalidatePath("/workspace/notes");
     return row;
   });
 }
@@ -51,6 +51,6 @@ export async function renameNoteAction(pageId: string, title: string) {
 export async function deleteNoteAction(pageId: string) {
   return runAction(async () => {
     await deleteNoteApi(pageId);
-    revalidatePath("/app/notes");
+    revalidatePath("/workspace/notes");
   });
 }

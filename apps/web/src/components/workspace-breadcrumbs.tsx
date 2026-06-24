@@ -32,22 +32,22 @@ const ROUTE_LABELS: Record<string, string> = {
  * own title inside the page chrome.
  */
 export function WorkspaceBreadcrumbs({ workspaceName }: WorkspaceBreadcrumbsProps) {
-  const pathname = usePathname() ?? "/app";
+  const pathname = usePathname() ?? "/workspace";
   const segments = pathname.replace(/^\/+|\/+$/g, "").split("/");
 
-  // Path starts with "app" — drop it and start from the tab segment.
-  const tail = segments[0] === "app" ? segments.slice(1) : segments;
+  // Path starts with "workspace" — drop it and start from the tab segment.
+  const tail = segments[0] === "workspace" ? segments.slice(1) : segments;
   const tab = tail[0];
   const tabLabel = tab ? (ROUTE_LABELS[tab] ?? null) : null;
   const isDetail = tail.length > 1;
 
   const crumbs: Array<{ label: string; href?: string }> = [
-    { label: workspaceName, href: tabLabel ? "/app/projects" : undefined },
+    { label: workspaceName, href: tabLabel ? "/workspace/projects" : undefined },
   ];
   if (tabLabel) {
     crumbs.push({
       label: tabLabel,
-      ...(isDetail ? { href: `/app/${tab}` } : {}),
+      ...(isDetail ? { href: `/workspace/${tab}` } : {}),
     });
   }
   if (isDetail) {

@@ -60,7 +60,7 @@ export function ProjectCard({ project, workspaceId }: { project: Project; worksp
 
   return (
     <div className="relative">
-      <Link href={`/app/projects/${project.id}`}>
+      <Link href={`/workspace/projects/${project.id}`}>
         <Card className="hover:border-foreground/30 hover:bg-accent/40 group flex h-full flex-col gap-3 p-5 transition-colors">
           <div className="flex items-start gap-3">
             <div className="border-border text-foreground grid h-9 w-9 shrink-0 place-items-center rounded-md border">

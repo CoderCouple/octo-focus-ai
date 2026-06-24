@@ -44,7 +44,7 @@ export default async function InviteAcceptPage({ params }: PageProps) {
   }
 
   if (outcome === "accepted") {
-    redirect("/app");
+    redirect("/workspace");
   }
 
   return <FailedInvite message={outcome.error} />;
@@ -118,7 +118,7 @@ function FailedInvite({ message }: { message: string }) {
           <p className="text-muted-foreground text-sm">{friendly}</p>
         </div>
         <Button asChild variant="outline" className="gap-2">
-          <Link href="/app">
+          <Link href="/workspace">
             <Check className="size-4" />
             Go to workspace
           </Link>

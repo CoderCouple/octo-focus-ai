@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
 // older links and the post-login redirect keep working — it just
 // forwards to the projects list.
 export default function WorkspaceHomeRedirect() {
-  redirect("/app/projects");
+  redirect("/workspace/projects");
 }

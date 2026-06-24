@@ -27,7 +27,7 @@ export async function getCanvasAction(canvasId: string) {
 export async function createCanvasAction(projectId: string, body: CanvasCreate) {
   return runAction(async () => {
     const row = await createCanvasApi(projectId, body);
-    revalidatePath("/app/canvas");
+    revalidatePath("/workspace/canvas");
     return row;
   });
 }
@@ -39,7 +39,7 @@ export async function updateCanvasAction(canvasId: string, body: CanvasUpdate) {
 export async function renameCanvasAction(canvasId: string, title: string) {
   return runAction(async () => {
     const row = await updateCanvasApi(canvasId, { title });
-    revalidatePath("/app/canvas");
+    revalidatePath("/workspace/canvas");
     return row;
   });
 }
@@ -47,6 +47,6 @@ export async function renameCanvasAction(canvasId: string, title: string) {
 export async function deleteCanvasAction(canvasId: string) {
   return runAction(async () => {
     await deleteCanvasApi(canvasId);
-    revalidatePath("/app/canvas");
+    revalidatePath("/workspace/canvas");
   });
 }

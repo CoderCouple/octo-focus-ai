@@ -24,7 +24,7 @@ export async function getProjectAction(projectId: string) {
 export async function createProjectAction(workspaceId: string, body: ProjectCreate) {
   return runAction(async () => {
     const row = await createProjectApi(workspaceId, body);
-    revalidatePath("/app");
+    revalidatePath("/workspace");
     return row;
   });
 }
@@ -38,8 +38,8 @@ export async function createNoteProjectAction(workspaceId: string, body: Project
   return runAction(async () => {
     const project = await createProjectApi(workspaceId, body);
     await createNoteApi(project.id, { title: project.name });
-    revalidatePath("/app");
-    revalidatePath("/app/notes");
+    revalidatePath("/workspace");
+    revalidatePath("/workspace/notes");
     return project;
   });
 }
@@ -48,8 +48,8 @@ export async function createCanvasProjectAction(workspaceId: string, body: Proje
   return runAction(async () => {
     const project = await createProjectApi(workspaceId, body);
     await createCanvasApi(project.id, { title: project.name });
-    revalidatePath("/app");
-    revalidatePath("/app/canvas");
+    revalidatePath("/workspace");
+    revalidatePath("/workspace/canvas");
     return project;
   });
 }
@@ -61,9 +61,9 @@ export async function createProjectWithBothAction(workspaceId: string, body: Pro
       createNoteApi(project.id, { title: project.name }),
       createCanvasApi(project.id, { title: project.name }),
     ]);
-    revalidatePath("/app");
-    revalidatePath("/app/notes");
-    revalidatePath("/app/canvas");
+    revalidatePath("/workspace");
+    revalidatePath("/workspace/notes");
+    revalidatePath("/workspace/canvas");
     return project;
   });
 }
@@ -77,9 +77,9 @@ export async function createProjectWithBothAction(workspaceId: string, body: Pro
 export async function addNoteToProjectAction(projectId: string, title: string) {
   return runAction(async () => {
     const row = await createNoteApi(projectId, { title });
-    revalidatePath(`/app/projects/${projectId}`);
-    revalidatePath("/app");
-    revalidatePath("/app/notes");
+    revalidatePath(`/workspace/projects/${projectId}`);
+    revalidatePath("/workspace");
+    revalidatePath("/workspace/notes");
     return row;
   });
 }
@@ -87,9 +87,9 @@ export async function addNoteToProjectAction(projectId: string, title: string) {
 export async function addCanvasToProjectAction(projectId: string, title: string) {
   return runAction(async () => {
     const row = await createCanvasApi(projectId, { title });
-    revalidatePath(`/app/projects/${projectId}`);
-    revalidatePath("/app");
-    revalidatePath("/app/canvas");
+    revalidatePath(`/workspace/projects/${projectId}`);
+    revalidatePath("/workspace");
+    revalidatePath("/workspace/canvas");
     return row;
   });
 }
@@ -97,7 +97,7 @@ export async function addCanvasToProjectAction(projectId: string, title: string)
 export async function renameProjectAction(projectId: string, name: string) {
   return runAction(async () => {
     const row = await updateProjectApi(projectId, { name });
-    revalidatePath("/app");
+    revalidatePath("/workspace");
     return row;
   });
 }
@@ -105,6 +105,6 @@ export async function renameProjectAction(projectId: string, name: string) {
 export async function deleteProjectAction(projectId: string) {
   return runAction(async () => {
     await deleteProjectApi(projectId);
-    revalidatePath("/app");
+    revalidatePath("/workspace");
   });
 }

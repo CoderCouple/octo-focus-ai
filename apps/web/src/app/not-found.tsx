@@ -20,7 +20,7 @@ export default function NotFound() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/app">
+          <Link href="/workspace">
             <ArrowLeft className="h-4 w-4" />
             Back to workspace
           </Link>

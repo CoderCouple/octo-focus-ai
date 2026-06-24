@@ -1,5 +1,5 @@
 /**
- * Shared list view for `/app/notes` and `/app/canvas` — both surface a flat
+ * Shared list view for `/workspace/notes` and `/workspace/canvas` — both surface a flat
  * list of resources across the workspace's projects with a status filter
  * (All / Draft / Published) and a preview snippet.
  */
@@ -127,7 +127,7 @@ export function ResourceList({ kind, items }: ResourceListProps) {
             return (
               <li key={item.id}>
                 <Link
-                  href={`/app/projects/${item.projectId}`}
+                  href={`/workspace/projects/${item.projectId}`}
                   className="hover:bg-accent/40 flex items-start gap-4 px-8 py-4 transition-colors"
                 >
                   <div className="border-border text-foreground mt-0.5 grid size-8 shrink-0 place-items-center rounded-md border">

@@ -79,7 +79,7 @@ export function NotesTable({
                 <TableRow key={note.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/app/projects/${note.projectId}`}
+                      href={`/workspace/projects/${note.projectId}`}
                       className="hover:underline underline-offset-4"
                     >
                       {note.title}
@@ -115,7 +115,7 @@ export function NotesTable({
                           Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/app/projects/${note.projectId}`}>Open project</Link>
+                          <Link href={`/workspace/projects/${note.projectId}`}>Open project</Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

@@ -12,18 +12,20 @@ export default async function SettingsPage() {
   if (!active) return null;
 
   const workspaceId = active.workspace.id;
-  const workspaceName = active.workspace.name;
-  const workspaceSlug = active.workspace.slug;
-  const viewerRole = active.membership.role;
-
   const members = await listWorkspaceMembersApi(workspaceId);
 
   return (
     <SettingsPanel
-      workspaceId={workspaceId}
-      initialName={workspaceName}
-      initialSlug={workspaceSlug}
-      viewerRole={viewerRole}
+      user={me.user}
+      workspace={active.workspace}
+      viewerRole={active.membership.role}
+      memberships={me.memberships.map((m) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        slug: m.workspace.slug,
+        role: m.membership.role,
+      }))}
+      activeWorkspaceId={workspaceId}
       members={members.map((m) => ({
         id: m.id,
         userId: m.userId,
