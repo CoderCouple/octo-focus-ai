@@ -189,6 +189,14 @@ export const ProjectSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   archivedAt: z.string().nullable(),
+  /**
+   * Returned by list endpoints so cards can show accurate chips for
+   * what the project actually contains. Single-resource fetches omit
+   * these — clients treat undefined as "unknown" (fall back to false
+   * for chip rendering).
+   */
+  hasNote: z.boolean().optional(),
+  hasCanvas: z.boolean().optional(),
 });
 
 export const PageCreateSchema = z.object({

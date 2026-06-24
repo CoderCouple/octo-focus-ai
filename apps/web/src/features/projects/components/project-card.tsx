@@ -77,12 +77,19 @@ export function ProjectCard({ project, workspaceId }: { project: Project; worksp
             <p className="text-muted-foreground line-clamp-2 text-sm">{project.description}</p>
           )}
           <div className="text-muted-foreground/80 mt-auto flex items-center gap-3 text-xs">
-            <span className="inline-flex items-center gap-1">
-              <FileText className="h-3 w-3" /> 1 note
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <LayoutGrid className="h-3 w-3" /> 1 canvas
-            </span>
+            {project.hasNote ? (
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-3 w-3" /> Notes
+              </span>
+            ) : null}
+            {project.hasCanvas ? (
+              <span className="inline-flex items-center gap-1">
+                <LayoutGrid className="h-3 w-3" /> Canvas
+              </span>
+            ) : null}
+            {!project.hasNote && !project.hasCanvas ? (
+              <span className="italic">Empty</span>
+            ) : null}
           </div>
         </Card>
       </Link>

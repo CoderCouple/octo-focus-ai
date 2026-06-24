@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { extractDsl } from "@/features/canvas";
-import { createCanvasApi, listProjectCanvasesApi } from "@/features/canvas/api/canvases-api";
-import { createNoteApi, listProjectNotesApi } from "@/features/notes/api/notes-api";
+import { listProjectCanvasesApi } from "@/features/canvas/api/canvases-api";
+import { listProjectNotesApi } from "@/features/notes/api/notes-api";
 import { getProjectApi } from "@/features/projects/api/projects-api";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
 import { ProjectSplitView } from "./_components/project-split-view";
@@ -28,11 +28,13 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const workspaceSlug =
     me.memberships.find((m) => m.workspace.id === project.workspaceId)?.workspace.slug ?? "";
 
-  // 1:1 model — every project has exactly one note and one canvas. Create
-  // them on first open if the project doesn't have them yet.
-  const page = pages[0] ?? (await createNoteApi(id, { title: project.name }));
-  const canvas = canvases[0] ?? (await createCanvasApi(id, { title: project.name }));
-  const initialDsl = extractDsl(canvas.diagramSchema);
+  // Project is flexible: it may have a note, a canvas, both, or neither
+  // (right after creation). Pass whatever exists; the split view decides
+  // what to render and offers "Add note" / "Add canvas" affordances for
+  // the missing side.
+  const page = pages[0] ?? null;
+  const canvas = canvases[0] ?? null;
+  const initialDsl = canvas ? extractDsl(canvas.diagramSchema) : "";
 
   return (
     <ProjectSplitView

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Loader2, Plus, Sparkles } from "lucide-react";
+import { Columns2, FileText, LayoutGrid, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useProjects } from "../hooks/use-projects";
 import { CreateProjectDialog } from "./create-project-dialog";
@@ -10,21 +10,21 @@ function QuickAction({
   icon: Icon,
   label,
   description,
-  onClick,
-  disabled,
 }: {
   icon: typeof FileText;
   label: string;
   description: string;
-  onClick: () => void;
-  disabled?: boolean;
 }) {
+  // Rendered as the dialog's <DialogTrigger asChild> child, so the
+  // dialog wires the onClick automatically. We render a non-button
+  // <div role="button"> because the trigger forwards the click + a11y
+  // props to its child and a nested <button> inside <button> would be
+  // invalid HTML.
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="border-border hover:border-foreground/30 hover:bg-accent group flex flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-card"
+    <div
+      role="button"
+      tabIndex={0}
+      className="border-border hover:border-foreground/30 hover:bg-accent group flex cursor-pointer flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="bg-secondary text-secondary-foreground grid h-8 w-8 place-items-center rounded-md">
         <Icon className="h-4 w-4" />
@@ -33,7 +33,7 @@ function QuickAction({
         <div className="text-sm font-semibold">{label}</div>
         <div className="text-muted-foreground text-xs">{description}</div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -49,28 +49,35 @@ export function ProjectsPanel({ workspaceId }: { workspaceId: string }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <CreateProjectDialog
             workspaceId={workspaceId}
+            fixedShape="note"
             trigger={
               <QuickAction
-                icon={Plus}
-                label="New project"
-                description="Group notes, canvases, and agents."
-                onClick={() => {}}
+                icon={FileText}
+                label="New note"
+                description="A project with just a note."
               />
             }
           />
-          <QuickAction
-            icon={FileText}
-            label="New page"
-            description="Pick a project first."
-            onClick={() => {}}
-            disabled
+          <CreateProjectDialog
+            workspaceId={workspaceId}
+            fixedShape="canvas"
+            trigger={
+              <QuickAction
+                icon={LayoutGrid}
+                label="New canvas"
+                description="A project with just a canvas."
+              />
+            }
           />
-          <QuickAction
-            icon={Sparkles}
-            label="Ask OctoFocusAI"
-            description="Generate a diagram from a prompt."
-            onClick={() => {}}
-            disabled
+          <CreateProjectDialog
+            workspaceId={workspaceId}
+            trigger={
+              <QuickAction
+                icon={Columns2}
+                label="New project"
+                description="Pick what's inside — note, canvas, or both."
+              />
+            }
           />
         </div>
       </div>

@@ -16,9 +16,18 @@ export interface Project {
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
+  /**
+   * Set by `ProjectsService.listForWorkspace` so list views can render
+   * accurate per-project chips. Single-project fetches (getOne / create
+   * / update) leave these undefined — callers can fall back to false.
+   */
+  hasNote?: boolean;
+  hasCanvas?: boolean;
 }
 
-export function toProject(row: typeof projects.$inferSelect): Project {
+export function toProject(
+  row: typeof projects.$inferSelect & { hasNote?: boolean; hasCanvas?: boolean },
+): Project {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -33,5 +42,7 @@ export function toProject(row: typeof projects.$inferSelect): Project {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     archivedAt: row.archivedAt,
+    ...(row.hasNote !== undefined ? { hasNote: row.hasNote } : {}),
+    ...(row.hasCanvas !== undefined ? { hasCanvas: row.hasCanvas } : {}),
   };
 }

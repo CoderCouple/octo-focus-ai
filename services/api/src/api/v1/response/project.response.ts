@@ -14,6 +14,8 @@ export interface ProjectDto {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  hasNote?: boolean;
+  hasCanvas?: boolean;
 }
 
 export function projectToDto(project: Project): ProjectDto {
@@ -31,5 +33,7 @@ export function projectToDto(project: Project): ProjectDto {
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
     archivedAt: project.archivedAt ? project.archivedAt.toISOString() : null,
+    ...(project.hasNote !== undefined ? { hasNote: project.hasNote } : {}),
+    ...(project.hasCanvas !== undefined ? { hasCanvas: project.hasCanvas } : {}),
   };
 }
