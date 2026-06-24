@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WorkspaceBreadcrumbs } from "@/components/workspace-breadcrumbs";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -45,12 +46,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-tight">{active.workspace.name}</span>
-            <span className="text-muted-foreground text-xs leading-tight">
-              {active.membership.role.toLowerCase()} · {active.workspace.slug}
-            </span>
-          </div>
+          <WorkspaceBreadcrumbs workspaceName={active.workspace.name} />
           <div className="ml-auto">
             <ThemeToggle />
           </div>
