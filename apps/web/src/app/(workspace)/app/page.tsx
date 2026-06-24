@@ -1,18 +1,17 @@
 import { ProjectsPanel } from "@/features/projects";
+import {
+  getActiveWorkspaceIdCookie,
+  resolveActiveMembership,
+} from "@/features/workspaces";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
-import { env } from "@/lib/env";
-
-const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 
 export default async function WorkspaceHomePage() {
-  let workspaceId: string;
-  if (env.DEV_AUTH_BYPASS) {
-    workspaceId = DEV_WORKSPACE_ID;
-  } else {
-    const me = await getMeApi();
-    const active = me.memberships[0];
-    if (!active) return null;
-    workspaceId = active.workspace.id;
-  }
-  return <ProjectsPanel workspaceId={workspaceId} />;
+  // Respect the active-workspace cookie set by the workspace switcher —
+  // without this, every workspace tab landed on the first membership's
+  // projects regardless of what the user picked.
+  const me = await getMeApi();
+  const activeId = await getActiveWorkspaceIdCookie();
+  const active = resolveActiveMembership(me.memberships, activeId);
+  if (!active) return null;
+  return <ProjectsPanel workspaceId={active.workspace.id} />;
 }

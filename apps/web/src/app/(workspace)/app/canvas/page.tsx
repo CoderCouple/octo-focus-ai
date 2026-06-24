@@ -4,16 +4,18 @@ import {
   deriveCanvasStats,
   listWorkspaceCanvasesAction,
 } from "@/features/canvas";
+import {
+  getActiveWorkspaceIdCookie,
+  resolveActiveMembership,
+} from "@/features/workspaces";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
-import { env } from "@/lib/env";
-
-const DEV_WORKSPACE_ID = "wsp_00000000-0000-0000-0000-000000000002";
 
 export default async function CanvasListPage() {
-  const workspaceId = env.DEV_AUTH_BYPASS
-    ? DEV_WORKSPACE_ID
-    : (await getMeApi()).memberships[0]?.workspace.id;
-  if (!workspaceId) return null;
+  const me = await getMeApi();
+  const activeId = await getActiveWorkspaceIdCookie();
+  const active = resolveActiveMembership(me.memberships, activeId);
+  if (!active) return null;
+  const workspaceId = active.workspace.id;
 
   const result = await listWorkspaceCanvasesAction(workspaceId);
   const canvases = result.success ? result.data : [];

@@ -5,10 +5,6 @@ import { env } from "../env";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  if (env.DEV_AUTH_BYPASS) {
-    return response;
-  }
-
   const supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {

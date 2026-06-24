@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { AuthBackdrop } from "@/features/auth";
 import { acceptResourceShareApi } from "@/features/sharing/api/share-accept-api";
 import { friendlyInviteError } from "@/features/sharing";
-import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 interface PageProps {
@@ -27,14 +26,12 @@ interface PageProps {
 export default async function InviteAcceptPage({ params }: PageProps) {
   const { shareId } = await params;
 
-  if (!env.DEV_AUTH_BYPASS) {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return <NotLoggedIn />;
-    }
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return <NotLoggedIn />;
   }
 
   let outcome: "accepted" | { error: string };

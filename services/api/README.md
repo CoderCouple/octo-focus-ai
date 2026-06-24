@@ -270,8 +270,9 @@ pnpm --filter @octofocus/api db:migrate    # apply pending migrations
 pnpm --filter @octofocus/api db:studio     # Drizzle Studio UI
 ```
 
-`DEV_AUTH_BYPASS=true` in `.env` auto-seeds a dev user/workspace/project on
-first boot, skipping Supabase auth.
+Local dev hits real Supabase — every request needs a valid JWT
+(or a `oft_…` CLI token). Use the web app at `/login` to obtain a
+session, or generate a CLI token via `octofocus login`.
 
 ---
 
@@ -295,7 +296,6 @@ Optional, but required for the features they enable:
 | `RESEND_API_KEY` | Transactional email (invites, share notifications) | — |
 | `RESEND_FROM` | From-address for Resend emails | `OctoFocusAI <onboarding@resend.dev>` |
 | `PUBLIC_APP_URL` | Used in email links + asset URL prefix | `https://www.octofocus.ai` |
-| `DEV_AUTH_BYPASS` | Seed a dev user/workspace and skip Supabase JWT verification | `false` |
 | `DB_POOL_SIZE` | Postgres connection pool size | `10` |
 | `PORT` / `HOST` | Bind port + host (Railway injects PORT) | `4000` / `127.0.0.1` (local), `0.0.0.0` (when PORT injected) |
 

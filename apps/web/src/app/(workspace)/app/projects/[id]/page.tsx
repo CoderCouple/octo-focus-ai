@@ -4,7 +4,6 @@ import { createCanvasApi, listProjectCanvasesApi } from "@/features/canvas/api/c
 import { createNoteApi, listProjectNotesApi } from "@/features/notes/api/notes-api";
 import { getProjectApi } from "@/features/projects/api/projects-api";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
-import { env } from "@/lib/env";
 import { ProjectSplitView } from "./_components/project-split-view";
 
 interface PageProps {
@@ -24,11 +23,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const [pages, canvases, me] = await Promise.all([
     listProjectNotesApi(id),
     listProjectCanvasesApi(id),
-    env.DEV_AUTH_BYPASS
-      ? Promise.resolve({ memberships: [{ workspace: { slug: "dev-workspace" } }] } as const)
-      : getMeApi(),
+    getMeApi(),
   ]);
-  const workspaceSlug = me.memberships[0]?.workspace.slug ?? "";
+  const workspaceSlug =
+    me.memberships.find((m) => m.workspace.id === project.workspaceId)?.workspace.slug ?? "";
 
   // 1:1 model — every project has exactly one note and one canvas. Create
   // them on first open if the project doesn't have them yet.

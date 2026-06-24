@@ -6,49 +6,18 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import {
   getActiveWorkspaceIdCookie,
   resolveActiveMembership,
-  type MeResponse,
 } from "@/features/workspaces";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
-import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const DEV_ME: MeResponse = {
-  user: {
-    id: "usr_00000000-0000-0000-0000-000000000000",
-    name: "Dev User",
-    email: "dev@octofocus.local",
-    avatarUrl: null,
-  },
-  memberships: [
-    {
-      membership: {
-        id: "mem_00000000-0000-0000-0000-000000000001",
-        role: "OWNER",
-        workspaceId: "wsp_00000000-0000-0000-0000-000000000002",
-      },
-      workspace: {
-        id: "wsp_00000000-0000-0000-0000-000000000002",
-        name: "Dev workspace",
-        slug: "dev-workspace",
-      },
-    },
-  ],
-};
-
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  let me: MeResponse;
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  if (env.DEV_AUTH_BYPASS) {
-    me = DEV_ME;
-  } else {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) redirect("/login");
-    me = await getMeApi();
-  }
-
+  const me = await getMeApi();
   const activeId = await getActiveWorkspaceIdCookie();
   const active = resolveActiveMembership(me.memberships, activeId);
 

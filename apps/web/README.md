@@ -234,8 +234,8 @@ pnpm --filter @octofocus/web lint
 pnpm --filter @octofocus/web build
 ```
 
-Set `NEXT_PUBLIC_DEV_AUTH_BYPASS=true` in `apps/web/.env.local` to
-match the api's dev auth bypass during local development.
+Local dev requires a real Supabase session — sign in normally at
+`/login` via magic link or Google. No bypass shortcut.
 
 ---
 
