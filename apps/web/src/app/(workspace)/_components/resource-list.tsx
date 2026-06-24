@@ -105,7 +105,7 @@ export function ResourceList({ kind, items }: ResourceListProps) {
                 {STATUS_LABEL[status]}
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                    active ? "bg-background/15 text-background" : "bg-muted text-muted-foreground"
+                    active ? "bg-background/15 text-background" : "border-border text-muted-foreground border"
                   }`}
                 >
                   {count}
@@ -130,7 +130,7 @@ export function ResourceList({ kind, items }: ResourceListProps) {
                   href={`/app/projects/${item.projectId}`}
                   className="hover:bg-accent/40 flex items-start gap-4 px-8 py-4 transition-colors"
                 >
-                  <div className="bg-secondary text-secondary-foreground mt-0.5 grid size-8 shrink-0 place-items-center rounded-md">
+                  <div className="border-border text-foreground mt-0.5 grid size-8 shrink-0 place-items-center rounded-md border">
                     <Icon className="size-3.5" />
                   </div>
                   <div className="min-w-0 flex-1">

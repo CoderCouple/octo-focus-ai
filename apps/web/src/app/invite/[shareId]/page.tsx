@@ -81,7 +81,7 @@ function NotLoggedIn() {
   return (
     <Shell>
       <Card>
-        <div className="bg-secondary text-secondary-foreground grid size-10 place-items-center rounded-md">
+        <div className="border-border text-foreground grid size-10 place-items-center rounded-md border">
           <LogIn className="size-5" />
         </div>
         <div className="space-y-1">

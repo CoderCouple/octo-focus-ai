@@ -21,7 +21,7 @@ export default async function MeetingsPage() {
         </p>
       </div>
       <Card className="grid place-items-center gap-3 p-12 text-center">
-        <div className="bg-secondary text-secondary-foreground grid h-12 w-12 place-items-center rounded-md">
+        <div className="border-border text-foreground grid h-12 w-12 place-items-center rounded-md border">
           <Video className="h-6 w-6" />
         </div>
         <div className="grid gap-1">

@@ -193,7 +193,7 @@ function EmptyProject({
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <Card className="grid w-full max-w-md place-items-center gap-4 p-8 text-center">
-        <div className="bg-secondary text-secondary-foreground grid h-10 w-10 place-items-center rounded-md">
+        <div className="border-border text-foreground grid h-10 w-10 place-items-center rounded-md border">
           <FileText className="h-5 w-5" />
         </div>
         <div className="grid gap-1">

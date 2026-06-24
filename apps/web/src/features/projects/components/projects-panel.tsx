@@ -26,7 +26,7 @@ function QuickAction({
       tabIndex={0}
       className="border-border hover:border-foreground/30 hover:bg-accent group flex cursor-pointer flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="bg-secondary text-secondary-foreground grid h-8 w-8 place-items-center rounded-md">
+      <div className="border-border text-foreground grid h-8 w-8 place-items-center rounded-md border">
         <Icon className="h-4 w-4" />
       </div>
       <div>
@@ -106,7 +106,7 @@ export function ProjectsPanel({ workspaceId }: { workspaceId: string }) {
           </div>
         ) : (
           <Card className="grid place-items-center gap-3 p-10 text-center">
-            <div className="bg-secondary text-secondary-foreground grid h-10 w-10 place-items-center rounded-md">
+            <div className="border-border text-foreground grid h-10 w-10 place-items-center rounded-md border">
               <FileText className="h-5 w-5" />
             </div>
             <div className="grid gap-1">
