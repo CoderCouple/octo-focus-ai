@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { generateId } from "@octofocus/shared";
 import { visibilityKind } from "./enums";
 import { projects } from "./projects";
+import { users } from "./users";
 
 export const pages = pgTable(
   "pages",
@@ -13,6 +14,10 @@ export const pages = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /** See projects.createdByUserId — same rationale. */
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     title: text("title").notNull(),
     document: jsonb("document").notNull(),
     contentMd: text("content_md").default("").notNull(),
@@ -28,6 +33,7 @@ export const pages = pgTable(
   (table) => ({
     projectIdx: index("pages_project_id_idx").on(table.projectId),
     publicSlugIdx: index("pages_public_slug_idx").on(table.publicSlug),
+    createdByIdx: index("pages_created_by_user_id_idx").on(table.createdByUserId),
     // 1:1 — at most one non-deleted page per project.
     onePerProject: uniqueIndex("pages_one_per_project_idx")
       .on(table.projectId)

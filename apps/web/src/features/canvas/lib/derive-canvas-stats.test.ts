@@ -15,6 +15,8 @@ function mk(over: Partial<WorkspaceCanvasSummary> = {}): WorkspaceCanvasSummary 
     visibility: "private",
     createdAt: new Date(FIXED_NOW - 30 * ONE_DAY).toISOString(),
     updatedAt: new Date(FIXED_NOW - ONE_DAY).toISOString(),
+    creator: null,
+    sharedCount: 0,
     ...over,
   };
 }
@@ -37,6 +39,7 @@ describe("deriveCanvasStats", () => {
       drafts: 0,
       published: 0,
       editedLast7d: 0,
+      createdLast7d: 0,
     });
   });
 

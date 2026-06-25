@@ -2,11 +2,13 @@
 
 import { Code2, FileText } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import type { PageSettings } from "@octofocus/shared";
+import { EditableTitle } from "@/components/editable-title";
 import { FontPicker, type NoteFont } from "@/components/font-picker";
 import { Toggle } from "@/components/ui/toggle";
 import { SharePopover, type Visibility } from "@/features/sharing";
-import { updateNoteSettingsApi } from "../api/notes-client-api";
+import { updateNoteClientApi, updateNoteSettingsApi } from "../api/notes-client-api";
 import { NotesEditor } from "./notes-editor";
 
 interface NotesPaneProps {
@@ -37,6 +39,16 @@ export function NotesPane({
   const [font, setFont] = useState<NoteFont>(
     (initialSettings.font as NoteFont | undefined) ?? "sans",
   );
+  const [title, setTitle] = useState(noteTitle ?? "");
+
+  const handleRename = async (next: string) => {
+    setTitle(next);
+    try {
+      await updateNoteClientApi(pageId, { title: next });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to rename");
+    }
+  };
 
   const handleFontChange = async (next: NoteFont) => {
     setFont(next);
@@ -51,8 +63,12 @@ export function NotesPane({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="bg-card flex h-10 shrink-0 items-center gap-1 border-b px-3">
-        <div className="text-muted-foreground text-xs font-medium">Notes</div>
+      <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-3">
+        {noteTitle !== undefined ? (
+          <EditableTitle value={title} onSave={handleRename} placeholder="Untitled note" />
+        ) : (
+          <div className="text-muted-foreground text-xs font-medium">Notes</div>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <FontPicker value={font} onChange={handleFontChange} />
           <Toggle

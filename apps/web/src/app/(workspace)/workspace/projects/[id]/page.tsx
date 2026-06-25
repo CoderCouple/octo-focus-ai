@@ -8,10 +8,17 @@ import { ProjectSplitView } from "./_components/project-split-view";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
 }
 
-export default async function ProjectDetailPage({ params }: PageProps) {
+function parseMode(raw: string | undefined): "notes" | "canvas" | "both" | undefined {
+  if (raw === "notes" || raw === "canvas" || raw === "both") return raw;
+  return undefined;
+}
+
+export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { mode } = await searchParams;
 
   let project;
   try {
@@ -28,10 +35,9 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const workspaceSlug =
     me.memberships.find((m) => m.workspace.id === project.workspaceId)?.workspace.slug ?? "";
 
-  // Project is flexible: it may have a note, a canvas, both, or neither
-  // (right after creation). Pass whatever exists; the split view decides
-  // what to render and offers "Add note" / "Add canvas" affordances for
-  // the missing side.
+  // New projects always have a note AND canvas (createProjectAction seeds
+  // both). Legacy projects may still have only one pane; the split view
+  // tolerates nulls so they stay viewable.
   const page = pages[0] ?? null;
   const canvas = canvases[0] ?? null;
   const initialDsl = canvas ? extractDsl(canvas.diagramSchema) : "";
@@ -43,6 +49,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       canvas={canvas}
       initialDsl={initialDsl}
       workspaceSlug={workspaceSlug}
+      initialMode={parseMode(mode)}
     />
   );
 }

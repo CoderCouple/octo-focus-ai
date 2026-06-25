@@ -58,6 +58,8 @@ export class PagesController {
       visibility: r.visibility as PageDto["visibility"],
       updatedAt: r.updatedAt.toISOString(),
       createdAt: r.createdAt.toISOString(),
+      creator: r.creator,
+      sharedCount: r.sharedCount,
     }));
   }
 

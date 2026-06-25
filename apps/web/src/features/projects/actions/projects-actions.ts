@@ -21,40 +21,18 @@ export async function getProjectAction(projectId: string) {
   return runAction(() => getProjectApi(projectId));
 }
 
-export async function createProjectAction(workspaceId: string, body: ProjectCreate) {
-  return runAction(async () => {
-    const row = await createProjectApi(workspaceId, body);
-    revalidatePath("/workspace");
-    return row;
-  });
-}
-
 /**
- * Three composed creation flows mapped to the three valid project
- * shapes a user can ask for from the workspace home. They all create
- * the project first, then (optionally) seed the child resources.
+ * Projects always have a note AND a canvas. createProjectAction always
+ * seeds both children so the "shape" of a project is a single shape
+ * (note + canvas split view). The "New note" and "New canvas" buttons
+ * on /workspace/notes and /workspace/canvas call this same action — the
+ * caller decides which mode the project view should open in via a
+ * `?mode=notes|canvas|both` query param.
+ *
+ * Legacy projects that pre-date this rule may still have only one pane;
+ * the split view tolerates nulls so they stay viewable.
  */
-export async function createNoteProjectAction(workspaceId: string, body: ProjectCreate) {
-  return runAction(async () => {
-    const project = await createProjectApi(workspaceId, body);
-    await createNoteApi(project.id, { title: project.name });
-    revalidatePath("/workspace");
-    revalidatePath("/workspace/notes");
-    return project;
-  });
-}
-
-export async function createCanvasProjectAction(workspaceId: string, body: ProjectCreate) {
-  return runAction(async () => {
-    const project = await createProjectApi(workspaceId, body);
-    await createCanvasApi(project.id, { title: project.name });
-    revalidatePath("/workspace");
-    revalidatePath("/workspace/canvas");
-    return project;
-  });
-}
-
-export async function createProjectWithBothAction(workspaceId: string, body: ProjectCreate) {
+export async function createProjectAction(workspaceId: string, body: ProjectCreate) {
   return runAction(async () => {
     const project = await createProjectApi(workspaceId, body);
     await Promise.all([
@@ -62,35 +40,10 @@ export async function createProjectWithBothAction(workspaceId: string, body: Pro
       createCanvasApi(project.id, { title: project.name }),
     ]);
     revalidatePath("/workspace");
+    revalidatePath("/workspace/projects");
     revalidatePath("/workspace/notes");
     revalidatePath("/workspace/canvas");
     return project;
-  });
-}
-
-/**
- * Add a note or canvas to an existing project (used by the project
- * split view's "Add canvas" / "Add note" affordance when one side is
- * missing). Revalidates the project route so the page re-renders with
- * the new child mounted.
- */
-export async function addNoteToProjectAction(projectId: string, title: string) {
-  return runAction(async () => {
-    const row = await createNoteApi(projectId, { title });
-    revalidatePath(`/workspace/projects/${projectId}`);
-    revalidatePath("/workspace");
-    revalidatePath("/workspace/notes");
-    return row;
-  });
-}
-
-export async function addCanvasToProjectAction(projectId: string, title: string) {
-  return runAction(async () => {
-    const row = await createCanvasApi(projectId, { title });
-    revalidatePath(`/workspace/projects/${projectId}`);
-    revalidatePath("/workspace");
-    revalidatePath("/workspace/canvas");
-    return row;
   });
 }
 

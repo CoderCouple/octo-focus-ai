@@ -2,6 +2,7 @@ import { index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { generateId } from "@octofocus/shared";
 import { visibilityKind } from "./enums";
+import { users } from "./users";
 import { workspaces } from "./workspaces";
 
 export const projects = pgTable(
@@ -13,6 +14,15 @@ export const projects = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
+    /**
+     * The user who created the project. Required — every project has an
+     * owner. ON DELETE RESTRICT so a user can't be deleted while they
+     * still own content; the team must explicitly transfer ownership
+     * first.
+     */
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     description: text("description"),
     icon: text("icon"),
@@ -28,5 +38,6 @@ export const projects = pgTable(
   (table) => ({
     workspaceIdx: index("projects_workspace_id_idx").on(table.workspaceId),
     publicSlugIdx: index("projects_public_slug_idx").on(table.publicSlug),
+    createdByIdx: index("projects_created_by_user_id_idx").on(table.createdByUserId),
   }),
 );

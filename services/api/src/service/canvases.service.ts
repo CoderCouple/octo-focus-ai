@@ -70,6 +70,7 @@ export class CanvasesService {
     }
     const row = await this.canvasesRepo.insert({
       projectId,
+      createdByUserId: actorUserId,
       title: input.title,
       document: {},
     });

@@ -22,7 +22,6 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CreateProjectDialog } from "@/features/projects";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OwnerCell } from "@/components/owner-cell";
@@ -62,40 +61,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDeleteCanvas, useRenameCanvas, useWorkspaceCanvases } from "../hooks/use-canvases";
-import { canvasStatusLabel } from "../lib/derive-canvas-stats";
-import type { WorkspaceCanvasSummary } from "../types";
+import { useDeleteProject, useProjects, useRenameProject } from "../hooks/use-projects";
+import { projectStatusLabel } from "../lib/derive-projects-stats";
+import type { Project } from "../types";
+import { CreateProjectDialog } from "./create-project-dialog";
 
 type StatusFilter = "all" | "draft" | "published";
-type SortKey = "updated-desc" | "updated-asc" | "title-asc" | "title-desc";
+type SortKey = "updated-desc" | "updated-asc" | "name-asc" | "name-desc";
 
 const SORT_OPTIONS: { key: SortKey; label: string; sorting: SortingState }[] = [
   { key: "updated-desc", label: "Updated (newest)", sorting: [{ id: "updatedAt", desc: true }] },
   { key: "updated-asc", label: "Updated (oldest)", sorting: [{ id: "updatedAt", desc: false }] },
-  { key: "title-asc", label: "Title (A → Z)", sorting: [{ id: "title", desc: false }] },
-  { key: "title-desc", label: "Title (Z → A)", sorting: [{ id: "title", desc: true }] },
+  { key: "name-asc", label: "Name (A → Z)", sorting: [{ id: "name", desc: false }] },
+  { key: "name-desc", label: "Name (Z → A)", sorting: [{ id: "name", desc: true }] },
 ];
 
 function formatUpdated(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function matchesStatus(c: WorkspaceCanvasSummary, filter: StatusFilter): boolean {
+function matchesStatus(p: Project, filter: StatusFilter): boolean {
   if (filter === "all") return true;
-  return canvasStatusLabel(c.visibility).toLowerCase() === filter;
+  return projectStatusLabel(p.visibility).toLowerCase() === filter;
 }
 
-export function CanvasesTable({
+export function ProjectsTable({
   workspaceId,
   initialData,
 }: {
   workspaceId: string;
-  initialData: WorkspaceCanvasSummary[];
+  initialData: Project[];
 }) {
-  const { data: canvases = initialData } = useWorkspaceCanvases(workspaceId, initialData);
-  const rename = useRenameCanvas(workspaceId);
-  const remove = useDeleteCanvas(workspaceId);
-  const [renameTarget, setRenameTarget] = useState<WorkspaceCanvasSummary | null>(null);
+  const { data: projects = initialData } = useProjects(workspaceId, initialData);
+  const rename = useRenameProject(workspaceId);
+  const remove = useDeleteProject(workspaceId);
+  const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("updated-desc");
@@ -106,46 +106,39 @@ export function CanvasesTable({
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   const filtered = useMemo(
-    () => canvases.filter((c) => matchesStatus(c, status)),
-    [canvases, status],
+    () => projects.filter((p) => matchesStatus(p, status)),
+    [projects, status],
   );
 
   const counts = useMemo(
     () => ({
-      all: canvases.length,
-      draft: canvases.filter((c) => canvasStatusLabel(c.visibility) === "Draft").length,
-      published: canvases.filter((c) => canvasStatusLabel(c.visibility) === "Published").length,
+      all: projects.length,
+      draft: projects.filter((p) => projectStatusLabel(p.visibility) === "Draft").length,
+      published: projects.filter((p) => projectStatusLabel(p.visibility) === "Published").length,
     }),
-    [canvases],
+    [projects],
   );
 
-  const columns: ColumnDef<WorkspaceCanvasSummary>[] = useMemo(
+  const columns: ColumnDef<Project>[] = useMemo(
     () => [
       {
-        accessorKey: "title",
-        header: "Title",
+        accessorKey: "name",
+        header: "Name",
         cell: ({ row }) => (
           <Link
-            href={`/canvas/${row.original.id}`}
+            href={`/workspace/projects/${row.original.id}`}
             className="font-bold hover:underline underline-offset-4"
           >
-            {row.original.title}
+            {row.original.name}
           </Link>
-        ),
-      },
-      {
-        accessorKey: "projectName",
-        header: "Project",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">{row.original.projectName}</span>
         ),
       },
       {
         id: "status",
         header: "Status",
-        accessorFn: (row) => canvasStatusLabel(row.visibility),
+        accessorFn: (row) => projectStatusLabel(row.visibility),
         cell: ({ row }) => (
-          <StatusBadge status={canvasStatusLabel(row.original.visibility)} />
+          <StatusBadge status={projectStatusLabel(row.original.visibility)} />
         ),
       },
       {
@@ -157,13 +150,13 @@ export function CanvasesTable({
         id: "owner",
         header: "Owner",
         accessorFn: (row) => row.creator?.name ?? "",
-        cell: ({ row }) => <OwnerCell creator={row.original.creator} />,
+        cell: ({ row }) => <OwnerCell creator={row.original.creator ?? null} />,
       },
       {
         id: "reviewers",
         header: "Reviewers",
-        accessorFn: (row) => row.sharedCount,
-        cell: ({ row }) => <ReviewersCell count={row.original.sharedCount} />,
+        accessorFn: (row) => row.sharedCount ?? 0,
+        cell: ({ row }) => <ReviewersCell count={row.original.sharedCount ?? 0} />,
       },
       {
         accessorKey: "updatedAt",
@@ -185,26 +178,31 @@ export function CanvasesTable({
                   <span className="sr-only">Open menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuContent align="end" className="w-32">
                 <DropdownMenuItem
                   onSelect={() => {
                     setRenameTarget(row.original);
-                    setDraft(row.original.title);
+                    setDraft(row.original.name);
                   }}
                 >
                   Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/canvas/${row.original.id}`}>
-                    Open
-                  </Link>
+                  <Link href={`/workspace/projects/${row.original.id}`}>Open</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => {
+                    if (
+                      !confirm(
+                        `Delete project "${row.original.name}"? This removes its note and canvas.`,
+                      )
+                    ) {
+                      return;
+                    }
                     remove.mutate(row.original.id, {
-                      onSuccess: () => toast.success("Canvas deleted"),
+                      onSuccess: () => toast.success("Project deleted"),
                       onError: (e) => toast.error(e.message),
                     });
                   }}
@@ -215,6 +213,7 @@ export function CanvasesTable({
             </DropdownMenu>
           </div>
         ),
+        meta: { width: "w-12" },
       },
     ],
     [remove],
@@ -241,11 +240,11 @@ export function CanvasesTable({
       className="w-full flex-col justify-start gap-4"
     >
       <div className="flex items-center justify-between gap-2 px-4 lg:px-6">
-        <Label htmlFor="canvases-status-selector" className="sr-only">
+        <Label htmlFor="projects-status-selector" className="sr-only">
           Status
         </Label>
         <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
-          <SelectTrigger className="flex w-fit @4xl/main:hidden" size="sm" id="canvases-status-selector">
+          <SelectTrigger className="flex w-fit @4xl/main:hidden" size="sm" id="projects-status-selector">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -287,7 +286,7 @@ export function CanvasesTable({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <CreateProjectDialog workspaceId={workspaceId} label="New canvas" mode="canvas" />
+          <CreateProjectDialog workspaceId={workspaceId} label="New project" />
         </div>
       </div>
 
@@ -328,7 +327,7 @@ export function CanvasesTable({
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                    No canvases yet. Create one above.
+                    No projects to show.
                   </TableCell>
                 </TableRow>
               )}
@@ -339,11 +338,11 @@ export function CanvasesTable({
 
       <div className="flex items-center justify-between gap-4 px-4 lg:px-6">
         <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          {filtered.length} of {canvases.length} canvas{canvases.length === 1 ? "" : "es"}
+          {filtered.length} of {projects.length} project{projects.length === 1 ? "" : "s"}
         </div>
         <div className="flex items-center gap-6">
           <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="canvases-rows-per-page" className="text-sm font-medium">
+            <Label htmlFor="rows-per-page" className="text-sm font-medium">
               Rows per page
             </Label>
             <Select
@@ -352,7 +351,7 @@ export function CanvasesTable({
                 setPagination((p) => ({ ...p, pageSize: Number(v), pageIndex: 0 }))
               }
             >
-              <SelectTrigger size="sm" className="w-20" id="canvases-rows-per-page">
+              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                 <SelectValue placeholder={pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
@@ -415,8 +414,8 @@ export function CanvasesTable({
       <Dialog open={Boolean(renameTarget)} onOpenChange={(o) => !o && setRenameTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename canvas</DialogTitle>
-            <DialogDescription>Pick a new title for this canvas.</DialogDescription>
+            <DialogTitle>Rename project</DialogTitle>
+            <DialogDescription>Pick a new name for this project.</DialogDescription>
           </DialogHeader>
           <Input value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
           <DialogFooter>
@@ -428,7 +427,7 @@ export function CanvasesTable({
               onClick={() => {
                 if (!renameTarget) return;
                 rename.mutate(
-                  { canvasId: renameTarget.id, title: draft.trim() },
+                  { projectId: renameTarget.id, name: draft.trim() },
                   {
                     onSuccess: () => {
                       toast.success("Renamed");

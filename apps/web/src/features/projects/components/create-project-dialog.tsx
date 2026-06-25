@@ -1,193 +1,110 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Columns2, FileText, LayoutGrid, Loader2, Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useCreateProjectShape, type ProjectShape } from "../hooks/use-projects";
-
-const FormSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(120),
-  description: z.string().trim().max(2000).optional(),
-});
-type FormValues = z.infer<typeof FormSchema>;
+import { useCreateProject } from "../hooks/use-projects";
 
 interface CreateProjectDialogProps {
   workspaceId: string;
-  trigger?: React.ReactNode;
+  /** Button label, e.g. "New project" / "New note" / "New canvas". */
+  label?: string;
   /**
-   * When set, the dialog skips the "What's inside?" picker and goes
-   * straight to creating a project with that shape. Used by the
-   * workspace-home `New note` / `New canvas` quick actions where the
-   * shape is already implied by the button label.
+   * Which focus view to land on right after creation.
+   * - `notes`  → `/note/<noteId>`         (focus note editor)
+   * - `canvas` → `/canvas/<canvasId>`     (focus canvas editor)
+   * - undefined → `/workspace/projects/<projectId>` (split view, both panes)
+   *
+   * For `notes` / `canvas` we have the project id but not the child
+   * resource id directly; the router-side createProjectAction returns
+   * the project so we navigate to the standalone child's URL via the
+   * project's id-to-resource lookup performed server-side (the focus
+   * pages resolve note/canvas by id).
+   *
+   * The single-click "no modal" UX is intentional — every project comes
+   * with a default name like "Untitled" and the user renames inline on
+   * the resource page if they want.
    */
-  fixedShape?: ProjectShape;
+  mode?: "notes" | "canvas" | "both";
 }
 
-const SHAPE_COPY: Record<ProjectShape, { title: string; description: string }> = {
-  note: {
-    title: "New note",
-    description: "Creates a project with a single note. Add a canvas later if you want one.",
-  },
-  canvas: {
-    title: "New canvas",
-    description: "Creates a project with a single canvas. Add a note later if you want one.",
-  },
-  both: {
-    title: "New project",
-    description: "Projects group notes and canvases. Pick what you want inside.",
-  },
-  empty: {
-    title: "New project",
-    description: "Create an empty project — add a note or canvas after.",
-  },
+const DEFAULT_NAME: Record<NonNullable<CreateProjectDialogProps["mode"]>, string> = {
+  notes: "Untitled note",
+  canvas: "Untitled canvas",
+  both: "Untitled project",
 };
 
+/**
+ * Despite the name, this is no longer a dialog — clicking the button
+ * creates a project (with the project always auto-seeding a note + a
+ * canvas) with a default "Untitled …" name and immediately navigates
+ * the user to the resource. The user can rename the title inline on
+ * the resource page.
+ *
+ * Kept as `CreateProjectDialog` for now so existing call sites in
+ * notes/canvas/projects tables don't need to change names.
+ */
 export function CreateProjectDialog({
   workspaceId,
-  trigger,
-  fixedShape,
+  label = "New project",
+  mode,
 }: CreateProjectDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [shape, setShape] = useState<ProjectShape>(fixedShape ?? "both");
-  const create = useCreateProjectShape(workspaceId);
-  const form = useForm<FormValues>({
-    resolver: zodResolver(FormSchema),
-    defaultValues: { name: "", description: "" },
-  });
+  const router = useRouter();
+  const create = useCreateProject(workspaceId);
+  const [pending, setPending] = useState(false);
 
-  const onSubmit = form.handleSubmit((values) => {
+  const handleClick = () => {
+    const defaultName = DEFAULT_NAME[mode ?? "both"];
+    setPending(true);
     create.mutate(
+      { name: defaultName },
       {
-        shape: fixedShape ?? shape,
-        body: {
-          name: values.name,
-          ...(values.description ? { description: values.description } : {}),
+        onSuccess: async (project) => {
+          // For "notes" / "canvas" land-on-focus modes we need the child
+          // resource id, not the project id. The list endpoints for the
+          // project return both children — fetch them and route to the
+          // appropriate one.
+          if (mode === "notes" || mode === "canvas") {
+            try {
+              const { listProjectNotesAction } = await import(
+                "@/features/notes/actions/notes-actions"
+              );
+              const { listProjectCanvasesAction } = await import(
+                "@/features/canvas/actions/canvases-actions"
+              );
+              if (mode === "notes") {
+                const r = await listProjectNotesAction(project.id);
+                if (r.success && r.data[0]) {
+                  router.push(`/note/${r.data[0].id}`);
+                  return;
+                }
+              } else {
+                const r = await listProjectCanvasesAction(project.id);
+                if (r.success && r.data[0]) {
+                  router.push(`/canvas/${r.data[0].id}`);
+                  return;
+                }
+              }
+            } catch {
+              // Fall through to project view on any lookup failure.
+            }
+          }
+          router.push(`/workspace/projects/${project.id}`);
         },
-      },
-      {
-        onSuccess: () => {
-          toast.success("Project created");
-          form.reset();
-          setShape(fixedShape ?? "both");
-          setOpen(false);
+        onError: (e) => {
+          toast.error(e.message);
+          setPending(false);
         },
-        onError: (e) => toast.error(e.message),
       },
     );
-  });
-
-  const copy = SHAPE_COPY[fixedShape ?? "both"];
+  };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          form.reset();
-          setShape(fixedShape ?? "both");
-        }
-      }}
-    >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            {copy.title}
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{copy.title}</DialogTitle>
-          <DialogDescription>{copy.description}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="project-name">Name</Label>
-            <Input
-              id="project-name"
-              placeholder="Architecture Notes"
-              disabled={create.isPending}
-              {...form.register("name")}
-            />
-            {form.formState.errors.name ? (
-              <p className="text-destructive text-xs">{form.formState.errors.name.message}</p>
-            ) : null}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="project-description">Description</Label>
-            <Textarea
-              id="project-description"
-              placeholder="What goes in this project?"
-              disabled={create.isPending}
-              {...form.register("description")}
-            />
-          </div>
-          {fixedShape ? null : (
-            <div className="grid gap-2">
-              <Label>What&apos;s in this project?</Label>
-              <ToggleGroup
-                type="single"
-                value={shape}
-                onValueChange={(v) => v && setShape(v as ProjectShape)}
-                variant="outline"
-                size="sm"
-                className="justify-start"
-              >
-                <ToggleGroupItem value="note">
-                  <FileText className="h-3.5 w-3.5" />
-                  Just a note
-                </ToggleGroupItem>
-                <ToggleGroupItem value="canvas">
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  Just a canvas
-                </ToggleGroupItem>
-                <ToggleGroupItem value="both">
-                  <Columns2 className="h-3.5 w-3.5" />
-                  Both
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={create.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={create.isPending || !form.formState.isValid}>
-              {create.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-                </>
-              ) : (
-                copy.title
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <Button size="sm" onClick={handleClick} disabled={pending}>
+      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+      {label}
+    </Button>
   );
 }

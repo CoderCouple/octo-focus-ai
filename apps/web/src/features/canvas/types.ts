@@ -1,6 +1,12 @@
-import type { Canvas, CanvasCreate, CanvasUpdate, Visibility } from "@octofocus/shared";
+import type {
+  Canvas,
+  CanvasCreate,
+  CanvasUpdate,
+  CreatorSummary,
+  Visibility,
+} from "@octofocus/shared";
 
-export type { Canvas, CanvasCreate, CanvasUpdate, Visibility };
+export type { Canvas, CanvasCreate, CanvasUpdate, CreatorSummary, Visibility };
 
 /**
  * Row shape returned by `GET /workspaces/:id/canvases` — joined with the
@@ -15,6 +21,8 @@ export interface WorkspaceCanvasSummary {
   visibility: Visibility;
   createdAt: string;
   updatedAt: string;
+  creator: CreatorSummary | null;
+  sharedCount: number;
 }
 
 export type CanvasAssetFormat = "svg" | "png";

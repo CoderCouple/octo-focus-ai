@@ -1,6 +1,12 @@
-import type { Page, PageCreate, PageUpdate, Visibility } from "@octofocus/shared";
+import type {
+  CreatorSummary,
+  Page,
+  PageCreate,
+  PageUpdate,
+  Visibility,
+} from "@octofocus/shared";
 
-export type { Page, PageCreate, PageUpdate, Visibility };
+export type { CreatorSummary, Page, PageCreate, PageUpdate, Visibility };
 
 /**
  * Row shape returned by `GET /workspaces/:id/pages` — joined with project
@@ -16,4 +22,6 @@ export interface WorkspacePageSummary {
   visibility: Visibility;
   createdAt: string;
   updatedAt: string;
+  creator: CreatorSummary | null;
+  sharedCount: number;
 }

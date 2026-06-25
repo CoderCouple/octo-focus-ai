@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { CanvasStats } from "../lib/derive-canvas-stats";
+import type { ProjectsStats as ProjectsStatsModel } from "../lib/derive-projects-stats";
 
 interface Tile {
-  key: keyof CanvasStats;
+  key: keyof ProjectsStatsModel;
   label: string;
   badge: string;
   badgeTrend: "up" | "down" | "flat";
@@ -23,22 +23,22 @@ function pct(part: number, total: number): number {
   return total > 0 ? Math.round((part / total) * 100) : 0;
 }
 
-function buildTiles(stats: CanvasStats): Tile[] {
+function buildTiles(stats: ProjectsStatsModel): Tile[] {
   const draftPct = pct(stats.drafts, stats.total);
   const publishedPct = pct(stats.published, stats.total);
-  const editedPct = pct(stats.editedLast7d, stats.total);
+  const updatedPct = pct(stats.updatedLast7d, stats.total);
 
   return [
     {
       key: "total",
-      label: "Canvases",
+      label: "Projects",
       badge: stats.createdLast7d > 0 ? `+${stats.createdLast7d}` : "0",
       badgeTrend: stats.createdLast7d > 0 ? "up" : "flat",
       bold:
         stats.createdLast7d > 0
-          ? `${stats.createdLast7d} drawn this week`
-          : "No new canvases this week",
-      hint: "Across your projects",
+          ? `${stats.createdLast7d} created this week`
+          : "No new projects this week",
+      hint: "In this workspace",
     },
     {
       key: "drafts",
@@ -57,17 +57,17 @@ function buildTiles(stats: CanvasStats): Tile[] {
       hint: "Public or unlisted",
     },
     {
-      key: "editedLast7d",
-      label: "Edited 7d",
-      badge: `${editedPct}%`,
-      badgeTrend: editedPct >= 30 ? "up" : "down",
-      bold: editedPct >= 30 ? "Active week" : "Quiet week",
+      key: "updatedLast7d",
+      label: "Updated 7d",
+      badge: `${updatedPct}%`,
+      badgeTrend: updatedPct >= 30 ? "up" : "down",
+      bold: updatedPct >= 30 ? "Active week" : "Quiet week",
       hint: "Touched in the last 7 days",
     },
   ];
 }
 
-export function CanvasesStats({ stats }: { stats: CanvasStats }) {
+export function ProjectsStats({ stats }: { stats: ProjectsStatsModel }) {
   const tiles = buildTiles(stats);
   return (
     <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6 dark:*:data-[slot=card]:bg-card">

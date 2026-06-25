@@ -57,6 +57,7 @@ export class ProjectsService {
     ]);
     const row = await this.projectsRepo.insert({
       workspaceId,
+      createdByUserId: actorUserId,
       name: input.name,
       description: input.description ?? null,
       icon: input.icon ?? null,

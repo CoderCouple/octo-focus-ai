@@ -75,6 +75,7 @@ export class PagesService {
 
     const row = await this.pagesRepo.insert({
       projectId,
+      createdByUserId: actorUserId,
       title: input.title,
       document: {},
     });

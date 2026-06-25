@@ -32,6 +32,10 @@ export const canvases = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /** See projects.createdByUserId — same rationale. */
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     title: text("title").notNull(),
     document: jsonb("document").notNull(),
     diagramSchema: jsonb("diagram_schema"),
@@ -47,6 +51,7 @@ export const canvases = pgTable(
   (table) => ({
     projectIdx: index("canvases_project_id_idx").on(table.projectId),
     publicSlugIdx: index("canvases_public_slug_idx").on(table.publicSlug),
+    createdByIdx: index("canvases_created_by_user_id_idx").on(table.createdByUserId),
     onePerProject: uniqueIndex("canvases_one_per_project_idx")
       .on(table.projectId)
       .where(sql`deleted_at IS NULL`),

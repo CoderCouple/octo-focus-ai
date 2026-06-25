@@ -27,6 +27,8 @@ export interface WorkspacePageSummaryDto {
   visibility: Visibility;
   updatedAt: string;
   createdAt: string;
+  creator: { id: string; name: string; email: string } | null;
+  sharedCount: number;
 }
 
 export function pageToDto(page: Page): PageDto {

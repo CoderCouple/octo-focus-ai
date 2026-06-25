@@ -26,6 +26,8 @@ export interface WorkspaceCanvasSummaryDto {
   visibility: Visibility;
   createdAt: string;
   updatedAt: string;
+  creator: { id: string; name: string; email: string } | null;
+  sharedCount: number;
 }
 
 export interface CanvasAssetDto {

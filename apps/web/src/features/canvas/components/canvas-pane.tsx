@@ -2,12 +2,14 @@
 
 import { Pencil, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { Editor } from "tldraw";
 import { DslDrawer } from "@/components/dsl-drawer";
+import { EditableTitle } from "@/components/editable-title";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { SharePopover, type Visibility } from "@/features/sharing";
-import { updateCanvasAction } from "../actions/canvases-actions";
+import { renameCanvasAction, updateCanvasAction } from "../actions/canvases-actions";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
@@ -88,9 +90,19 @@ export function CanvasPane({
   const canShare =
     initialVisibility !== undefined && workspaceSlug !== undefined && canvasTitle !== undefined;
 
+  const [title, setTitle] = useState(canvasTitle ?? "");
+  const handleRename = async (next: string) => {
+    setTitle(next);
+    const result = await renameCanvasAction(canvasId, next);
+    if (!result.success) toast.error(result.message);
+  };
+
   return (
     <div className="flex h-full flex-col">
-      <header className="bg-card flex h-10 shrink-0 items-center gap-1 border-b px-2">
+      <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-2">
+        {canvasTitle !== undefined ? (
+          <EditableTitle value={title} onSave={handleRename} placeholder="Untitled canvas" />
+        ) : null}
         <Toggle
           pressed={autoShape}
           onPressedChange={setAutoShape}

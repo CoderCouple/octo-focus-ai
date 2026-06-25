@@ -175,9 +175,16 @@ export const ProjectUpdateSchema = z.object({
   settings: ProjectSettingsSchema.optional(),
 });
 
+export const CreatorSummarySchema = z.object({
+  id: UserIdSchema,
+  name: z.string(),
+  email: z.string(),
+});
+
 export const ProjectSchema = z.object({
   id: ProjectIdSchema,
   workspaceId: WorkspaceIdSchema,
+  createdByUserId: UserIdSchema,
   name: z.string(),
   description: z.string().nullable(),
   icon: z.string().nullable(),
@@ -197,6 +204,9 @@ export const ProjectSchema = z.object({
    */
   hasNote: z.boolean().optional(),
   hasCanvas: z.boolean().optional(),
+  /** Creator + share-count returned by list endpoints. */
+  creator: CreatorSummarySchema.nullable().optional(),
+  sharedCount: z.number().optional(),
 });
 
 export const PageCreateSchema = z.object({
@@ -497,6 +507,7 @@ export type PageSettings = z.infer<typeof PageSettingsSchema>;
 export type CanvasSettings = z.infer<typeof CanvasSettingsSchema>;
 
 export type Project = z.infer<typeof ProjectSchema>;
+export type CreatorSummary = z.infer<typeof CreatorSummarySchema>;
 export type ProjectCreate = z.infer<typeof ProjectCreateSchema>;
 export type ProjectUpdate = z.infer<typeof ProjectUpdateSchema>;
 

@@ -57,6 +57,8 @@ export class CanvasesController {
       visibility: r.visibility as CanvasDto["visibility"],
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
+      creator: r.creator,
+      sharedCount: r.sharedCount,
     }));
   }
 

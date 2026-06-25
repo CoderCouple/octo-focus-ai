@@ -16,6 +16,8 @@ function mkNote(over: Partial<WorkspacePageSummary> = {}): WorkspacePageSummary 
     visibility: "private",
     createdAt: new Date(FIXED_NOW - 30 * ONE_DAY).toISOString(),
     updatedAt: new Date(FIXED_NOW - ONE_DAY).toISOString(),
+    creator: null,
+    sharedCount: 0,
     ...over,
   };
 }
@@ -45,6 +47,7 @@ describe("deriveNotesStats", () => {
       drafts: 0,
       published: 0,
       updatedLast7d: 0,
+      createdLast7d: 0,
     });
   });
 
