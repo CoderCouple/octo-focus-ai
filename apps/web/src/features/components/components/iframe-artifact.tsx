@@ -12,53 +12,36 @@ const REACT_DOM_CDN =
   "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js";
 const BABEL_CDN = "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js";
 
-/** Bridges errors back to the parent and renders them inline. */
+/** Bridges JS errors inside the iframe back to the parent window. */
 const ERROR_BRIDGE = `
+<script>
 function __sendError(message) {
   try {
     window.parent.postMessage({ type: 'iframe-error', message: String(message) }, '*');
   } catch (e) {}
-  var root = document.getElementById('root');
-  if (root) {
-    root.innerHTML =
-      '<pre style="color:#dc2626;padding:1rem;font:14px ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;background:#fff5f5;border:1px solid #fecaca;border-radius:6px;margin:1rem">' +
-      String(message).replace(/[&<>]/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]}) +
-      '</pre>';
-  }
 }
 window.addEventListener('error', function (e) { __sendError(e.message || String(e.error)); });
 window.addEventListener('unhandledrejection', function (e) {
   __sendError(e.reason && e.reason.message ? e.reason.message : String(e.reason));
 });
+window.addEventListener('load', function () {
+  try { window.parent.postMessage({ type: 'iframe-ready' }, '*'); } catch (e) {}
+});
+</script>
 `;
 
-/** Hooks + helpers the user's code can reference without importing. */
-const PRELUDE = `
+const TSX_PRELUDE = `
 var React = window.React;
 var ReactDOM = window.ReactDOM;
-var useState = React.useState;
-var useEffect = React.useEffect;
-var useRef = React.useRef;
-var useMemo = React.useMemo;
-var useCallback = React.useCallback;
-var useReducer = React.useReducer;
-var useTransition = React.useTransition;
-var useDeferredValue = React.useDeferredValue;
-var useId = React.useId;
-var useLayoutEffect = React.useLayoutEffect;
-var useImperativeHandle = React.useImperativeHandle;
-var useContext = React.useContext;
-var useSyncExternalStore = React.useSyncExternalStore;
-var createContext = React.createContext;
-var Fragment = React.Fragment;
-var memo = React.memo;
-var forwardRef = React.forwardRef;
-var lazy = React.lazy;
-var Suspense = React.Suspense;
-var StrictMode = React.StrictMode;
-var createElement = React.createElement;
-var Children = React.Children;
-
+var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef,
+    useMemo = React.useMemo, useCallback = React.useCallback, useReducer = React.useReducer,
+    useTransition = React.useTransition, useDeferredValue = React.useDeferredValue,
+    useId = React.useId, useLayoutEffect = React.useLayoutEffect,
+    useImperativeHandle = React.useImperativeHandle, useContext = React.useContext,
+    useSyncExternalStore = React.useSyncExternalStore, createContext = React.createContext,
+    Fragment = React.Fragment, memo = React.memo, forwardRef = React.forwardRef,
+    lazy = React.lazy, Suspense = React.Suspense, StrictMode = React.StrictMode,
+    createElement = React.createElement, Children = React.Children;
 var __reactRoot = null;
 function render(element) {
   var rootEl = document.getElementById('root');
@@ -67,54 +50,71 @@ function render(element) {
 }
 `;
 
-function buildSrcDoc(code: string): string {
-  // Safe to embed the user's code inside a `<script type="text/plain">`
-  // tag — the HTML parser ignores it. We only need to escape closing
-  // `</script>` so the tag can't be terminated early.
-  const safeCode = code.replace(/<\/script>/gi, "<\\/script>");
+/**
+ * Robust HTML-document sniff: strip BOM + leading whitespace, then
+ * regex-test the leading 500 chars. Catches stray case / whitespace
+ * after `<!doctype`, missing newlines, etc.
+ */
+function isHtmlDocument(code: string): boolean {
+  const head = code
+    .replace(/^﻿/, "")
+    .trimStart()
+    .slice(0, 500);
+  return /^(<!doctype\s+html|<html[\s>])/i.test(head);
+}
 
+/**
+ * HTML mode: code is already a full HTML document. Splice the error
+ * bridge into the existing `<head>` (or synthesize one) so runtime
+ * errors get reported, then hand the rest off to srcDoc unchanged.
+ */
+function buildHtmlSrcDoc(html: string): string {
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, (_m, attrs) => `<head${attrs}>${ERROR_BRIDGE}`);
+  }
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(
+      /<html([^>]*)>/i,
+      (_m, attrs) => `<html${attrs}><head>${ERROR_BRIDGE}</head>`,
+    );
+  }
+  return `<!doctype html><html><head>${ERROR_BRIDGE}</head><body>${html}</body></html>`;
+}
+
+/**
+ * TSX mode (legacy): wrap the snippet in a React + Tailwind + Babel
+ * runtime so old blocks created before the HTML switchover keep
+ * rendering. Hand-written TSX components paste-into-a-block also use
+ * this path.
+ */
+function buildTsxSrcDoc(code: string): string {
+  const normalized = normalizeForLive(code);
+  const safe = normalized.replace(/<\/script>/gi, "<\\/script>");
   return [
     "<!DOCTYPE html>",
-    '<html lang="en">',
-    "<head>",
+    '<html lang="en"><head>',
     '<meta charset="utf-8"/>',
     '<meta name="viewport" content="width=device-width,initial-scale=1"/>',
     `<script src="${TAILWIND_CDN}"></script>`,
-    "<style>",
-    "html,body,#root{height:100%;margin:0;}",
-    "body{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;}",
-    "</style>",
-    "</head>",
-    "<body>",
-    '<div id="root"></div>',
-    // Error bridge runs FIRST so even script-load failures get reported.
-    "<script>",
+    "<style>html,body,#root{height:100%;margin:0;}body{font-family:ui-sans-serif,system-ui,sans-serif;background:#fff;}</style>",
     ERROR_BRIDGE,
-    "</script>",
+    "</head><body>",
+    '<div id="root"></div>',
     `<script crossorigin src="${REACT_CDN}"></script>`,
     `<script crossorigin src="${REACT_DOM_CDN}"></script>`,
     `<script src="${BABEL_CDN}"></script>`,
     '<script id="__user_code" type="text/plain">',
-    safeCode,
+    safe,
     "</script>",
-    // Explicit transform + eval. We don't rely on Babel's auto-runScripts
-    // (which races DOMContentLoaded inside iframes); this gives us
-    // deterministic execution and proper error surfacing.
-    "<script>",
-    "(function(){",
-    "try {",
-    "if (!window.React || !window.ReactDOM) { __sendError('React or ReactDOM failed to load. Check your network.'); return; }",
-    "if (!window.Babel) { __sendError('Babel failed to load. Check your network.'); return; }",
-    "var raw = document.getElementById('__user_code').textContent;",
-    "var compiled = Babel.transform(raw, { presets: [['env', { targets: { esmodules: true } }], 'react', 'typescript'], filename: 'component.tsx' }).code;",
-    "var prelude = " + JSON.stringify(PRELUDE) + ";",
-    "(0, eval)(prelude + '\\n' + compiled);",
-    "window.parent.postMessage({ type: 'iframe-ready' }, '*');",
-    "} catch (err) { __sendError(err && err.message ? err.message : String(err)); }",
-    "})();",
-    "</script>",
-    "</body>",
-    "</html>",
+    "<script>(function(){try{",
+    "if(!window.React||!window.ReactDOM){__sendError('React or ReactDOM failed to load');return;}",
+    "if(!window.Babel){__sendError('Babel failed to load');return;}",
+    "var raw=document.getElementById('__user_code').textContent;",
+    "var compiled=Babel.transform(raw,{presets:[['env',{targets:{esmodules:true}}],'react','typescript'],filename:'component.tsx'}).code;",
+    "var prelude=" + JSON.stringify(TSX_PRELUDE) + ";",
+    "(0,eval)(prelude+'\\n'+compiled);",
+    "}catch(err){__sendError(err&&err.message?err.message:String(err));}})();</script>",
+    "</body></html>",
   ].join("\n");
 }
 
@@ -125,25 +125,28 @@ interface IframeArtifactProps {
 }
 
 /**
- * Claude-artifact-style live renderer. Compiles + runs the supplied
- * TSX inside a sandboxed iframe with Tailwind CDN preloaded.
+ * Claude-artifact-style live renderer. The model emits a complete
+ * HTML document and we hand it straight to a sandboxed iframe via
+ * `srcDoc` — no Babel, no CDN, no React runtime.
  *
- * - Full Tailwind freedom (Tailwind Play CDN handles every variant)
- * - Style isolation from the host app
- * - Viewport units, fixed positioning, body-level layouts all work
- * - sandbox="allow-scripts" — no parent cookies, no top-level nav
+ * Legacy TSX blocks (generated before the HTML switchover) auto-fall
+ * back to the React + Babel runtime so existing notes keep rendering.
  *
- * Runtime errors are postMessage'd back and shown as a small overlay
- * below the preview.
+ * sandbox="allow-scripts" — no parent cookies, no top-level nav.
+ * Runtime errors are postMessage'd back and shown as a small overlay.
  */
 export function IframeArtifact({ code, className, style }: IframeArtifactProps) {
   const [error, setError] = useState<string | null>(null);
-  const normalized = useMemo(() => normalizeForLive(code ?? ""), [code]);
-  const srcDoc = useMemo(() => buildSrcDoc(normalized), [normalized]);
+
+  const srcDoc = useMemo(() => {
+    const trimmed = (code ?? "").trim();
+    if (!trimmed) return "<!doctype html><html><body></body></html>";
+    return isHtmlDocument(trimmed) ? buildHtmlSrcDoc(trimmed) : buildTsxSrcDoc(trimmed);
+  }, [code]);
 
   useEffect(() => {
     setError(null);
-  }, [normalized]);
+  }, [srcDoc]);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
