@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, FolderKanban, LayoutGrid, Settings, Video } from "lucide-react";
+import { Blocks, FileText, FolderKanban, LayoutGrid, Settings, Video } from "lucide-react";
 import * as React from "react";
 
 import { NavMain } from "@/components/nav-main";
@@ -26,6 +26,7 @@ export function AppSidebar({ workspace, memberships, user, ...props }: AppSideba
     { title: "Notes", url: "/workspace/notes", icon: FileText },
     { title: "Canvas", url: "/workspace/canvas", icon: LayoutGrid },
     { title: "Meetings", url: "/workspace/meetings", icon: Video },
+    { title: "Components", url: "/workspace/components", icon: Blocks },
     { title: "Settings", url: "/workspace/settings", icon: Settings },
   ];
 

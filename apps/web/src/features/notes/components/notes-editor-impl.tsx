@@ -15,10 +15,11 @@ import {
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
-import { Code2, Workflow } from "lucide-react";
+import { Code2, Sparkles, Workflow } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateNoteAction } from "../actions/notes-actions";
 import { CodeBlock } from "./code-block";
+import { GenerativeUiBlock } from "./generative-ui-block";
 import { MermaidBlock } from "./mermaid-block";
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -30,6 +31,9 @@ const schema = BlockNoteSchema.create({
     // Overrides the default BlockNote `codeBlock` with our rich version
     // — language picker, copy button, syntax highlighting, resize.
     codeBlock: CodeBlock(),
+    // Live-rendered React component pasted from the Components studio
+    // (or hand-written). Powered by react-live.
+    generativeUi: GenerativeUiBlock(),
   },
 });
 
@@ -63,6 +67,20 @@ function insertCodeItem(editor: OctoEditor): DefaultReactSuggestionItem {
     onItemClick: () => {
       const current = editor.getTextCursorPosition().block;
       editor.replaceBlocks([current], [{ type: "codeBlock" }]);
+    },
+  };
+}
+
+function insertGenerativeUiItem(editor: OctoEditor): DefaultReactSuggestionItem {
+  return {
+    title: "Component",
+    subtext: "Embed a live-rendered React component",
+    aliases: ["component", "ui", "live", "react", "generative"],
+    group: "Embeds",
+    icon: <Sparkles className="h-4 w-4" />,
+    onItemClick: () => {
+      const current = editor.getTextCursorPosition().block;
+      editor.replaceBlocks([current], [{ type: "generativeUi" }]);
     },
   };
 }
@@ -136,6 +154,7 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
                   ...getDefaultReactSlashMenuItems(editor),
                   insertMermaidItem(editor),
                   insertCodeItem(editor),
+                  insertGenerativeUiItem(editor),
                 ],
                 query,
               )
