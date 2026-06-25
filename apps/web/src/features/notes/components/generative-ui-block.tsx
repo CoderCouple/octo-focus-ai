@@ -9,11 +9,13 @@ import {
   GripHorizontal,
   GripVertical,
   Sparkles,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as React from "react";
 import { IframeArtifact } from "@/features/components";
 import { Button } from "@/components/ui/button";
+import { ComponentRefineOverlay } from "./component-refine-overlay";
 
 const MIN_HEIGHT = 160;
 const MAX_HEIGHT = 1400;
@@ -83,6 +85,7 @@ export const GenerativeUiBlock = createReactBlockSpec(generativeUiBlockConfig, {
     const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null);
     const [fetched, setFetched] = useState<string | null>(null);
     const [fetching, setFetching] = useState(componentId.length > 0);
+    const [refining, setRefining] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -211,6 +214,16 @@ export const GenerativeUiBlock = createReactBlockSpec(generativeUiBlockConfig, {
           {isEditable ? (
             <div className="flex items-center gap-1">
               <Button
+                size="sm"
+                variant="default"
+                className="h-7 gap-1.5 px-2.5"
+                onClick={() => setRefining(true)}
+                title="Refine with AI"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Refine
+              </Button>
+              <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -251,6 +264,17 @@ export const GenerativeUiBlock = createReactBlockSpec(generativeUiBlockConfig, {
             />
           )}
         </div>
+        {isEditable && refining ? (
+          <ComponentRefineOverlay
+            code={code}
+            componentId={componentId || undefined}
+            onApply={(next) => {
+              setFetched(next);
+              editor.updateBlock(block, { props: { code: next } });
+            }}
+            onClose={() => setRefining(false)}
+          />
+        ) : null}
         {isEditable ? (
           <>
             <div
