@@ -2,6 +2,34 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+ * AI-generated component safelist.
+ *
+ * Components produced by `/workspace/components` and rendered via
+ * `react-live` (Component studio + `/component` BlockNote block) reference
+ * Tailwind classes at runtime — classes the v4 scanner never sees during
+ * build, so they wouldn't make it into the CSS bundle.
+ *
+ * `@source inline()` lets us safelist explicit class patterns. Brace
+ * expansion ({a,b}) + dot-dot ranges ({100..900..100}) expand combinatorially,
+ * so a few lines cover the full standard palette across every common prefix.
+ *
+ * Cost: ~80KB extra in the production CSS bundle. Acceptable for a
+ * generative-UI surface that needs full Tailwind freedom.
+ * --------------------------------------------------------------------------- */
+@source inline("{hover:,focus:,active:,disabled:,group-hover:,dark:,}{bg,text,border,ring,from,to,via,outline,decoration,accent,caret,placeholder,divide,shadow,fill,stroke}-{slate,gray,zinc,neutral,stone,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,{100..900..100},950}");
+@source inline("bg-gradient-to-{t,tr,r,br,b,bl,l,tl}");
+@source inline("shadow-{2xs,xs,sm,md,lg,xl,2xl,inner,none}");
+@source inline("ring-{0,1,2,4,8}");
+@source inline("ring-offset-{0,1,2,4,8}");
+@source inline("opacity-{0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100}");
+@source inline("scale-{0,50,75,90,95,100,105,110,125,150}");
+@source inline("rotate-{0,45,90,180}");
+@source inline("animate-{none,spin,ping,pulse,bounce}");
+@source inline("backdrop-blur-{none,sm,md,lg,xl,2xl,3xl}");
+@source inline("blur-{none,sm,md,lg,xl,2xl,3xl}");
+@source inline("z-{0,10,20,30,40,50}");
+
 :root {
   /* Light theme is now pure white across every surface. Every grey
    * that was previously used as a background tint (secondary / muted /
