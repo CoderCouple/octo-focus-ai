@@ -57,7 +57,7 @@ function getGroupsForRoute(pathname: string): { title: string; groups: ActionGro
     };
   }
 
-  if (pathname.startsWith("/workspace/projects/")) {
+  if (pathname.startsWith("/project/")) {
     return {
       title: "Project",
       groups: [

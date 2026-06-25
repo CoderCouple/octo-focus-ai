@@ -126,7 +126,7 @@ export function ProjectsTable({
         header: "Name",
         cell: ({ row }) => (
           <Link
-            href={`/workspace/projects/${row.original.id}`}
+            href={`/project/${row.original.id}`}
             className="font-bold hover:underline underline-offset-4"
           >
             {row.original.name}
@@ -188,7 +188,7 @@ export function ProjectsTable({
                   Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/workspace/projects/${row.original.id}`}>Open</Link>
+                  <Link href={`/project/${row.original.id}`}>Open</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

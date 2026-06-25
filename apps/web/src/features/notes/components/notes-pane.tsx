@@ -1,6 +1,7 @@
 "use client";
 
-import { Code2, FileText } from "lucide-react";
+import { ArrowLeft, Code2, FileText, Focus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { PageSettings } from "@octofocus/shared";
@@ -24,6 +25,13 @@ interface NotesPaneProps {
   initialVisibility?: Visibility;
   initialPublicSlug?: string | null;
   workspaceSlug?: string;
+  /**
+   * When set, the pane renders a small X close link at the very start
+   * of its header (before the title). Used by the focus route so the
+   * close affordance sits inline with the title chrome instead of
+   * floating on top of the editor.
+   */
+  closeHref?: string;
 }
 
 export function NotesPane({
@@ -34,6 +42,7 @@ export function NotesPane({
   initialVisibility,
   initialPublicSlug,
   workspaceSlug,
+  closeHref,
 }: NotesPaneProps) {
   const [raw, setRaw] = useState(false);
   const [font, setFont] = useState<NoteFont>(
@@ -64,6 +73,24 @@ export function NotesPane({
   return (
     <div className="flex h-full flex-col">
       <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-3">
+        {closeHref ? (
+          <div className="-ml-1 flex shrink-0 items-center gap-1">
+            <Link
+              href="/workspace/projects"
+              aria-label="OctoFocusAI"
+              className="bg-foreground text-background grid size-7 place-items-center rounded-md"
+            >
+              <Focus className="size-3.5" />
+            </Link>
+            <Link
+              href={closeHref}
+              aria-label="Back"
+              className="hover:bg-accent text-muted-foreground grid size-7 place-items-center rounded"
+            >
+              <ArrowLeft className="size-4" />
+            </Link>
+          </div>
+        ) : null}
         {noteTitle !== undefined ? (
           <EditableTitle value={title} onSave={handleRename} placeholder="Untitled note" />
         ) : (

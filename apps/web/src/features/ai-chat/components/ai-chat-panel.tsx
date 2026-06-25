@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,8 @@ interface AiChatPanelProps {
   resourceKind: ResourceKind;
   resourceId: string;
   resourceTitle?: string;
+  /** Required by the launcher — closes the panel. */
+  onClose: () => void;
 }
 
 const PROMPT_FOR: Record<ResourceKind, string> = {
@@ -25,14 +27,15 @@ const PROMPT_FOR: Record<ResourceKind, string> = {
 };
 
 /**
- * Placeholder AI assistant panel docked to the right of every resource
- * view. Backend wiring (streaming Claude, message persistence on
- * resource_id) is next — for now the panel demos the layout and echoes
- * a templated reply so the chrome is reviewable end-to-end.
+ * Placeholder AI assistant panel. Mounted by `FloatingAiLauncher` when
+ * the user clicks the Ask-AI button. Backend wiring (Claude stream,
+ * per-resource message persistence) is next; for now the panel echoes
+ * a templated reply so the layout is reviewable end-to-end.
  */
 export function AiChatPanel({
   resourceKind,
   resourceTitle,
+  onClose,
 }: AiChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -44,8 +47,6 @@ export function AiChatPanel({
     setMessages((m) => [...m, { role: "user", text: trimmed }]);
     setDraft("");
     setPending(true);
-    // Placeholder echo. Real backend goes here — Claude stream tied to
-    // resourceKind + resourceId so the conversation is per-resource.
     await new Promise((r) => setTimeout(r, 600));
     setMessages((m) => [
       ...m,
@@ -58,10 +59,18 @@ export function AiChatPanel({
   };
 
   return (
-    <aside className="bg-card flex h-full w-80 shrink-0 flex-col border-l">
+    <aside className="bg-card border-border fixed right-0 top-0 z-50 flex h-screen w-96 flex-col border-l shadow-xl">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
         <Sparkles className="text-muted-foreground size-4" />
         <div className="text-sm font-semibold">AI assistant</div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close AI chat"
+          className="hover:bg-accent text-muted-foreground ml-auto grid size-7 place-items-center rounded"
+        >
+          <X className="size-4" />
+        </button>
       </header>
 
       <div className="flex-1 overflow-auto p-4">

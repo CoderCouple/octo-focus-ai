@@ -15,7 +15,7 @@ interface CreateProjectDialogProps {
    * Which focus view to land on right after creation.
    * - `notes`  → `/note/<noteId>`         (focus note editor)
    * - `canvas` → `/canvas/<canvasId>`     (focus canvas editor)
-   * - undefined → `/workspace/projects/<projectId>` (split view, both panes)
+   * - undefined → `/project/<projectId>` (split view, both panes)
    *
    * For `notes` / `canvas` we have the project id but not the child
    * resource id directly; the router-side createProjectAction returns
@@ -91,7 +91,7 @@ export function CreateProjectDialog({
               // Fall through to project view on any lookup failure.
             }
           }
-          router.push(`/workspace/projects/${project.id}`);
+          router.push(`/project/${project.id}`);
         },
         onError: (e) => {
           toast.error(e.message);

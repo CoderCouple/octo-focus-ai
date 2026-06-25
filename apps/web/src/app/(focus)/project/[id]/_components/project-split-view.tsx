@@ -1,10 +1,11 @@
 "use client";
 
 import type { Canvas, Page, Project } from "@octofocus/shared";
-import { Columns2, FileText, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Columns2, FileText, Focus, LayoutGrid } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AiChatPanel } from "@/features/ai-chat";
+import { FloatingAiLauncher } from "@/features/ai-chat";
 import { CanvasPane } from "@/features/canvas";
 import { NotesPane } from "@/features/notes";
 import { renameProjectAction } from "@/features/projects";
@@ -56,14 +57,32 @@ export function ProjectSplitView({
   const showCanvas = hasBoth ? mode === "canvas" || mode === "both" : Boolean(canvas);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+    <div className="flex h-full flex-col">
       <header className="bg-card flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <EditableTitle
-          value={projectName}
-          onSave={handleRename}
-          size="lg"
-          placeholder="Untitled project"
-        />
+        <div className="flex items-center gap-3">
+          <div className="-ml-1 flex shrink-0 items-center gap-1">
+            <Link
+              href="/workspace/projects"
+              aria-label="OctoFocusAI"
+              className="bg-foreground text-background grid size-7 place-items-center rounded-md"
+            >
+              <Focus className="size-3.5" />
+            </Link>
+            <Link
+              href="/workspace/projects"
+              aria-label="Back"
+              className="hover:bg-accent text-muted-foreground grid size-7 place-items-center rounded"
+            >
+              <ArrowLeft className="size-4" />
+            </Link>
+          </div>
+          <EditableTitle
+            value={projectName}
+            onSave={handleRename}
+            size="lg"
+            placeholder="Untitled project"
+          />
+        </div>
 
 
         {hasBoth ? (
@@ -101,41 +120,43 @@ export function ProjectSplitView({
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 overflow-hidden">
-          {/*
-           * Stable keys keep tldraw + BlockNote mounted across mode toggles.
-           * Without them, React reconciles by sibling index — when one pane
-           * disappears the other's index shifts and React unmounts/remounts it.
-           */}
-          {showNotes && page ? (
-            <div key="notes" className={showCanvas && canvas ? "w-1/2 border-r" : "flex-1"}>
-              <NotesPane
-                pageId={page.id}
-                initialContent={page.document}
-                initialSettings={page.settings ?? {}}
-                noteTitle={page.title}
-                initialVisibility={page.visibility}
-                initialPublicSlug={page.publicSlug}
-                workspaceSlug={workspaceSlug}
-              />
-            </div>
-          ) : null}
-          {showCanvas && canvas ? (
-            <div key="canvas" className={showNotes && page ? "w-1/2" : "flex-1"}>
-              <CanvasPane
-                canvasId={canvas.id}
-                initialDocument={canvas.document}
-                initialDsl={initialDsl}
-                canvasTitle={canvas.title}
-                initialVisibility={canvas.visibility}
-                initialPublicSlug={canvas.publicSlug}
-                workspaceSlug={workspaceSlug}
-              />
-            </div>
-          ) : null}
-        </div>
-        <AiChatPanel resourceKind="project" resourceId={project.id} resourceTitle={project.name} />
+        {/*
+         * Stable keys keep tldraw + BlockNote mounted across mode toggles.
+         * Without them, React reconciles by sibling index — when one pane
+         * disappears the other's index shifts and React unmounts/remounts it.
+         */}
+        {showNotes && page ? (
+          <div key="notes" className={showCanvas && canvas ? "w-1/2 border-r" : "flex-1"}>
+            <NotesPane
+              pageId={page.id}
+              initialContent={page.document}
+              initialSettings={page.settings ?? {}}
+              noteTitle={page.title}
+              initialVisibility={page.visibility}
+              initialPublicSlug={page.publicSlug}
+              workspaceSlug={workspaceSlug}
+            />
+          </div>
+        ) : null}
+        {showCanvas && canvas ? (
+          <div key="canvas" className={showNotes && page ? "w-1/2" : "flex-1"}>
+            <CanvasPane
+              canvasId={canvas.id}
+              initialDocument={canvas.document}
+              initialDsl={initialDsl}
+              canvasTitle={canvas.title}
+              initialVisibility={canvas.visibility}
+              initialPublicSlug={canvas.publicSlug}
+              workspaceSlug={workspaceSlug}
+            />
+          </div>
+        ) : null}
       </div>
+      <FloatingAiLauncher
+        resourceKind="project"
+        resourceId={project.id}
+        resourceTitle={project.name}
+      />
     </div>
   );
 }

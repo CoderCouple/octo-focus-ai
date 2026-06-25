@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil, RefreshCw } from "lucide-react";
+import { ArrowLeft, Focus, Pencil, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Editor } from "tldraw";
@@ -49,6 +50,8 @@ interface CanvasPaneProps {
   initialVisibility?: Visibility;
   initialPublicSlug?: string | null;
   workspaceSlug?: string;
+  /** See NotesPane.closeHref — same role. */
+  closeHref?: string;
 }
 
 export function CanvasPane({
@@ -59,6 +62,7 @@ export function CanvasPane({
   initialVisibility,
   initialPublicSlug,
   workspaceSlug,
+  closeHref,
 }: CanvasPaneProps) {
   const [autoShape, setAutoShape] = useState(false);
   const [dslOpen, setDslOpen] = useState(false);
@@ -100,6 +104,24 @@ export function CanvasPane({
   return (
     <div className="flex h-full flex-col">
       <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-2">
+        {closeHref ? (
+          <div className="-ml-1 flex shrink-0 items-center gap-1">
+            <Link
+              href="/workspace/projects"
+              aria-label="OctoFocusAI"
+              className="bg-foreground text-background grid size-7 place-items-center rounded-md"
+            >
+              <Focus className="size-3.5" />
+            </Link>
+            <Link
+              href={closeHref}
+              aria-label="Back"
+              className="hover:bg-accent text-muted-foreground grid size-7 place-items-center rounded"
+            >
+              <ArrowLeft className="size-4" />
+            </Link>
+          </div>
+        ) : null}
         {canvasTitle !== undefined ? (
           <EditableTitle value={title} onSave={handleRename} placeholder="Untitled canvas" />
         ) : null}
