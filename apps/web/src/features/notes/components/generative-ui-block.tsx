@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as React from "react";
 import { LiveError, LivePreview, LiveProvider } from "react-live";
+import { normalizeForLive } from "@/features/components/lib/normalize-for-live";
 import { Button } from "@/components/ui/button";
 
 const MIN_HEIGHT = 160;
@@ -47,69 +48,6 @@ export const generativeUiBlockConfig = {
   content: "none" as const,
 };
 
-/**
- * react-live needs either an expression (noInline=false) or a script
- * that ends with `render(<Component />)` (noInline=true). Claude tends
- * to emit `export default function Foo() { ... }`, which is neither.
- * This helper normalises both shapes so the same code path covers
- * paste-from-studio AND hand-written components.
- *
- * Rules:
- *   - Strip `export default ` so `function Foo` / `const Foo = (...)` reach scope
- *   - Strip `import { ... } from 'react'` (we inject the hooks via scope)
- *   - Append `render(<Foo />)` when we can name a single top-level component
- *     and the user hasn't already written a render call.
- */
-function normalizeForLive(raw: string): string {
-  let code = raw.trim();
-
-  // Drop `import ... from 'react'` — hooks come from scope. Keep other
-  // imports off (we have no module resolver) but warn nothing — the
-  // LiveError will surface useful messages if the user references
-  // missing identifiers.
-  code = code.replace(/^\s*import\s+[^;]+from\s+['"]react['"];?\s*$/gm, "");
-  code = code.replace(/^\s*import\s+[^;]+;?\s*$/gm, "");
-
-  // Capture the default-exported component name before we strip the keyword.
-  const exportFnMatch = code.match(/export\s+default\s+function\s+([A-Z]\w*)/);
-  const exportConstMatch = code.match(/export\s+default\s+([A-Z]\w*)\s*;?/);
-  const exportArrowMatch = code.match(
-    /export\s+default\s+(?:\(\s*\)|function\s*\(\s*\))\s*=>\s*/,
-  );
-
-  let detectedName: string | null = null;
-  if (exportFnMatch) detectedName = exportFnMatch[1];
-  else if (exportConstMatch) detectedName = exportConstMatch[1];
-
-  // Strip `export default ` itself.
-  code = code.replace(/export\s+default\s+/g, "");
-
-  // If we didn't find a name yet, scan for a top-level `function Foo` /
-  // `const Foo = (` declaration starting with a capital letter.
-  if (!detectedName) {
-    const topFn = code.match(/(?:^|\n)function\s+([A-Z]\w*)/);
-    const topConst = code.match(/(?:^|\n)const\s+([A-Z]\w*)\s*=/);
-    if (topFn) detectedName = topFn[1];
-    else if (topConst) detectedName = topConst[1];
-  }
-
-  // Auto-append render() if the user didn't.
-  const hasRenderCall = /\brender\s*\(/.test(code);
-  if (!hasRenderCall) {
-    if (detectedName) {
-      code = `${code}\n\nrender(<${detectedName} />);`;
-    } else if (exportArrowMatch) {
-      // export default () => ... — wrap in render directly.
-      code = code.replace(
-        /export\s+default\s+/,
-        "const __Component = ",
-      );
-      code = `${code}\n\nrender(<__Component />);`;
-    }
-  }
-
-  return code.trim();
-}
 
 function highlightTsx(code: string): string {
   if (!code) return "";
