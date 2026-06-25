@@ -1,4 +1,4 @@
 export interface ComponentGenerationDto {
   code: string;
-  language: "tsx";
+  language: "html" | "tsx";
 }

@@ -26,10 +26,19 @@ const EXAMPLE_PROMPTS = [
   "A poll widget with 4 options that shows percentages as you vote",
 ];
 
-function highlightTsx(code: string): string {
+function detectLanguage(code: string): string {
+  const head = code.trimStart().slice(0, 200).toLowerCase();
+  if (head.startsWith("<!doctype html") || head.startsWith("<html")) return "html";
+  return "tsx";
+}
+
+function highlightCode(code: string): string {
   if (!code) return "";
   try {
-    return hljs.highlight(code, { language: "tsx", ignoreIllegals: true }).value;
+    return hljs.highlight(code, {
+      language: detectLanguage(code),
+      ignoreIllegals: true,
+    }).value;
   } catch {
     return code
       .replace(/&/g, "&amp;")
@@ -63,7 +72,7 @@ export function ComponentStudio() {
   }, []);
 
   const displayCode = committed || buffer;
-  const highlighted = useMemo(() => highlightTsx(displayCode), [displayCode]);
+  const highlighted = useMemo(() => highlightCode(displayCode), [displayCode]);
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
@@ -231,7 +240,7 @@ export function ComponentStudio() {
           ) : displayCode ? (
             <pre className="hljs h-full overflow-auto p-4 font-mono text-[0.8rem] leading-relaxed">
               <code
-                className="language-tsx"
+                className={`language-${detectLanguage(displayCode)}`}
                 dangerouslySetInnerHTML={{ __html: highlighted }}
               />
             </pre>

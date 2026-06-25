@@ -80,7 +80,7 @@ export class ComponentsController {
         send({ chunk });
       }
       const code = stripFencesFromBuffer(buffered);
-      send({ done: true, code, language: "tsx" });
+      send({ done: true, code, language: "html" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       send({ error: message });

@@ -5,62 +5,74 @@ import { cn } from "@/lib/utils";
 import { normalizeForLive } from "../lib/normalize-for-live";
 
 // Pinned CDN versions so the iframe doesn't go stale if upstream
-// majors break compatibility. All three are heavily browser-cached
-// after the first load so the cost is paid once per session.
+// majors break compatibility. Browser-caches after the first load.
 const TAILWIND_CDN = "https://cdn.tailwindcss.com";
 const REACT_CDN = "https://unpkg.com/react@18.3.1/umd/react.production.min.js";
 const REACT_DOM_CDN =
   "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js";
 const BABEL_CDN = "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js";
 
-/**
- * Runs inside the iframe before the user's code. Pulls every common
- * React hook + helper onto the global scope so the user's snippet can
- * write `useState` etc. without importing them, defines a `render()`
- * function that mounts to `#root`, and bridges runtime errors back to
- * the parent window via `postMessage` so the studio can show them in
- * red below the preview.
- */
-const PRELUDE = `
-const {
-  useState, useEffect, useRef, useMemo, useCallback, useReducer,
-  useTransition, useDeferredValue, useId, useLayoutEffect,
-  useImperativeHandle, useContext, createContext, useSyncExternalStore,
-  Fragment, memo, forwardRef, lazy, Suspense, StrictMode, createElement, Children,
-} = React;
-
-const render = (element) => {
-  const rootEl = document.getElementById('root');
-  if (!rootEl._reactRoot) rootEl._reactRoot = ReactDOM.createRoot(rootEl);
-  rootEl._reactRoot.render(element);
-};
-
+/** Bridges errors back to the parent and renders them inline. */
+const ERROR_BRIDGE = `
 function __sendError(message) {
   try {
     window.parent.postMessage({ type: 'iframe-error', message: String(message) }, '*');
   } catch (e) {}
-  const root = document.getElementById('root');
+  var root = document.getElementById('root');
   if (root) {
     root.innerHTML =
       '<pre style="color:#dc2626;padding:1rem;font:14px ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;background:#fff5f5;border:1px solid #fecaca;border-radius:6px;margin:1rem">' +
-      String(message).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) +
+      String(message).replace(/[&<>]/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]}) +
       '</pre>';
   }
 }
+window.addEventListener('error', function (e) { __sendError(e.message || String(e.error)); });
+window.addEventListener('unhandledrejection', function (e) {
+  __sendError(e.reason && e.reason.message ? e.reason.message : String(e.reason));
+});
+`;
 
-window.addEventListener('error', (e) => __sendError(e.message || String(e.error)));
-window.addEventListener('unhandledrejection', (e) =>
-  __sendError(e.reason?.message ?? String(e.reason)),
-);
+/** Hooks + helpers the user's code can reference without importing. */
+const PRELUDE = `
+var React = window.React;
+var ReactDOM = window.ReactDOM;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var useMemo = React.useMemo;
+var useCallback = React.useCallback;
+var useReducer = React.useReducer;
+var useTransition = React.useTransition;
+var useDeferredValue = React.useDeferredValue;
+var useId = React.useId;
+var useLayoutEffect = React.useLayoutEffect;
+var useImperativeHandle = React.useImperativeHandle;
+var useContext = React.useContext;
+var useSyncExternalStore = React.useSyncExternalStore;
+var createContext = React.createContext;
+var Fragment = React.Fragment;
+var memo = React.memo;
+var forwardRef = React.forwardRef;
+var lazy = React.lazy;
+var Suspense = React.Suspense;
+var StrictMode = React.StrictMode;
+var createElement = React.createElement;
+var Children = React.Children;
 
-window.parent.postMessage({ type: 'iframe-ready' }, '*');
+var __reactRoot = null;
+function render(element) {
+  var rootEl = document.getElementById('root');
+  if (!__reactRoot) __reactRoot = ReactDOM.createRoot(rootEl);
+  __reactRoot.render(element);
+}
 `;
 
 function buildSrcDoc(code: string): string {
-  // Escape `</script>` in the user's code so it can't terminate the
-  // script tag early. (`<\/script>` is identical to `</script>` once
-  // parsed by JS, but the HTML parser doesn't see it as a closer.)
-  const safe = code.replace(/<\/script>/gi, "<\\/script>");
+  // Safe to embed the user's code inside a `<script type="text/plain">`
+  // tag — the HTML parser ignores it. We only need to escape closing
+  // `</script>` so the tag can't be terminated early.
+  const safeCode = code.replace(/<\/script>/gi, "<\\/script>");
+
   return [
     "<!DOCTYPE html>",
     '<html lang="en">',
@@ -75,14 +87,31 @@ function buildSrcDoc(code: string): string {
     "</head>",
     "<body>",
     '<div id="root"></div>',
+    // Error bridge runs FIRST so even script-load failures get reported.
+    "<script>",
+    ERROR_BRIDGE,
+    "</script>",
     `<script crossorigin src="${REACT_CDN}"></script>`,
     `<script crossorigin src="${REACT_DOM_CDN}"></script>`,
     `<script src="${BABEL_CDN}"></script>`,
-    '<script type="text/babel" data-presets="env,react,typescript">',
-    PRELUDE,
+    '<script id="__user_code" type="text/plain">',
+    safeCode,
+    "</script>",
+    // Explicit transform + eval. We don't rely on Babel's auto-runScripts
+    // (which races DOMContentLoaded inside iframes); this gives us
+    // deterministic execution and proper error surfacing.
+    "<script>",
+    "(function(){",
     "try {",
-    safe,
-    "} catch (e) { __sendError(e?.message ?? String(e)); }",
+    "if (!window.React || !window.ReactDOM) { __sendError('React or ReactDOM failed to load. Check your network.'); return; }",
+    "if (!window.Babel) { __sendError('Babel failed to load. Check your network.'); return; }",
+    "var raw = document.getElementById('__user_code').textContent;",
+    "var compiled = Babel.transform(raw, { presets: [['env', { targets: { esmodules: true } }], 'react', 'typescript'], filename: 'component.tsx' }).code;",
+    "var prelude = " + JSON.stringify(PRELUDE) + ";",
+    "(0, eval)(prelude + '\\n' + compiled);",
+    "window.parent.postMessage({ type: 'iframe-ready' }, '*');",
+    "} catch (err) { __sendError(err && err.message ? err.message : String(err)); }",
+    "})();",
     "</script>",
     "</body>",
     "</html>",
@@ -92,22 +121,20 @@ function buildSrcDoc(code: string): string {
 interface IframeArtifactProps {
   code: string;
   className?: string;
-  /** Inline styles for the wrapper — height is usually set here. */
   style?: React.CSSProperties;
 }
 
 /**
  * Claude-artifact-style live renderer. Compiles + runs the supplied
- * TSX inside a sandboxed iframe with Tailwind CDN preloaded, so the
- * component:
+ * TSX inside a sandboxed iframe with Tailwind CDN preloaded.
  *
- *   - has full Tailwind freedom (every color / shade / variant)
- *   - is style-isolated from the host app
- *   - can use viewport units, fixed positioning, body-level layouts
- *   - can't read the host's cookies or DOM (sandbox="allow-scripts" only)
+ * - Full Tailwind freedom (Tailwind Play CDN handles every variant)
+ * - Style isolation from the host app
+ * - Viewport units, fixed positioning, body-level layouts all work
+ * - sandbox="allow-scripts" — no parent cookies, no top-level nav
  *
- * Runtime errors caught inside the iframe are postMessage'd up and
- * shown beneath the preview as a small overlay.
+ * Runtime errors are postMessage'd back and shown as a small overlay
+ * below the preview.
  */
 export function IframeArtifact({ code, className, style }: IframeArtifactProps) {
   const [error, setError] = useState<string | null>(null);
@@ -135,9 +162,6 @@ export function IframeArtifact({ code, className, style }: IframeArtifactProps) 
   return (
     <div className={cn("bg-background relative h-full w-full", className)} style={style}>
       <iframe
-        // Force a fresh document when the code changes — without a key
-        // change React only updates srcDoc, but some browsers cache the
-        // module-execution state.
         key={srcDoc.length}
         title="Generated component"
         srcDoc={srcDoc}
