@@ -25,8 +25,17 @@ import { ProjectsRepository } from "../db/repository/projects.repository";
 import { ShareLinksRepository } from "../db/repository/share-links.repository";
 import { canvases } from "../db/schemas/canvases";
 import { pages } from "../db/schemas/pages";
+import { workspaces } from "../db/schemas/workspaces";
 import { Inject } from "@nestjs/common";
 import type { ResourceKind } from "../model/sharing.model";
+
+export type PublicLookupKind = "page" | "canvas" | "project";
+
+export interface PublicLookupResult {
+  kind: PublicLookupKind;
+  workspaceSlug: string;
+  publicSlug: string;
+}
 
 @Injectable()
 export class PublicService {
@@ -91,6 +100,59 @@ export class PublicService {
       permission: resolved.permission,
       data,
     };
+  }
+
+  /**
+   * Unauthenticated lookup for the focus-route redirect dance. Given
+   * a resource id, returns its public URL coordinates (workspace
+   * slug + public slug) IF the resource is publicly viewable (has a
+   * publicSlug AND visibility is not `private`). Otherwise null.
+   * Middleware uses this to send unauthenticated visitors of
+   * `/note/<id>` straight to `/p/<ws>/<slug>` instead of /login.
+   */
+  async lookupById(
+    kind: PublicLookupKind,
+    id: string,
+  ): Promise<PublicLookupResult | null> {
+    let publicSlug: string | null = null;
+    let visibility = "private";
+    let workspaceId: string | null = null;
+
+    if (kind === "project") {
+      const row = await this.projectsRepo.findById(id);
+      if (!row) return null;
+      publicSlug = row.publicSlug;
+      visibility = row.visibility;
+      workspaceId = row.workspaceId;
+    } else if (kind === "page") {
+      const row = await this.pagesRepo.findById(id);
+      if (!row) return null;
+      publicSlug = row.publicSlug;
+      visibility = row.visibility;
+      const project = await this.projectsRepo.findById(row.projectId);
+      if (!project) return null;
+      workspaceId = project.workspaceId;
+    } else {
+      const row = await this.canvasesRepo.findById(id);
+      if (!row) return null;
+      publicSlug = row.publicSlug;
+      visibility = row.visibility;
+      const project = await this.projectsRepo.findById(row.projectId);
+      if (!project) return null;
+      workspaceId = project.workspaceId;
+    }
+
+    if (!publicSlug || visibility === "private" || !workspaceId) return null;
+
+    const wsRows = await this.db
+      .select({ slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    const workspaceSlug = wsRows[0]?.slug;
+    if (!workspaceSlug) return null;
+
+    return { kind, workspaceSlug, publicSlug };
   }
 
   /** Returns the asset row including content bytes for streaming. */
