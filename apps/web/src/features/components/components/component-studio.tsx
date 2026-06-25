@@ -27,9 +27,11 @@ const EXAMPLE_PROMPTS = [
 ];
 
 function detectLanguage(code: string): string {
-  const head = code.trimStart().slice(0, 200).toLowerCase();
-  if (head.startsWith("<!doctype html") || head.startsWith("<html")) return "html";
-  return "tsx";
+  const head = code
+    .replace(/^﻿/, "")
+    .trimStart()
+    .slice(0, 500);
+  return /^(<!doctype\s+html|<html[\s>])/i.test(head) ? "html" : "tsx";
 }
 
 function highlightCode(code: string): string {
