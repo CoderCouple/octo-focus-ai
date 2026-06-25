@@ -31,7 +31,10 @@ export const resourceKind = pgEnum("resource_kind", [
   "page",
   "canvas",
   "meeting",
+  "component",
 ]);
+
+export const componentLanguage = pgEnum("component_language", ["html", "tsx"]);
 
 export const sharePermission = pgEnum("share_permission", [
   "viewer",

@@ -9,6 +9,7 @@ export * from "./projects";
 export * from "./pages";
 export * from "./canvases";
 export * from "./meetings";
+export * from "./components";
 export * from "./sharing";
 export * from "./agents";
 export * from "./audit";

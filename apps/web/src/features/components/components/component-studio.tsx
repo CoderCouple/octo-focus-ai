@@ -7,16 +7,24 @@ import {
   Code2,
   Copy,
   Eye,
+  Link2,
   Loader2,
   RefreshCcw,
+  Save,
   Sparkles,
   Square,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { streamGeneratedComponent } from "../api/components-client-api";
+import {
+  createSavedComponentClientApi,
+  updateSavedComponentClientApi,
+} from "../api/saved-components-client-api";
+import type { ComponentLanguage, SavedComponent } from "../types";
 import { IframeArtifact } from "./iframe-artifact";
 
 const EXAMPLE_PROMPTS = [
@@ -26,7 +34,7 @@ const EXAMPLE_PROMPTS = [
   "A poll widget with 4 options that shows percentages as you vote",
 ];
 
-function detectLanguage(code: string): string {
+function detectLanguage(code: string): ComponentLanguage {
   const head = code
     .replace(/^﻿/, "")
     .trimStart()
@@ -49,20 +57,34 @@ function highlightCode(code: string): string {
   }
 }
 
+interface ComponentStudioProps {
+  workspaceId: string;
+  /** When set, the studio loads in "edit existing" mode. */
+  initial?: SavedComponent;
+}
+
 /**
- * Generative UI studio — type a description, stream a fresh React
- * component back from Claude, render it live in a sandboxed artifact
- * iframe (full Tailwind, viewport-friendly, style-isolated), copy or
- * refine. Same iframe renderer is used by the `/component` BlockNote
- * block in notes so behaviour is identical across surfaces.
+ * Generative UI studio — type a description, stream a fresh component
+ * back from Claude, render live in a sandboxed iframe, save and get a
+ * permanent embed URL (`/c/<id>`).
+ *
+ * Two modes:
+ *   - new: no `initial` — `Save` creates a new row + navigates to the
+ *     edit URL.
+ *   - edit: `initial` provided — `Save` updates in place.
  */
-export function ComponentStudio() {
+export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) {
+  const router = useRouter();
+  const [savedId, setSavedId] = useState<string | null>(initial?.id ?? null);
   const [prompt, setPrompt] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [buffer, setBuffer] = useState("");
-  const [committed, setCommitted] = useState("");
+  const [committed, setCommitted] = useState(initial?.code ?? "");
+  const [savedSnapshot, setSavedSnapshot] = useState(initial?.code ?? "");
   const [view, setView] = useState<"preview" | "code">("preview");
   const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [saving, setSaving] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,6 +97,11 @@ export function ComponentStudio() {
 
   const displayCode = committed || buffer;
   const highlighted = useMemo(() => highlightCode(displayCode), [displayCode]);
+  const isDirty = savedId !== null && committed !== savedSnapshot;
+  const embedUrl =
+    savedId && typeof window !== "undefined"
+      ? `${window.location.origin}/c/${savedId}`
+      : null;
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
@@ -129,6 +156,54 @@ export function ComponentStudio() {
     }
   };
 
+  const handleCopyUrl = async () => {
+    if (!embedUrl) return;
+    try {
+      await navigator.clipboard.writeText(embedUrl);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 1500);
+      toast.success("Embed URL copied — paste into any note");
+    } catch {
+      toast.error("Couldn't copy — check clipboard permissions.");
+    }
+  };
+
+  const deriveTitle = (code: string): string => {
+    const titleMatch = code.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch?.[1]?.trim()) return titleMatch[1].trim().slice(0, 200);
+    const fnMatch = code.match(/(?:function|const)\s+([A-Z]\w+)/);
+    if (fnMatch?.[1]) return fnMatch[1].replace(/([A-Z])/g, " $1").trim();
+    return "Untitled component";
+  };
+
+  const handleSave = async () => {
+    if (!committed || saving) return;
+    setSaving(true);
+    try {
+      const language = detectLanguage(committed);
+      if (savedId) {
+        await updateSavedComponentClientApi(savedId, { code: committed, language });
+        setSavedSnapshot(committed);
+        toast.success("Component updated");
+      } else {
+        const created = await createSavedComponentClientApi(workspaceId, {
+          title: deriveTitle(committed),
+          code: committed,
+          language,
+        });
+        setSavedId(created.id);
+        setSavedSnapshot(committed);
+        toast.success("Saved — embed URL ready below");
+        // Update the URL bar so a reload lands back on the edit view.
+        router.replace(`/workspace/components/${created.id}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const hasResult = displayCode.length > 0;
   const showPreview = view === "preview" && committed.length > 0 && !streaming;
 
@@ -140,10 +215,8 @@ export function ComponentStudio() {
           Components
         </h1>
         <p className="text-muted-foreground text-sm">
-          Describe an interactive UI surface and Claude will emit a self-contained
-          React + TypeScript component. The preview runs in a Tailwind-isolated
-          artifact iframe — same renderer used by the <code>/component</code> block
-          in any note.
+          Describe a UI surface and Claude will emit a self-contained HTML artifact.
+          Save it to get a permanent embed URL you can paste into any note.
         </p>
       </header>
 
@@ -201,6 +274,27 @@ export function ComponentStudio() {
         </div>
       </div>
 
+      {embedUrl ? (
+        <div className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4">
+          <div className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
+            <Link2 className="size-3.5" />
+            Embed URL
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="bg-muted/40 border-border flex-1 truncate rounded border px-2 py-1.5 font-mono text-xs">
+              {embedUrl}
+            </code>
+            <Button size="sm" variant="outline" onClick={handleCopyUrl}>
+              {copiedUrl ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              {copiedUrl ? "Copied" : "Copy"}
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Paste this URL into any note — it auto-embeds the live component.
+          </p>
+        </div>
+      ) : null}
+
       <div className="border-border bg-card flex flex-1 flex-col overflow-hidden rounded-lg border">
         <header className="flex h-10 shrink-0 items-center justify-between border-b px-3">
           <div className="text-muted-foreground text-xs font-medium">
@@ -213,6 +307,22 @@ export function ComponentStudio() {
                 : "Generated component will appear here"}
           </div>
           <div className="flex items-center gap-1">
+            {hasResult && committed && !streaming ? (
+              <Button
+                size="sm"
+                variant={savedId ? (isDirty ? "default" : "ghost") : "default"}
+                onClick={handleSave}
+                disabled={saving || (savedId !== null && !isDirty)}
+                className="h-7"
+              >
+                {saving ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Save className="size-3.5" />
+                )}
+                {savedId ? (isDirty ? "Save changes" : "Saved") : "Save"}
+              </Button>
+            ) : null}
             {hasResult && committed ? (
               <Button
                 variant="ghost"
@@ -258,8 +368,7 @@ export function ComponentStudio() {
                   <Sparkles className="text-muted-foreground/60 mx-auto size-6" />
                   <p>Type a prompt above and hit Generate.</p>
                   <p className="text-muted-foreground/70 text-xs">
-                    Preview runs in a Tailwind-isolated iframe — same renderer as
-                    the <code>/component</code> block in notes.
+                    Save and paste the embed URL into any note for a live render.
                   </p>
                 </div>
               )}

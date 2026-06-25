@@ -9,6 +9,7 @@ import { AiRunsModule } from "./ai-runs.module";
 import { AuditModule } from "./audit.module";
 import { CanvasesModule } from "./canvases.module";
 import { CliTokensModule } from "./cli-tokens.module";
+import { ComponentResourceModule } from "./component-resource.module";
 import { ComponentsModule } from "./components.module";
 import { HealthModule } from "./health.module";
 import { MeModule } from "./me.module";
@@ -34,6 +35,7 @@ import { WorkspacesModule } from "./workspaces.module";
     CanvasesModule,
     MeetingsModule,
     ComponentsModule,
+    ComponentResourceModule,
     SharingModule,
     PublishModule,
     PublicModule,

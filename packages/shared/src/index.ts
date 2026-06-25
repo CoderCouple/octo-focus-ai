@@ -129,7 +129,13 @@ export const HealthResponseSchema = z.object({
 // =============================================================================
 
 export const VisibilitySchema = z.enum(["private", "unlisted", "workspace", "public"]);
-export const ResourceKindSchema = z.enum(["project", "page", "canvas", "meeting"]);
+export const ResourceKindSchema = z.enum([
+  "project",
+  "page",
+  "canvas",
+  "meeting",
+  "component",
+]);
 export const SharePermissionSchema = z.enum(["viewer", "commenter", "editor", "admin"]);
 export const ShareStatusSchema = z.enum(["active", "pending", "revoked", "expired"]);
 

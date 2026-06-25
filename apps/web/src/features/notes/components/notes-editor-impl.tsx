@@ -134,6 +134,24 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
     return () => clearTimeout(id);
   }, [view, editor]);
 
+  /**
+   * Paste handler — when the user pastes a `/c/<id>` embed URL (from
+   * the Components studio's "Embed URL" copy), intercept it and
+   * insert a `generativeUi` block referencing that component id.
+   * Snapshot fetch happens inside the block on mount. Falls through to
+   * BlockNote's default paste behaviour for anything else.
+   */
+  function onPaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    const text = event.clipboardData?.getData("text/plain") ?? "";
+    if (!text) return;
+    const match = text.trim().match(/(?:^|\/c\/)(cmp_[A-Za-z0-9_-]+)/);
+    if (!match) return;
+    const componentId = match[1];
+    event.preventDefault();
+    const current = editor.getTextCursorPosition().block;
+    editor.replaceBlocks([current], [{ type: "generativeUi", props: { componentId } }]);
+  }
+
   function onChange() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
@@ -151,7 +169,7 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
   }
 
   return (
-    <div className="bg-card h-full overflow-auto">
+    <div className="bg-card h-full overflow-auto" onPaste={onPaste}>
       <div className={view === "raw" ? "hidden" : "contents"}>
         <BlockNoteView editor={editor} onChange={onChange} slashMenu={false}>
           <SuggestionMenuController

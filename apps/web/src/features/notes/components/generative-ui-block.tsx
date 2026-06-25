@@ -40,6 +40,12 @@ const DEFAULT_CODE = `function Counter() {
 export const generativeUiBlockConfig = {
   type: "generativeUi" as const,
   propSchema: {
+    // When `componentId` is set the block fetches the latest code
+    // from `/v1/public/components/<id>` on render. `code` doubles as
+    // an inline snapshot fallback that keeps the embed working when
+    // the source component is deleted or the network fails. New
+    // blocks created by the URL paste handler set both fields.
+    componentId: { default: "" },
     code: { default: DEFAULT_CODE },
     height: { default: DEFAULT_HEIGHT },
     width: { default: 0 },
@@ -63,7 +69,8 @@ export const GenerativeUiBlock = createReactBlockSpec(generativeUiBlockConfig, {
     </pre>
   ),
   render: ({ block, editor }) => {
-    const code = (block.props.code as string) ?? DEFAULT_CODE;
+    const snapshotCode = (block.props.code as string) ?? DEFAULT_CODE;
+    const componentId = (block.props.componentId as string) || "";
     const persistedHeight = (block.props.height as number) ?? DEFAULT_HEIGHT;
     const persistedWidth = (block.props.width as number) ?? 0;
     // Read-only view (published note, share link without edit) — the
@@ -74,8 +81,51 @@ export const GenerativeUiBlock = createReactBlockSpec(generativeUiBlockConfig, {
     const [view, setView] = useState<"preview" | "source">("preview");
     const [copied, setCopied] = useState(false);
     const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null);
+    const [fetched, setFetched] = useState<string | null>(null);
+    const [fetching, setFetching] = useState(componentId.length > 0);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Resolve which code to render. Reference (componentId) wins when
+    // available; otherwise we fall back to the inline snapshot the
+    // block carries. The snapshot is updated to match every successful
+    // fetch so deletions / network failures keep rendering the last
+    // known good version.
+    const code = fetched ?? snapshotCode;
+
+    useEffect(() => {
+      if (!componentId) {
+        setFetching(false);
+        return;
+      }
+      let cancelled = false;
+      setFetching(true);
+      void (async () => {
+        try {
+          const { getPublicComponentClientApi } = await import(
+            "@/features/components"
+          );
+          const result = await getPublicComponentClientApi(componentId);
+          if (cancelled) return;
+          if (result?.code) {
+            setFetched(result.code);
+            // Refresh the snapshot in the block so the note still
+            // renders correctly offline / after deletion.
+            if (isEditable && result.code !== snapshotCode) {
+              editor.updateBlock(block, { props: { code: result.code } });
+            }
+          }
+        } catch {
+          // Snapshot fallback is already in effect.
+        } finally {
+          if (!cancelled) setFetching(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [componentId]);
 
     const currentHeight = liveSize?.height ?? persistedHeight;
     const currentWidth = liveSize?.width ?? persistedWidth;
