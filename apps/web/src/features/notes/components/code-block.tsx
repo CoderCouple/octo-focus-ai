@@ -101,8 +101,15 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
     const language = (block.props.language as string) || DEFAULT_LANGUAGE;
     const persistedHeight = (block.props.height as number) ?? DEFAULT_HEIGHT;
     const persistedWidth = (block.props.width as number) ?? 0;
+    // Read-only view (published note, share link without edit) — the
+    // language picker and edit / preview toggle are hidden; the
+    // highlighted preview is forced. Copy stays because viewing-with-
+    // copy is what published code blocks are for.
+    const isEditable = editor.isEditable;
 
-    const [view, setView] = useState<"preview" | "edit">(code.length === 0 ? "edit" : "preview");
+    const [view, setView] = useState<"preview" | "edit">(
+      !isEditable || code.length > 0 ? "preview" : "edit",
+    );
     const [copied, setCopied] = useState(false);
     const [liveSize, setLiveSize] = useState<{ width: number; height: number } | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -191,26 +198,32 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
         <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <div className="text-foreground flex items-center gap-2 text-sm font-medium">
             <Code2 className="h-4 w-4" />
-            <Select
-              value={language}
-              onValueChange={(value) =>
-                editor.updateBlock(block, { props: { language: value } })
-              }
-            >
-              <SelectTrigger
-                size="sm"
-                className="h-7 border-0 bg-transparent px-2 shadow-none focus:ring-0 focus-visible:ring-0"
+            {isEditable ? (
+              <Select
+                value={language}
+                onValueChange={(value) =>
+                  editor.updateBlock(block, { props: { language: value } })
+                }
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  size="sm"
+                  className="h-7 border-0 bg-transparent px-2 shadow-none focus:ring-0 focus-visible:ring-0"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-muted-foreground px-1 text-xs capitalize">
+                {LANGUAGES.find((l) => l.value === language)?.label ?? language}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -222,19 +235,21 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setView((v) => (v === "preview" ? "edit" : "preview"))}
-              title={view === "preview" ? "Edit code" : "Preview"}
-            >
-              {view === "preview" ? (
-                <Pencil className="h-4 w-4" />
-              ) : (
-                <Code2 className="h-4 w-4" />
-              )}
-            </Button>
+            {isEditable ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setView((v) => (v === "preview" ? "edit" : "preview"))}
+                title={view === "preview" ? "Edit code" : "Preview"}
+              >
+                {view === "preview" ? (
+                  <Pencil className="h-4 w-4" />
+                ) : (
+                  <Code2 className="h-4 w-4" />
+                )}
+              </Button>
+            ) : null}
           </div>
         </header>
         <div
@@ -244,8 +259,8 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
           {view === "preview" ? (
             <pre
               className="hljs h-full overflow-auto p-3 font-mono text-[0.85rem] leading-relaxed"
-              onDoubleClick={() => setView("edit")}
-              title="Double-click to edit"
+              onDoubleClick={() => isEditable && setView("edit")}
+              title={isEditable ? "Double-click to edit" : undefined}
             >
               <code
                 className={`language-${language}`}
@@ -266,33 +281,37 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
             />
           )}
         </div>
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onMouseDown={(e) => startResize("horizontal", e)}
-          className="hover:bg-accent absolute top-12 bottom-3 right-0 flex w-2 cursor-ew-resize items-center justify-center border-l opacity-0 transition-opacity group-hover:opacity-100"
-          title="Drag to resize width"
-        >
-          <GripVertical className="text-muted-foreground h-3 w-3" />
-        </div>
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          onMouseDown={(e) => startResize("vertical", e)}
-          className="hover:bg-accent absolute right-3 bottom-0 left-0 flex h-2 cursor-ns-resize items-center justify-center border-t opacity-0 transition-opacity group-hover:opacity-100"
-          title="Drag to resize height"
-        >
-          <GripHorizontal className="text-muted-foreground h-3 w-3" />
-        </div>
-        <div
-          role="separator"
-          aria-label="Resize"
-          onMouseDown={(e) => startResize("both", e)}
-          className="hover:bg-accent absolute right-0 bottom-0 grid h-3 w-3 cursor-nwse-resize place-items-center opacity-0 transition-opacity group-hover:opacity-100"
-          title="Drag to resize"
-        >
-          <span className="text-muted-foreground text-[10px] leading-none">⤡</span>
-        </div>
+        {isEditable ? (
+          <>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              onMouseDown={(e) => startResize("horizontal", e)}
+              className="hover:bg-accent absolute top-12 bottom-3 right-0 flex w-2 cursor-ew-resize items-center justify-center border-l opacity-0 transition-opacity group-hover:opacity-100"
+              title="Drag to resize width"
+            >
+              <GripVertical className="text-muted-foreground h-3 w-3" />
+            </div>
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              onMouseDown={(e) => startResize("vertical", e)}
+              className="hover:bg-accent absolute right-3 bottom-0 left-0 flex h-2 cursor-ns-resize items-center justify-center border-t opacity-0 transition-opacity group-hover:opacity-100"
+              title="Drag to resize height"
+            >
+              <GripHorizontal className="text-muted-foreground h-3 w-3" />
+            </div>
+            <div
+              role="separator"
+              aria-label="Resize"
+              onMouseDown={(e) => startResize("both", e)}
+              className="hover:bg-accent absolute right-0 bottom-0 grid h-3 w-3 cursor-nwse-resize place-items-center opacity-0 transition-opacity group-hover:opacity-100"
+              title="Drag to resize"
+            >
+              <span className="text-muted-foreground text-[10px] leading-none">⤡</span>
+            </div>
+          </>
+        ) : null}
       </div>
     );
   },

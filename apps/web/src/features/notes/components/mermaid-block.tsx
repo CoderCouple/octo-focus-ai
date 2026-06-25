@@ -58,6 +58,10 @@ export const MermaidBlock = createReactBlockSpec(mermaidBlockConfig, {
     const code = block.props.code as string;
     const persistedHeight = (block.props.height as number) ?? DEFAULT_HEIGHT;
     const persistedWidth = (block.props.width as number) ?? 0;
+    // Read-only view (published note, share link without edit) — hides
+    // the source / re-render buttons and the resize handles so readers
+    // only see the rendered diagram. Fullscreen stays available.
+    const isEditable = editor.isEditable;
     const [view, setView] = useState<"diagram" | "source">("diagram");
     const [svg, setSvg] = useState<string>("");
     const [error, setError] = useState<string | null>(null);
@@ -156,24 +160,28 @@ export const MermaidBlock = createReactBlockSpec(mermaidBlockConfig, {
             Mermaid
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setView((v) => (v === "diagram" ? "source" : "diagram"))}
-              title={view === "diagram" ? "Edit source" : "View diagram"}
-            >
-              <Code2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={rerender}
-              title="Re-render"
-            >
-              <Play className="h-4 w-4" />
-            </Button>
+            {isEditable ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setView((v) => (v === "diagram" ? "source" : "diagram"))}
+                  title={view === "diagram" ? "Edit source" : "View diagram"}
+                >
+                  <Code2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={rerender}
+                  title="Re-render"
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -189,7 +197,7 @@ export const MermaidBlock = createReactBlockSpec(mermaidBlockConfig, {
           className="bg-muted/30 relative overflow-hidden"
           style={{ height: fullscreen ? undefined : currentHeight }}
         >
-          {view === "diagram" ? (
+          {!isEditable || view === "diagram" ? (
             error ? (
               <pre className="text-destructive overflow-auto p-4 text-xs whitespace-pre-wrap">
                 {error}
@@ -211,7 +219,7 @@ export const MermaidBlock = createReactBlockSpec(mermaidBlockConfig, {
             />
           )}
         </div>
-        {!fullscreen && (
+        {!fullscreen && isEditable && (
           <>
             <div
               role="separator"

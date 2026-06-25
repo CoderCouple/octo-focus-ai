@@ -12,14 +12,12 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
-import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LiveError, LivePreview, LiveProvider } from "react-live";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { streamGeneratedComponent } from "../api/components-client-api";
-import { normalizeForLive } from "../lib/normalize-for-live";
+import { IframeArtifact } from "./iframe-artifact";
 
 const EXAMPLE_PROMPTS = [
   "A flight search form with origin, destination, dates, and a results list",
@@ -42,12 +40,10 @@ function highlightTsx(code: string): string {
 
 /**
  * Generative UI studio — type a description, stream a fresh React
- * component back from Claude, see it render live, copy or refine.
- *
- * Default view is the LIVE PREVIEW so the user sees the working
- * component the moment streaming finishes. Code is one click away.
- * Powered by react-live (same renderer as the `/component` block in
- * notes), so the studio output drops into a note with no rework.
+ * component back from Claude, render it live in a sandboxed artifact
+ * iframe (full Tailwind, viewport-friendly, style-isolated), copy or
+ * refine. Same iframe renderer is used by the `/component` BlockNote
+ * block in notes so behaviour is identical across surfaces.
  */
 export function ComponentStudio() {
   const [prompt, setPrompt] = useState("");
@@ -68,35 +64,13 @@ export function ComponentStudio() {
 
   const displayCode = committed || buffer;
   const highlighted = useMemo(() => highlightTsx(displayCode), [displayCode]);
-  const liveCode = useMemo(
-    () => (committed ? normalizeForLive(committed) : ""),
-    [committed],
-  );
-
-  const scope = useMemo(
-    () => ({
-      React,
-      useState: React.useState,
-      useEffect: React.useEffect,
-      useRef: React.useRef,
-      useMemo: React.useMemo,
-      useCallback: React.useCallback,
-      useReducer: React.useReducer,
-      useTransition: React.useTransition,
-      useDeferredValue: React.useDeferredValue,
-    }),
-    [],
-  );
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
     if (!trimmed || streaming) return;
     setBuffer("");
-    // We DO keep `committed` populated while streaming so the live
-    // preview keeps showing the previous result instead of going blank.
-    // It's swapped in onDone.
     setStreaming(true);
-    setView("code"); // show streamed tokens while we wait
+    setView("code");
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -110,7 +84,7 @@ export function ComponentStudio() {
             setCommitted(code);
             setBuffer("");
             setStreaming(false);
-            setView("preview"); // flip back to preview when the new code lands
+            setView("preview");
           },
           onError: (message) => {
             toast.error(message);
@@ -156,8 +130,9 @@ export function ComponentStudio() {
         </h1>
         <p className="text-muted-foreground text-sm">
           Describe an interactive UI surface and Claude will emit a self-contained
-          React + TypeScript component, then render it live in the preview below.
-          Inspired by CopilotKit&apos;s AG-UI / A2UI protocols.
+          React + TypeScript component. The preview runs in a Tailwind-isolated
+          artifact iframe — same renderer used by the <code>/component</code> block
+          in any note.
         </p>
       </header>
 
@@ -215,77 +190,72 @@ export function ComponentStudio() {
         </div>
       </div>
 
-      <LiveProvider code={liveCode} scope={scope} noInline language="tsx">
-        <div className="border-border bg-card flex flex-1 flex-col overflow-hidden rounded-lg border">
-          <header className="flex h-10 shrink-0 items-center justify-between border-b px-3">
-            <div className="text-muted-foreground text-xs font-medium">
-              {streaming
-                ? "Streaming…"
-                : committed
-                  ? showPreview
-                    ? "Live preview"
-                    : "Source"
-                  : "Generated component will appear here"}
-            </div>
-            <div className="flex items-center gap-1">
-              {hasResult && committed ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  onClick={() => setView((v) => (v === "preview" ? "code" : "preview"))}
-                  title={view === "preview" ? "View source" : "View preview"}
-                  disabled={streaming}
-                >
-                  {view === "preview" ? (
-                    <Code2 className="size-4" />
-                  ) : (
-                    <Eye className="size-4" />
-                  )}
-                </Button>
-              ) : null}
-              {hasResult ? (
-                <Button variant="ghost" size="icon" className="size-7" onClick={handleCopy}>
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                </Button>
-              ) : null}
-            </div>
-          </header>
-          <div className="bg-muted/30 relative flex-1 overflow-auto">
-            {showPreview ? (
-              <div className="bg-background h-full overflow-auto p-6">
-                <LivePreview />
-                <LiveError className="text-destructive mt-3 whitespace-pre-wrap font-mono text-xs" />
-              </div>
-            ) : displayCode ? (
-              <pre className="hljs h-full overflow-auto p-4 font-mono text-[0.8rem] leading-relaxed">
-                <code
-                  className="language-tsx"
-                  dangerouslySetInnerHTML={{ __html: highlighted }}
-                />
-              </pre>
-            ) : (
-              <div className="text-muted-foreground grid h-full place-items-center px-6 text-center text-sm">
-                {streaming ? (
-                  <div className="inline-flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" />
-                    Thinking…
-                  </div>
-                ) : (
-                  <div className="max-w-md space-y-2">
-                    <Sparkles className="text-muted-foreground/60 mx-auto size-6" />
-                    <p>Type a prompt above and hit Generate.</p>
-                    <p className="text-muted-foreground/70 text-xs">
-                      The component renders live here, and `/component` in any note
-                      embeds the same live preview inline.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+      <div className="border-border bg-card flex flex-1 flex-col overflow-hidden rounded-lg border">
+        <header className="flex h-10 shrink-0 items-center justify-between border-b px-3">
+          <div className="text-muted-foreground text-xs font-medium">
+            {streaming
+              ? "Streaming…"
+              : committed
+                ? showPreview
+                  ? "Live preview"
+                  : "Source"
+                : "Generated component will appear here"}
           </div>
+          <div className="flex items-center gap-1">
+            {hasResult && committed ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => setView((v) => (v === "preview" ? "code" : "preview"))}
+                title={view === "preview" ? "View source" : "View preview"}
+                disabled={streaming}
+              >
+                {view === "preview" ? (
+                  <Code2 className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </Button>
+            ) : null}
+            {hasResult ? (
+              <Button variant="ghost" size="icon" className="size-7" onClick={handleCopy}>
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+            ) : null}
+          </div>
+        </header>
+        <div className="bg-muted/30 relative flex-1 overflow-hidden">
+          {showPreview ? (
+            <IframeArtifact code={committed} className="h-full" />
+          ) : displayCode ? (
+            <pre className="hljs h-full overflow-auto p-4 font-mono text-[0.8rem] leading-relaxed">
+              <code
+                className="language-tsx"
+                dangerouslySetInnerHTML={{ __html: highlighted }}
+              />
+            </pre>
+          ) : (
+            <div className="text-muted-foreground grid h-full place-items-center px-6 text-center text-sm">
+              {streaming ? (
+                <div className="inline-flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Thinking…
+                </div>
+              ) : (
+                <div className="max-w-md space-y-2">
+                  <Sparkles className="text-muted-foreground/60 mx-auto size-6" />
+                  <p>Type a prompt above and hit Generate.</p>
+                  <p className="text-muted-foreground/70 text-xs">
+                    Preview runs in a Tailwind-isolated iframe — same renderer as
+                    the <code>/component</code> block in notes.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </LiveProvider>
+      </div>
     </section>
   );
 }

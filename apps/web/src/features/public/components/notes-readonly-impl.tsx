@@ -5,12 +5,20 @@ import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
+import { CodeBlock } from "@/features/notes/components/code-block";
+import { GenerativeUiBlock } from "@/features/notes/components/generative-ui-block";
 import { MermaidBlock } from "@/features/notes/components/mermaid-block";
 
+// Same custom block schema as the editor. Each block checks
+// `editor.isEditable` internally and hides the source / edit toggle
+// when it's false, so published notes only ever expose the rendered
+// view to readers without edit access.
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     mermaid: MermaidBlock(),
+    codeBlock: CodeBlock(),
+    generativeUi: GenerativeUiBlock(),
   },
 });
 
