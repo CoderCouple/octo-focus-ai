@@ -15,9 +15,10 @@ import {
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
-import { Workflow } from "lucide-react";
+import { Code2, Workflow } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateNoteAction } from "../actions/notes-actions";
+import { CodeBlock } from "./code-block";
 import { MermaidBlock } from "./mermaid-block";
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -26,6 +27,9 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     mermaid: MermaidBlock(),
+    // Overrides the default BlockNote `codeBlock` with our rich version
+    // — language picker, copy button, syntax highlighting, resize.
+    codeBlock: CodeBlock(),
   },
 });
 
@@ -45,6 +49,20 @@ function insertMermaidItem(editor: OctoEditor): DefaultReactSuggestionItem {
     onItemClick: () => {
       const current = editor.getTextCursorPosition().block;
       editor.replaceBlocks([current], [{ type: "mermaid" }]);
+    },
+  };
+}
+
+function insertCodeItem(editor: OctoEditor): DefaultReactSuggestionItem {
+  return {
+    title: "Code block",
+    subtext: "Insert a syntax-highlighted code block",
+    aliases: ["code", "snippet", "syntax"],
+    group: "Embeds",
+    icon: <Code2 className="h-4 w-4" />,
+    onItemClick: () => {
+      const current = editor.getTextCursorPosition().block;
+      editor.replaceBlocks([current], [{ type: "codeBlock" }]);
     },
   };
 }
@@ -114,7 +132,11 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
             triggerCharacter="/"
             getItems={async (query) =>
               filterSuggestionItems(
-                [...getDefaultReactSlashMenuItems(editor), insertMermaidItem(editor)],
+                [
+                  ...getDefaultReactSlashMenuItems(editor),
+                  insertMermaidItem(editor),
+                  insertCodeItem(editor),
+                ],
                 query,
               )
             }
