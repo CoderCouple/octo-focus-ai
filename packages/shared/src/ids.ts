@@ -33,6 +33,7 @@ export const ID_PREFIXES = {
   canvasAsset: "ast",
   workspaceInvite: "win",
   cliToken: "cli",
+  meeting: "mtg",
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];

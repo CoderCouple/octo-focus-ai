@@ -11,6 +11,7 @@ import { CanvasesModule } from "./canvases.module";
 import { CliTokensModule } from "./cli-tokens.module";
 import { HealthModule } from "./health.module";
 import { MeModule } from "./me.module";
+import { MeetingsModule } from "./meetings.module";
 import { PagesModule } from "./pages.module";
 import { PreferencesModule } from "./preferences.module";
 import { ProjectsModule } from "./projects.module";
@@ -30,6 +31,7 @@ import { WorkspacesModule } from "./workspaces.module";
     ProjectsModule,
     PagesModule,
     CanvasesModule,
+    MeetingsModule,
     SharingModule,
     PublishModule,
     PublicModule,

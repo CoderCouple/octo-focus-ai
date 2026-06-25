@@ -26,7 +26,12 @@ export const visibilityKind = pgEnum("visibility_kind", [
   "public",
 ]);
 
-export const resourceKind = pgEnum("resource_kind", ["project", "page", "canvas"]);
+export const resourceKind = pgEnum("resource_kind", [
+  "project",
+  "page",
+  "canvas",
+  "meeting",
+]);
 
 export const sharePermission = pgEnum("share_permission", [
   "viewer",

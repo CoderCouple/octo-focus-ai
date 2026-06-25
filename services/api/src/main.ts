@@ -16,6 +16,18 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
 
+  // Allow raw binary uploads (meeting recordings POST audio as
+  // application/octet-stream). Fastify's default JSON parser would
+  // 415 these requests; the buffer parser collects up to 100MB.
+  const fastify = app.getHttpAdapter().getInstance();
+  fastify.addContentTypeParser(
+    "application/octet-stream",
+    { parseAs: "buffer", bodyLimit: 100 * 1024 * 1024 },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
+
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
     credentials: true,
