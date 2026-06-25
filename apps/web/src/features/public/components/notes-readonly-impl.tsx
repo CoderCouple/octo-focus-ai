@@ -7,6 +7,7 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { CodeBlock } from "@/features/notes/components/code-block";
 import { GenerativeUiBlock } from "@/features/notes/components/generative-ui-block";
+import { LegacyCodeBlock } from "@/features/notes/components/legacy-code-block";
 import { MermaidBlock } from "@/features/notes/components/mermaid-block";
 
 // Same custom block schema as the editor. Each block checks
@@ -17,7 +18,8 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     mermaid: MermaidBlock(),
-    codeBlock: CodeBlock(),
+    codeBlock: LegacyCodeBlock(),
+    richCode: CodeBlock(),
     generativeUi: GenerativeUiBlock(),
   },
 });

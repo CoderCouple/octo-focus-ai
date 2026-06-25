@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { updateNoteAction } from "../actions/notes-actions";
 import { CodeBlock } from "./code-block";
 import { GenerativeUiBlock } from "./generative-ui-block";
+import { LegacyCodeBlock } from "./legacy-code-block";
 import { MermaidBlock } from "./mermaid-block";
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -28,11 +29,18 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     mermaid: MermaidBlock(),
-    // Overrides the default BlockNote `codeBlock` with our rich version
-    // — language picker, copy button, syntax highlighting, resize.
-    codeBlock: CodeBlock(),
-    // Live-rendered React component pasted from the Components studio
-    // (or hand-written). Powered by react-live.
+    // `codeBlock` accepts inline text content so notes saved before
+    // the `richCode` rename still load — without it BlockNote rejects
+    // the stored document with "Invalid content for node codeBlock"
+    // and the whole editor crashes.
+    codeBlock: LegacyCodeBlock(),
+    // `richCode` is our rich code block: language picker, copy button,
+    // syntax highlighting, resize. The slash menu inserts this going
+    // forward.
+    richCode: CodeBlock(),
+    // Live-rendered React/HTML artifact pasted from the Components
+    // studio (or hand-written). Powered by react-live + the iframe
+    // artifact renderer.
     generativeUi: GenerativeUiBlock(),
   },
 });
@@ -66,7 +74,7 @@ function insertCodeItem(editor: OctoEditor): DefaultReactSuggestionItem {
     icon: <Code2 className="h-4 w-4" />,
     onItemClick: () => {
       const current = editor.getTextCursorPosition().block;
-      editor.replaceBlocks([current], [{ type: "codeBlock" }]);
+      editor.replaceBlocks([current], [{ type: "richCode" }]);
     },
   };
 }

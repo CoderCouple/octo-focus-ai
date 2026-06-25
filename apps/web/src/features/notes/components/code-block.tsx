@@ -46,7 +46,7 @@ const LANGUAGES: { value: string; label: string }[] = [
 const DEFAULT_LANGUAGE = "javascript";
 
 export const codeBlockConfig = {
-  type: "codeBlock" as const,
+  type: "richCode" as const,
   propSchema: {
     code: { default: "" },
     language: { default: DEFAULT_LANGUAGE },
