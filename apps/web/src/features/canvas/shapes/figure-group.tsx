@@ -62,6 +62,15 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
     });
   }
 
+  override getIndicatorPath(_shape: FigureGroupShape) {
+    // Returning undefined lets tldraw fall back to the indicator()
+    // JSX below for selection outlines. The shape util protocol
+    // requires this method as a FUNCTION (not optional) — without it
+    // tldraw throws `getIndicatorPath is not a function` from
+    // `areRecordsEqual` the first time the store derives equality.
+    return undefined;
+  }
+
   // @ts-expect-error — same TLShape narrowing dodge as the class itself
   override onResize(shape: FigureGroupShape, info: TLResizeInfo<FigureGroupShape>) {
     const next = resizeBox(shape as never, info as never) as unknown as {
