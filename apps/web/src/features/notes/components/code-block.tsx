@@ -2,7 +2,7 @@
 
 import { createReactBlockSpec } from "@blocknote/react";
 import hljs from "highlight.js/lib/common";
-import "highlight.js/styles/atom-one-light.css";
+import "highlight.js/styles/github-dark.css";
 import { Check, Code2, Copy, GripHorizontal, GripVertical, Pencil } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -192,12 +192,12 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
 
     return (
       <div
-        className="bg-card group relative w-full max-w-full overflow-hidden rounded-xl border"
+        className="group relative w-full max-w-full overflow-hidden rounded-xl border border-[#30363d] bg-[#0d1117]"
         style={widthStyle}
       >
-        <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
-          <div className="text-foreground flex items-center gap-2 text-sm font-medium">
-            <Code2 className="h-4 w-4" />
+        <header className="flex items-center justify-between gap-2 border-b border-[#30363d] bg-[#161b22] px-3 py-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+            <Code2 className="h-4 w-4 text-zinc-400" />
             {isEditable ? (
               <Select
                 value={language}
@@ -207,7 +207,7 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
               >
                 <SelectTrigger
                   size="sm"
-                  className="h-7 border-0 bg-transparent px-2 shadow-none focus:ring-0 focus-visible:ring-0"
+                  className="h-7 border-0 bg-transparent px-2 text-zinc-300 shadow-none hover:bg-white/5 focus:ring-0 focus-visible:ring-0"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -220,7 +220,7 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
                 </SelectContent>
               </Select>
             ) : (
-              <span className="text-muted-foreground px-1 text-xs capitalize">
+              <span className="px-1 text-xs capitalize text-zinc-400">
                 {LANGUAGES.find((l) => l.value === language)?.label ?? language}
               </span>
             )}
@@ -229,7 +229,7 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
               onClick={handleCopy}
               title="Copy code"
             >
@@ -239,7 +239,7 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
                 onClick={() => setView((v) => (v === "preview" ? "edit" : "preview"))}
                 title={view === "preview" ? "Edit code" : "Preview"}
               >
@@ -253,12 +253,12 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
           </div>
         </header>
         <div
-          className="bg-muted/30 relative overflow-hidden"
+          className="relative overflow-hidden bg-[#0d1117]"
           style={{ height: currentHeight }}
         >
           {view === "preview" ? (
             <pre
-              className="hljs h-full overflow-auto p-3 font-mono text-[0.85rem] leading-relaxed"
+              className="hljs h-full overflow-auto !bg-[#0d1117] p-3 font-mono text-[0.85rem] leading-relaxed"
               onDoubleClick={() => isEditable && setView("edit")}
               title={isEditable ? "Double-click to edit" : undefined}
             >
@@ -277,7 +277,7 @@ export const CodeBlock = createReactBlockSpec(codeBlockConfig, {
               }}
               spellCheck={false}
               placeholder="Type or paste code…"
-              className="h-full w-full resize-none rounded-none border-0 bg-transparent p-3 font-mono text-[0.85rem] leading-relaxed focus:outline-none"
+              className="h-full w-full resize-none rounded-none border-0 bg-[#0d1117] p-3 font-mono text-[0.85rem] leading-relaxed text-zinc-100 placeholder:text-zinc-600 caret-zinc-100 focus:outline-none"
             />
           )}
         </div>

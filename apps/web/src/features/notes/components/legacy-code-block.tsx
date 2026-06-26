@@ -31,7 +31,7 @@ export const LegacyCodeBlock = createReactBlockSpec(
       );
     },
     render: ({ contentRef }) => (
-      <pre className="bg-muted/30 my-2 overflow-auto rounded-lg border p-3 font-mono text-[0.85rem] leading-relaxed">
+      <pre className="my-2 overflow-auto rounded-lg border border-[#30363d] bg-[#0d1117] p-3 font-mono text-[0.85rem] leading-relaxed text-zinc-100">
         <code ref={contentRef as Ref<HTMLElement>} className="block whitespace-pre" />
       </pre>
     ),
