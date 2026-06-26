@@ -259,6 +259,79 @@ Web > Lambda
   });
 });
 
+describe("parseDsl — figure keyword", () => {
+  // The bare `Name { ... }` and explicit `figure Name { ... }` forms
+  // must produce the same AST — the keyword is sugar for readability,
+  // not a new shape in the parsed diagram. These tests guard against
+  // grammar drift the next time someone touches the TOKENS constants.
+  function stripIds(diagram: { nodes: Array<{ id: string }> }) {
+    return {
+      ...diagram,
+      nodes: diagram.nodes.map(({ id, ...rest }) => rest),
+    };
+  }
+
+  it("treats `figure Name { ... }` as an alias of `Name { ... }`", () => {
+    const bare = parseDsl(`Architecture {
+  Web
+  API
+  Web > API
+}`);
+    const explicit = parseDsl(`figure Architecture {
+  Web
+  API
+  Web > API
+}`);
+    expect(bare.errors).toEqual([]);
+    expect(explicit.errors).toEqual([]);
+    expect(stripIds(explicit.diagram)).toEqual(stripIds(bare.diagram));
+  });
+
+  it("accepts a quoted figure name", () => {
+    const { diagram, errors } = parseDsl(`figure "Service Mesh" {
+  Envoy
+  Pilot
+}`);
+    expect(errors).toEqual([]);
+    const fig = diagram.nodes.find((n) => n.name === "Service Mesh");
+    expect(fig?.isGroup).toBe(true);
+    const envoy = diagram.nodes.find((n) => n.name === "Envoy");
+    expect(envoy?.parentId).toBe(fig?.id);
+  });
+
+  it("is case-insensitive on the keyword", () => {
+    const { diagram, errors } = parseDsl(`FIGURE Outer {
+  Inner
+}`);
+    expect(errors).toEqual([]);
+    expect(diagram.nodes.find((n) => n.name === "Outer")?.isGroup).toBe(true);
+  });
+
+  it("preserves attributes on the figure name", () => {
+    const { diagram } = parseDsl(`figure VPC [icon: cloud, color: blue] {
+  Lambda
+}`);
+    const vpc = diagram.nodes.find((n) => n.name === "VPC");
+    expect(vpc?.isGroup).toBe(true);
+    expect(vpc?.icon).toBe("cloud");
+    expect(vpc?.color).toBe("blue");
+  });
+
+  it("supports nesting figure under figure", () => {
+    const { diagram, errors } = parseDsl(`figure Outer {
+  figure Inner {
+    Leaf
+  }
+}`);
+    expect(errors).toEqual([]);
+    const outer = diagram.nodes.find((n) => n.name === "Outer")!;
+    const inner = diagram.nodes.find((n) => n.name === "Inner")!;
+    const leaf = diagram.nodes.find((n) => n.name === "Leaf")!;
+    expect(inner.parentId).toBe(outer.id);
+    expect(leaf.parentId).toBe(inner.id);
+  });
+});
+
 describe("parseDsl — edge operators", () => {
   it("defaults to forward `>` operator", () => {
     const { diagram } = parseDsl("Web > API");
