@@ -1,17 +1,19 @@
 "use client";
 
-import { ArrowLeft, Focus, Frame, Pencil, RefreshCw, Save } from "lucide-react";
+import { ArrowLeft, Code2, Focus, Frame, Pencil, RefreshCw, Save } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Editor } from "tldraw";
 import { DslDrawer } from "@/components/dsl-drawer";
+import { DslSidePanel } from "@/components/dsl-side-panel";
 import { EditableTitle } from "@/components/editable-title";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { createSavedFigureClientApi } from "@/features/figures";
 import { SharePopover, type Visibility } from "@/features/sharing";
 import { renameCanvasAction, updateCanvasAction } from "../actions/canvases-actions";
+import type { DslLanguage } from "../lib/extract-dsl";
 import { extractFigureSubgraphDsl } from "../lib/extract-figure-dsl";
 import { wrapSelectionInFigure } from "../lib/wrap-figure";
 import { CanvasExportDialog } from "./canvas-export-dialog";
@@ -44,6 +46,10 @@ interface CanvasPaneProps {
   canvasId: string;
   initialDocument: unknown;
   initialDsl: string;
+  /** DSL flavour the user picked last time — defaults to "octo". */
+  initialLanguage?: DslLanguage;
+  /** Whether the Source side panel was open last time. */
+  initialSourceOpen?: boolean;
   /**
    * Per-canvas publish props. When provided, surfaces a Share popover in
    * the header that publishes THIS canvas independently of any parent
@@ -63,6 +69,8 @@ export function CanvasPane({
   canvasId,
   initialDocument,
   initialDsl,
+  initialLanguage = "octo",
+  initialSourceOpen = false,
   canvasTitle,
   initialVisibility,
   initialPublicSlug,
@@ -72,6 +80,11 @@ export function CanvasPane({
 }: CanvasPaneProps) {
   const [autoShape, setAutoShape] = useState(false);
   const [dslOpen, setDslOpen] = useState(false);
+  // Persistent left-side editor. Open/close state and chosen DSL
+  // flavour are stored on the canvas's `diagramSchema` jsonb so they
+  // round-trip via the same debounced save as the DSL text itself.
+  const [sourceOpen, setSourceOpen] = useState(initialSourceOpen);
+  const [language, setLanguage] = useState<DslLanguage>(initialLanguage);
   const [dsl, setDsl] = useState(initialDsl);
   const [fitToken, setFitToken] = useState(0);
   const dslSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,11 +100,44 @@ export function CanvasPane({
     };
   }, []);
 
+  /**
+   * Persist the panel-open flag or language choice immediately — these
+   * are user gestures, not stream-of-keystrokes, so no debounce. The
+   * whole `diagramSchema` object is replaced on each save so we
+   * always send the current `dsl` alongside.
+   */
+  function persistSchemaPatch(patch: { language?: DslLanguage; sourceOpen?: boolean }) {
+    void updateCanvasAction(canvasId, {
+      diagramSchema: {
+        dsl,
+        language: patch.language ?? language,
+        sourceOpen: patch.sourceOpen ?? sourceOpen,
+      },
+    }).then((r) => {
+      if (!r.success) console.error("Source panel state save failed", r.message);
+    });
+  }
+
+  function toggleSourceOpen() {
+    setSourceOpen((prev) => {
+      const next = !prev;
+      persistSchemaPatch({ sourceOpen: next });
+      return next;
+    });
+  }
+
+  function onLanguageChange(next: DslLanguage) {
+    setLanguage(next);
+    persistSchemaPatch({ language: next });
+  }
+
   function onDslChange(value: string) {
     setDsl(value);
     if (dslSaveTimer.current) clearTimeout(dslSaveTimer.current);
     dslSaveTimer.current = setTimeout(() => {
-      void updateCanvasAction(canvasId, { diagramSchema: { dsl: value } }).then((r) => {
+      void updateCanvasAction(canvasId, {
+        diagramSchema: { dsl: value, language, sourceOpen },
+      }).then((r) => {
         if (!r.success) console.error("DSL save failed", r.message);
       });
     }, DSL_SAVE_DEBOUNCE_MS);
@@ -196,11 +242,24 @@ export function CanvasPane({
           Auto-shape
         </Toggle>
         <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant={sourceOpen ? "secondary" : "ghost"}
+            size="sm"
+            className="gap-1.5"
+            onClick={toggleSourceOpen}
+            title="Toggle the DSL source editor"
+          >
+            <Code2 className="size-3.5" />
+            Source
+          </Button>
           <FromCodeDrawer
             currentDsl={dsl}
             onGenerated={(next) => {
               onDslChange(next);
-              setDslOpen(true);
+              if (!sourceOpen) {
+                setSourceOpen(true);
+                persistSchemaPatch({ sourceOpen: true });
+              }
               setFitToken((t) => t + 1);
             }}
           />
@@ -208,7 +267,10 @@ export function CanvasPane({
             currentDsl={dsl}
             onRefined={(next) => {
               onDslChange(next);
-              setDslOpen(true);
+              if (!sourceOpen) {
+                setSourceOpen(true);
+                persistSchemaPatch({ sourceOpen: true });
+              }
               setFitToken((t) => t + 1);
             }}
           />
@@ -269,14 +331,28 @@ export function CanvasPane({
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <OctoCanvas
-          canvasId={canvasId}
-          initialDocument={initialDocument}
-          autoShape={autoShape}
-          dsl={dsl}
-          fitToContent={fitToken}
-          onEditorReady={handleEditorReady}
-        />
+        {sourceOpen ? (
+          <DslSidePanel
+            value={dsl}
+            onChange={onDslChange}
+            onClose={toggleSourceOpen}
+            language={language}
+            onLanguageChange={onLanguageChange}
+          />
+        ) : null}
+        <div className="flex-1 overflow-hidden">
+          <OctoCanvas
+            canvasId={canvasId}
+            initialDocument={initialDocument}
+            autoShape={autoShape}
+            // OctoCanvas parses via `@octofocus/diagrams` — only feed
+            // it the DSL when the chosen flavour is `octo`. Mermaid
+            // text is saved but not rendered (no parser yet).
+            dsl={language === "octo" ? dsl : ""}
+            fitToContent={fitToken}
+            onEditorReady={handleEditorReady}
+          />
+        </div>
       </div>
       <DslDrawer open={dslOpen} onOpenChange={setDslOpen} value={dsl} onChange={onDslChange} />
     </div>

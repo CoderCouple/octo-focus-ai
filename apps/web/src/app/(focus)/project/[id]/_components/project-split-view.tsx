@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FloatingAiLauncher } from "@/features/ai-chat";
-import { CanvasPane } from "@/features/canvas";
+import { CanvasPane, extractDslLanguage, extractSourceOpen } from "@/features/canvas";
 import { NotesPane } from "@/features/notes";
 import { renameProjectAction } from "@/features/projects";
 import { SharePopover } from "@/features/sharing";
@@ -144,6 +144,8 @@ export function ProjectSplitView({
               canvasId={canvas.id}
               initialDocument={canvas.document}
               initialDsl={initialDsl}
+              initialLanguage={extractDslLanguage(canvas.diagramSchema)}
+              initialSourceOpen={extractSourceOpen(canvas.diagramSchema)}
               canvasTitle={canvas.title}
               initialVisibility={canvas.visibility}
               initialPublicSlug={canvas.publicSlug}

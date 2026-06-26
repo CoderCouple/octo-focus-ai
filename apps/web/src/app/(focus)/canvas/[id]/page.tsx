@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
 import { FloatingAiLauncher } from "@/features/ai-chat";
-import { CanvasPane, extractDsl } from "@/features/canvas";
+import {
+  CanvasPane,
+  extractDsl,
+  extractDslLanguage,
+  extractSourceOpen,
+} from "@/features/canvas";
 import { getCanvasApi } from "@/features/canvas/api/canvases-api";
 import { getProjectApi } from "@/features/projects/api/projects-api";
 import { getMeApi } from "@/features/workspaces/api/workspaces-api";
@@ -23,6 +28,8 @@ export default async function FocusCanvasPage({ params }: PageProps) {
   const workspaceSlug =
     me.memberships.find((m) => m.workspace.id === project.workspaceId)?.workspace.slug ?? "";
   const dsl = extractDsl(canvas.diagramSchema);
+  const language = extractDslLanguage(canvas.diagramSchema);
+  const sourceOpen = extractSourceOpen(canvas.diagramSchema);
 
   return (
     <div className="h-full">
@@ -30,6 +37,8 @@ export default async function FocusCanvasPage({ params }: PageProps) {
         canvasId={canvas.id}
         initialDocument={canvas.document}
         initialDsl={dsl}
+        initialLanguage={language}
+        initialSourceOpen={sourceOpen}
         canvasTitle={canvas.title}
         initialVisibility={canvas.visibility}
         initialPublicSlug={canvas.publicSlug}
