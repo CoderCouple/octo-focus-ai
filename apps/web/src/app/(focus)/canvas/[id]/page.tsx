@@ -34,6 +34,7 @@ export default async function FocusCanvasPage({ params }: PageProps) {
         initialVisibility={canvas.visibility}
         initialPublicSlug={canvas.publicSlug}
         workspaceSlug={workspaceSlug}
+        workspaceId={project.workspaceId}
         closeHref="/workspace/canvas"
       />
       <FloatingAiLauncher

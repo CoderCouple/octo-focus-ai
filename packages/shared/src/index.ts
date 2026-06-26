@@ -135,6 +135,7 @@ export const ResourceKindSchema = z.enum([
   "canvas",
   "meeting",
   "component",
+  "figure",
 ]);
 export const SharePermissionSchema = z.enum(["viewer", "commenter", "editor", "admin"]);
 export const ShareStatusSchema = z.enum(["active", "pending", "revoked", "expired"]);

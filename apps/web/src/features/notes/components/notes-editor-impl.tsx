@@ -15,10 +15,11 @@ import {
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
-import { Code2, Sparkles, Workflow } from "lucide-react";
+import { Code2, Frame, Sparkles, Workflow } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateNoteAction } from "../actions/notes-actions";
 import { CodeBlock } from "./code-block";
+import { FigureBlock } from "./figure-block";
 import { GenerativeUiBlock } from "./generative-ui-block";
 import { MermaidBlock } from "./mermaid-block";
 
@@ -37,6 +38,10 @@ const schema = BlockNoteSchema.create({
     // studio (or hand-written). Powered by react-live + the iframe
     // artifact renderer.
     generativeUi: GenerativeUiBlock(),
+    // Embedded canvas figure — rendered via the same read-only tldraw
+    // path the /f/<id> public page uses. Pasted from the canvas
+    // "Save figure" flow or inserted via the slash menu.
+    figure: FigureBlock(),
   },
 });
 
@@ -84,6 +89,20 @@ function insertGenerativeUiItem(editor: OctoEditor): DefaultReactSuggestionItem 
     onItemClick: () => {
       const current = editor.getTextCursorPosition().block;
       editor.replaceBlocks([current], [{ type: "generativeUi" }]);
+    },
+  };
+}
+
+function insertFigureItem(editor: OctoEditor): DefaultReactSuggestionItem {
+  return {
+    title: "Figure",
+    subtext: "Embed a saved canvas figure",
+    aliases: ["figure", "diagram", "canvas", "subgraph"],
+    group: "Embeds",
+    icon: <Frame className="h-4 w-4" />,
+    onItemClick: () => {
+      const current = editor.getTextCursorPosition().block;
+      editor.replaceBlocks([current], [{ type: "figure" }]);
     },
   };
 }
@@ -139,12 +158,27 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
   function onPaste(event: React.ClipboardEvent<HTMLDivElement>) {
     const text = event.clipboardData?.getData("text/plain") ?? "";
     if (!text) return;
-    const match = text.trim().match(/(?:^|\/c\/)(cmp_[A-Za-z0-9_-]+)/);
-    if (!match) return;
-    const componentId = match[1];
-    event.preventDefault();
-    const current = editor.getTextCursorPosition().block;
-    editor.replaceBlocks([current], [{ type: "generativeUi", props: { componentId } }]);
+    const trimmed = text.trim();
+
+    // `/c/<cmp_...>` → embed the saved Components artifact
+    const componentMatch = trimmed.match(/(?:^|\/c\/)(cmp_[A-Za-z0-9_-]+)/);
+    if (componentMatch) {
+      const componentId = componentMatch[1];
+      event.preventDefault();
+      const current = editor.getTextCursorPosition().block;
+      editor.replaceBlocks([current], [{ type: "generativeUi", props: { componentId } }]);
+      return;
+    }
+
+    // `/f/<fig_...>` → embed the saved canvas figure
+    const figureMatch = trimmed.match(/(?:^|\/f\/)(fig_[A-Za-z0-9_-]+)/);
+    if (figureMatch) {
+      const figureId = figureMatch[1];
+      event.preventDefault();
+      const current = editor.getTextCursorPosition().block;
+      editor.replaceBlocks([current], [{ type: "figure", props: { figureId } }]);
+      return;
+    }
   }
 
   function onChange() {
@@ -176,6 +210,7 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
                   insertMermaidItem(editor),
                   insertCodeItem(editor),
                   insertGenerativeUiItem(editor),
+                  insertFigureItem(editor),
                 ],
                 query,
               )

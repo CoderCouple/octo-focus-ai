@@ -7,6 +7,37 @@ import type {
 } from "./index";
 
 /**
+ * Single source of truth for every grammar literal the parser
+ * recognises. Update tokens / keywords / attribute names HERE — all
+ * call sites read from these constants so the DSL surface doesn't
+ * fork across the file.
+ */
+const TOKENS = {
+  GROUP_OPEN: "{",
+  GROUP_CLOSE: "}",
+  ATTR_OPEN: "[",
+  ATTR_CLOSE: "]",
+  QUOTE: '"',
+  HASH_COMMENT: "#",
+  SLASH_COMMENT: "//",
+  COLON: ":",
+  COMMA: ",",
+} as const;
+
+const KEYWORDS = {
+  DIRECTION: "direction",
+  /** `figure Name { ... }` — explicit eraser-style group declaration. */
+  FIGURE: "figure",
+} as const;
+
+const ATTR_KEYS = {
+  ICON: "icon",
+  COLOR: "color",
+  SHAPE: "shape",
+  LABEL: "label",
+} as const;
+
+/**
  * Edge operator tokens (longest first — the parser tries them in order
  * so `-->` wins over `--` wins over `>` etc.). All must be surrounded
  * by whitespace to be recognised as operators, otherwise `aws-lambda`
@@ -18,6 +49,19 @@ const EDGE_OPERATORS: EdgeOperator[] = ["-->", "<>", "--", ">", "-"];
 // pipeline edge-direction-aware without needing to handle backward
 // arrows everywhere.
 const BACK_OPERATOR = "<" as const;
+// Ordered operator list used by `findFirstEdgeOperator` — must include
+// the backward `<` so it can be detected and normalised. Kept in sync
+// with `EDGE_OPERATORS` above, longest-first.
+const ORDERED_EDGE_OPERATORS: readonly string[] = [
+  "-->",
+  "<>",
+  "--",
+  ">",
+  BACK_OPERATOR,
+  "-",
+];
+const FIGURE_KEYWORD_RE = new RegExp(`^${KEYWORDS.FIGURE}\\b`, "i");
+const DIRECTION_PREFIX = `${KEYWORDS.DIRECTION} `;
 
 export interface ParseResult {
   diagram: OctoFocusAIDiagram;
@@ -62,9 +106,12 @@ export function parseDsl(input: string): ParseResult {
     const line = stripComment(raw).trim();
     if (!line) continue;
 
-    if (line === "}") {
+    if (line === TOKENS.GROUP_CLOSE) {
       if (groupStack.length === 0) {
-        errors.push({ line: i + 1, message: "Unexpected `}` with no open group." });
+        errors.push({
+          line: i + 1,
+          message: `Unexpected \`${TOKENS.GROUP_CLOSE}\` with no open group.`,
+        });
       } else {
         groupStack.pop();
       }
@@ -72,8 +119,8 @@ export function parseDsl(input: string): ParseResult {
     }
 
     // Diagram-level directive: `direction <value>` at top level.
-    if (line.startsWith("direction ")) {
-      const value = line.slice("direction ".length).trim();
+    if (line.startsWith(DIRECTION_PREFIX)) {
+      const value = line.slice(DIRECTION_PREFIX.length).trim();
       if (DIRECTION_VALUES.has(value)) {
         direction = value as DiagramDirection;
       } else {
@@ -87,8 +134,15 @@ export function parseDsl(input: string): ParseResult {
 
     const currentParent = groupStack[groupStack.length - 1];
 
-    if (line.endsWith("{")) {
-      const head = line.slice(0, -1).trim();
+    if (line.endsWith(TOKENS.GROUP_OPEN)) {
+      // `figure Name { ... }` and `figure "Quoted Name" { ... }` are
+      // explicit eraser-style figure group declarations. The bare
+      // `Name { ... }` form stays supported as an alias so existing
+      // diagrams parse unchanged; both render as `figure-group` shapes.
+      let head = line.slice(0, -TOKENS.GROUP_OPEN.length).trim();
+      if (FIGURE_KEYWORD_RE.test(head)) {
+        head = head.replace(FIGURE_KEYWORD_RE, "").trimStart();
+      }
       const parsed = parseNameWithAttributes(head);
       if (!parsed) {
         errors.push({ line: i + 1, message: "Could not parse group declaration." });
@@ -284,10 +338,12 @@ function stripComment(raw: string): string {
   let inQuote = false;
   for (let i = 0; i < raw.length; i++) {
     const ch = raw[i];
-    if (ch === "\"") inQuote = !inQuote;
+    if (ch === TOKENS.QUOTE) inQuote = !inQuote;
     if (inQuote) continue;
-    if (ch === "#") return raw.slice(0, i);
-    if (ch === "/" && raw[i + 1] === "/") return raw.slice(0, i);
+    if (ch === TOKENS.HASH_COMMENT) return raw.slice(0, i);
+    if (ch === TOKENS.SLASH_COMMENT[0] && raw[i + 1] === TOKENS.SLASH_COMMENT[1]) {
+      return raw.slice(0, i);
+    }
   }
   return raw;
 }
@@ -303,14 +359,14 @@ function findTopLevelOperator(s: string, op: string): number {
   let bracketDepth = 0;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
-    if (ch === "\"") {
+    if (ch === TOKENS.QUOTE) {
       inQuote = !inQuote;
       continue;
     }
     if (inQuote) continue;
     if (bracketDepth === 0 && ch === op) return i;
-    if (ch === "[") bracketDepth++;
-    else if (ch === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    if (ch === TOKENS.ATTR_OPEN) bracketDepth++;
+    else if (ch === TOKENS.ATTR_CLOSE) bracketDepth = Math.max(0, bracketDepth - 1);
   }
   return -1;
 }
@@ -327,29 +383,26 @@ function findFirstEdgeOperator(
   s: string,
   from: number,
 ): { index: number; length: number; operator: string } | null {
-  // Operators sorted longest-first so `-->` wins over `--` wins over `-`.
-  const ordered = ["-->", "<>", "--", ">", "<", "-"];
-
   let inQuote = false;
   let bracketDepth = 0;
   for (let i = from; i < s.length; i++) {
     const ch = s[i];
-    if (ch === "\"") {
+    if (ch === TOKENS.QUOTE) {
       inQuote = !inQuote;
       continue;
     }
     if (inQuote) continue;
-    if (ch === "[") {
+    if (ch === TOKENS.ATTR_OPEN) {
       bracketDepth++;
       continue;
     }
-    if (ch === "]") {
+    if (ch === TOKENS.ATTR_CLOSE) {
       bracketDepth = Math.max(0, bracketDepth - 1);
       continue;
     }
     if (bracketDepth !== 0) continue;
 
-    for (const op of ordered) {
+    for (const op of ORDERED_EDGE_OPERATORS) {
       if (!s.startsWith(op, i)) continue;
       const before = i === 0 ? " " : s[i - 1];
       const after = i + op.length >= s.length ? " " : s[i + op.length];
@@ -371,20 +424,20 @@ function findLastTopLevelColon(s: string): number {
   let last = -1;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
-    if (ch === "\"") {
+    if (ch === TOKENS.QUOTE) {
       inQuote = !inQuote;
       continue;
     }
     if (inQuote) continue;
-    if (ch === "[") {
+    if (ch === TOKENS.ATTR_OPEN) {
       bracketDepth++;
       continue;
     }
-    if (ch === "]") {
+    if (ch === TOKENS.ATTR_CLOSE) {
       bracketDepth = Math.max(0, bracketDepth - 1);
       continue;
     }
-    if (bracketDepth === 0 && ch === ":") last = i;
+    if (bracketDepth === 0 && ch === TOKENS.COLON) last = i;
   }
   return last;
 }
@@ -398,7 +451,7 @@ function parseNameWithAttributes(input: string): ParsedNameAttrs | null {
   const text = input.trim();
   if (!text) return null;
 
-  const bracketStart = findTopLevelOperator(text, "[");
+  const bracketStart = findTopLevelOperator(text, TOKENS.ATTR_OPEN);
   if (bracketStart === -1) {
     const name = unquote(text);
     if (!name) return null;
@@ -407,11 +460,11 @@ function parseNameWithAttributes(input: string): ParsedNameAttrs | null {
 
   const namePart = text.slice(0, bracketStart).trim();
   const bracketBody = text.slice(bracketStart);
-  if (!bracketBody.endsWith("]")) {
+  if (!bracketBody.endsWith(TOKENS.ATTR_CLOSE)) {
     // Unbalanced — fail safe: treat the whole thing as a name.
     return { name: unquote(text), attrs: {} };
   }
-  const inner = bracketBody.slice(1, -1);
+  const inner = bracketBody.slice(TOKENS.ATTR_OPEN.length, -TOKENS.ATTR_CLOSE.length);
   const attrs = parseAttributeList(inner);
   const name = unquote(namePart);
   if (!name) return null;
@@ -423,12 +476,12 @@ function stripTrailingAttributes(text: string): {
   attrs: Record<string, string>;
 } {
   const trimmed = text.trimEnd();
-  if (!trimmed.endsWith("]")) return { body: text, attrs: {} };
+  if (!trimmed.endsWith(TOKENS.ATTR_CLOSE)) return { body: text, attrs: {} };
   let depth = 0;
   for (let i = trimmed.length - 1; i >= 0; i--) {
     const ch = trimmed[i];
-    if (ch === "]") depth++;
-    else if (ch === "[") {
+    if (ch === TOKENS.ATTR_CLOSE) depth++;
+    else if (ch === TOKENS.ATTR_OPEN) {
       depth--;
       if (depth === 0) {
         const body = trimmed.slice(0, i).trimEnd();
@@ -442,9 +495,9 @@ function stripTrailingAttributes(text: string): {
 
 function parseAttributeList(inner: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const parts = splitTopLevel(inner, ",");
+  const parts = splitTopLevel(inner, TOKENS.COMMA);
   for (const part of parts) {
-    const colonIdx = part.indexOf(":");
+    const colonIdx = part.indexOf(TOKENS.COLON);
     if (colonIdx === -1) continue;
     const key = part.slice(0, colonIdx).trim().toLowerCase();
     const value = unquote(part.slice(colonIdx + 1).trim());
@@ -464,14 +517,14 @@ function splitTopLevel(s: string, op: string): string[] {
   let bracketDepth = 0;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
-    if (ch === "\"") {
+    if (ch === TOKENS.QUOTE) {
       inQuote = !inQuote;
       current += ch;
       continue;
     }
     if (!inQuote) {
-      if (ch === "[") bracketDepth++;
-      else if (ch === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+      if (ch === TOKENS.ATTR_OPEN) bracketDepth++;
+      else if (ch === TOKENS.ATTR_CLOSE) bracketDepth = Math.max(0, bracketDepth - 1);
       else if (bracketDepth === 0 && ch === op) {
         if (current.trim()) out.push(current);
         current = "";
@@ -485,14 +538,20 @@ function splitTopLevel(s: string, op: string): string[] {
 }
 
 function unquote(s: string): string {
-  if (s.length >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
+  if (s.length >= 2 && s.startsWith(TOKENS.QUOTE) && s.endsWith(TOKENS.QUOTE)) {
     return s.slice(1, -1);
   }
   return s;
 }
 
+// Characters that force a name to be quoted on round-trip — whitespace,
+// edge-operator chars, attribute brackets, label/comment markers.
+const QUOTE_REQUIRED_RE = new RegExp(
+  `[\\s>${TOKENS.QUOTE}\\${TOKENS.ATTR_OPEN}\\${TOKENS.ATTR_CLOSE}${TOKENS.COLON}${TOKENS.HASH_COMMENT}]`,
+);
+
 function quoteIfNeeded(name: string): string {
-  return /[\s>"\[\]:#]/.test(name) ? `"${name}"` : name;
+  return QUOTE_REQUIRED_RE.test(name) ? `${TOKENS.QUOTE}${name}${TOKENS.QUOTE}` : name;
 }
 
 interface UpsertNodeOpts {
@@ -508,10 +567,10 @@ function upsertNode(
 ): DiagramNode {
   const existing = nodesByName.get(name);
   if (existing) {
-    if (attrs.icon) existing.icon = attrs.icon;
-    if (attrs.color) existing.color = attrs.color;
-    if (attrs.shape) existing.shape = attrs.shape;
-    if (attrs.label) existing.label = attrs.label;
+    if (attrs[ATTR_KEYS.ICON]) existing.icon = attrs[ATTR_KEYS.ICON];
+    if (attrs[ATTR_KEYS.COLOR]) existing.color = attrs[ATTR_KEYS.COLOR];
+    if (attrs[ATTR_KEYS.SHAPE]) existing.shape = attrs[ATTR_KEYS.SHAPE];
+    if (attrs[ATTR_KEYS.LABEL]) existing.label = attrs[ATTR_KEYS.LABEL];
     if (opts.isGroup) existing.isGroup = true;
     // First declaration wins for parent — auto-references inside a group
     // body shouldn't reparent an already-known top-level node.
@@ -522,12 +581,12 @@ function upsertNode(
   }
   const node: DiagramNode = {
     id: idFromName(name, nodesByName.size),
-    label: attrs.label ?? name,
+    label: attrs[ATTR_KEYS.LABEL] ?? name,
     name,
     kind: "card",
-    ...(attrs.icon ? { icon: attrs.icon } : {}),
-    ...(attrs.color ? { color: attrs.color } : {}),
-    ...(attrs.shape ? { shape: attrs.shape } : {}),
+    ...(attrs[ATTR_KEYS.ICON] ? { icon: attrs[ATTR_KEYS.ICON] } : {}),
+    ...(attrs[ATTR_KEYS.COLOR] ? { color: attrs[ATTR_KEYS.COLOR] } : {}),
+    ...(attrs[ATTR_KEYS.SHAPE] ? { shape: attrs[ATTR_KEYS.SHAPE] } : {}),
     ...(opts.isGroup ? { isGroup: true } : {}),
     ...(opts.parentId ? { parentId: opts.parentId } : {}),
   };
@@ -545,11 +604,13 @@ function idFromName(name: string, index: number): string {
 
 function nodeAttrString(node: DiagramNode): string {
   const parts: string[] = [];
-  if (node.icon) parts.push(`icon: ${node.icon}`);
-  if (node.color) parts.push(`color: ${node.color}`);
-  if (node.shape) parts.push(`shape: ${node.shape}`);
+  if (node.icon) parts.push(`${ATTR_KEYS.ICON}${TOKENS.COLON} ${node.icon}`);
+  if (node.color) parts.push(`${ATTR_KEYS.COLOR}${TOKENS.COLON} ${node.color}`);
+  if (node.shape) parts.push(`${ATTR_KEYS.SHAPE}${TOKENS.COLON} ${node.shape}`);
   if (node.label && node.name && node.label !== node.name) {
-    parts.push(`label: "${node.label}"`);
+    parts.push(`${ATTR_KEYS.LABEL}${TOKENS.COLON} ${TOKENS.QUOTE}${node.label}${TOKENS.QUOTE}`);
   }
-  return parts.length > 0 ? `[${parts.join(", ")}]` : "";
+  return parts.length > 0
+    ? `${TOKENS.ATTR_OPEN}${parts.join(`${TOKENS.COMMA} `)}${TOKENS.ATTR_CLOSE}`
+    : "";
 }

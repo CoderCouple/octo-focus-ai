@@ -153,30 +153,36 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
     const layout = computeLayout(diagram);
     const shapesToCreate: TLShapePartial[] = [];
     const idByNode = new Map<string, ReturnType<typeof createShapeId>>();
+    const figureBoundsById = new Map<string, NodeBounds>();
 
-    // Groups first — they sit BEHIND their children so the dashed border
-    // doesn't fight with the contained shapes.
+    // Figure groups first — they sit BEHIND their children so the
+    // framed title bar doesn't fight with the contained shapes.
+    // Children get `parentId: figureId` so dragging the figure carries
+    // everything inside; their x/y are relative to the figure's
+    // top-left (tldraw parent-child semantics).
     for (const node of diagram.nodes) {
       if (!node.isGroup) continue;
       const bounds = layout.groupBounds.get(node.id);
       if (!bounds) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
-      // The `octo-card` shape is custom and not in tldraw's closed
-      // TLShape union; cast via unknown to keep the rest of the
-      // TLShapePartial machinery happy.
+      figureBoundsById.set(node.id, bounds);
+      const parentFigureBounds = node.parentId
+        ? figureBoundsById.get(node.parentId)
+        : undefined;
+      const localX = parentFigureBounds ? bounds.x - parentFigureBounds.x : bounds.x;
+      const localY = parentFigureBounds ? bounds.y - parentFigureBounds.y : bounds.y;
+      const parentTldrawId = node.parentId ? idByNode.get(node.parentId) : undefined;
       shapesToCreate.push({
         id,
-        type: "octo-card",
-        x: bounds.x,
-        y: bounds.y,
+        type: "figure-group",
+        x: localX,
+        y: localY,
+        ...(parentTldrawId ? { parentId: parentTldrawId } : {}),
         props: {
           w: bounds.width,
           h: bounds.height,
           label: node.label,
-          icon: node.icon ?? "",
-          color: node.color ?? "grey",
-          isGroup: true,
         },
         meta: { octoDsl: true, octoNodeId: node.id, octoGroup: true },
       } as unknown as TLShapePartial);
@@ -188,11 +194,18 @@ export function syncDiagramToTldraw(editor: Editor, diagram: OctoFocusAIDiagram)
       if (!pos) continue;
       const id = createShapeId();
       idByNode.set(node.id, id);
+      const parentFigureBounds = node.parentId
+        ? figureBoundsById.get(node.parentId)
+        : undefined;
+      const localX = parentFigureBounds ? pos.x - parentFigureBounds.x : pos.x;
+      const localY = parentFigureBounds ? pos.y - parentFigureBounds.y : pos.y;
+      const parentTldrawId = node.parentId ? idByNode.get(node.parentId) : undefined;
       shapesToCreate.push({
         id,
         type: "octo-card",
-        x: pos.x,
-        y: pos.y,
+        x: localX,
+        y: localY,
+        ...(parentTldrawId ? { parentId: parentTldrawId } : {}),
         props: {
           w: NODE_W,
           h: NODE_H,

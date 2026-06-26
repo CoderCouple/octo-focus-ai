@@ -32,6 +32,7 @@ export const resourceKind = pgEnum("resource_kind", [
   "canvas",
   "meeting",
   "component",
+  "figure",
 ]);
 
 export const componentLanguage = pgEnum("component_language", ["html", "tsx"]);

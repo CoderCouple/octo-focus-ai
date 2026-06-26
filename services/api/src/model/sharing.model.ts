@@ -1,6 +1,6 @@
 import type { resourceShares, shareLinks } from "../db/schemas/sharing";
 
-export type ResourceKind = "project" | "page" | "canvas" | "meeting" | "component";
+export type ResourceKind = "project" | "page" | "canvas" | "meeting" | "component" | "figure";
 export type SharePermission = "viewer" | "commenter" | "editor" | "admin";
 export type ShareStatus = "active" | "pending" | "revoked" | "expired";
 

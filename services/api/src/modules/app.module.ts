@@ -11,6 +11,7 @@ import { CanvasesModule } from "./canvases.module";
 import { CliTokensModule } from "./cli-tokens.module";
 import { ComponentResourceModule } from "./component-resource.module";
 import { ComponentsModule } from "./components.module";
+import { FigureResourceModule } from "./figure-resource.module";
 import { HealthModule } from "./health.module";
 import { MeModule } from "./me.module";
 import { MeetingsModule } from "./meetings.module";
@@ -36,6 +37,7 @@ import { WorkspacesModule } from "./workspaces.module";
     MeetingsModule,
     ComponentsModule,
     ComponentResourceModule,
+    FigureResourceModule,
     SharingModule,
     PublishModule,
     PublicModule,

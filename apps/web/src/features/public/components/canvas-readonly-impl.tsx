@@ -3,6 +3,14 @@
 import { useMemo } from "react";
 import { loadSnapshot, Tldraw, type Editor, type TLStoreSnapshot } from "tldraw";
 import { env } from "@/env/client";
+import { FigureGroupShapeUtil } from "@/features/canvas/shapes/figure-group";
+import { OctoCardShapeUtil } from "@/features/canvas/shapes/octo-card";
+
+// Same custom shape utils registered as the editable mount — without
+// these, DSL-generated `octo-card` and `figure-group` shapes would
+// fail to render in the published view (pre-existing bug: read-only
+// previously omitted `shapeUtils` entirely).
+const SHAPE_UTILS = [OctoCardShapeUtil, FigureGroupShapeUtil];
 
 // Same license-gate suppression as the editable canvas — the
 // read-only view is rendered on the public domain too and would
@@ -47,7 +55,12 @@ export function CanvasReadOnlyImpl({ initialDocument }: CanvasReadOnlyImplProps)
   return (
     <div className="bg-background relative h-full w-full">
       <div className="absolute inset-0">
-        <Tldraw onMount={onMount} hideUi licenseKey={TLDRAW_LICENSE_KEY} />
+        <Tldraw
+          onMount={onMount}
+          shapeUtils={SHAPE_UTILS}
+          hideUi
+          licenseKey={TLDRAW_LICENSE_KEY}
+        />
       </div>
     </div>
   );

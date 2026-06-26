@@ -148,6 +148,7 @@ export function ProjectSplitView({
               initialVisibility={canvas.visibility}
               initialPublicSlug={canvas.publicSlug}
               workspaceSlug={workspaceSlug}
+              workspaceId={project.workspaceId}
             />
           </div>
         ) : null}

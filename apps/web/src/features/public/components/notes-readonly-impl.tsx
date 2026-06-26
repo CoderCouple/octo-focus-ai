@@ -6,6 +6,7 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { CodeBlock } from "@/features/notes/components/code-block";
+import { FigureBlock } from "@/features/notes/components/figure-block";
 import { GenerativeUiBlock } from "@/features/notes/components/generative-ui-block";
 import { MermaidBlock } from "@/features/notes/components/mermaid-block";
 
@@ -19,6 +20,7 @@ const schema = BlockNoteSchema.create({
     mermaid: MermaidBlock(),
     richCode: CodeBlock(),
     generativeUi: GenerativeUiBlock(),
+    figure: FigureBlock(),
   },
 });
 

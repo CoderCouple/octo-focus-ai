@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Focus, Pencil, RefreshCw } from "lucide-react";
+import { ArrowLeft, Focus, Frame, Pencil, RefreshCw, Save } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,8 +9,11 @@ import { DslDrawer } from "@/components/dsl-drawer";
 import { EditableTitle } from "@/components/editable-title";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { createSavedFigureClientApi } from "@/features/figures";
 import { SharePopover, type Visibility } from "@/features/sharing";
 import { renameCanvasAction, updateCanvasAction } from "../actions/canvases-actions";
+import { extractFigureSubgraphDsl } from "../lib/extract-figure-dsl";
+import { wrapSelectionInFigure } from "../lib/wrap-figure";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
@@ -50,6 +53,8 @@ interface CanvasPaneProps {
   initialVisibility?: Visibility;
   initialPublicSlug?: string | null;
   workspaceSlug?: string;
+  /** Required for the "Save figure" action — the figure POST is scoped to a workspace. */
+  workspaceId?: string;
   /** See NotesPane.closeHref — same role. */
   closeHref?: string;
 }
@@ -62,6 +67,7 @@ export function CanvasPane({
   initialVisibility,
   initialPublicSlug,
   workspaceSlug,
+  workspaceId,
   closeHref,
 }: CanvasPaneProps) {
   const [autoShape, setAutoShape] = useState(false);
@@ -89,6 +95,60 @@ export function CanvasPane({
         if (!r.success) console.error("DSL save failed", r.message);
       });
     }, DSL_SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Pull the selected figure-group's subgraph out of the canvas DSL,
+   * POST it as a saved figure, and copy `/f/<id>` to the clipboard
+   * for pasting into a note. Surfaces friendly toasts for the failure
+   * modes — no selection, multiple selection, non-DSL figure.
+   */
+  async function saveSelectedFigure() {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!workspaceId) {
+      toast.error("Workspace context missing — can't save figures here.");
+      return;
+    }
+    // Tldraw's TLShape union is closed over built-ins, so our custom
+    // `figure-group` type isn't part of it. Treat the selection as a
+    // loose shape record and check `type` / `meta` / `props` ourselves.
+    const selected = editor.getSelectedShapes() as ReadonlyArray<{
+      type: string;
+      meta?: { octoNodeId?: string };
+      props?: { label?: string };
+    }>;
+    if (selected.length !== 1) {
+      toast.message("Select exactly one figure to save.");
+      return;
+    }
+    const shape = selected[0];
+    if (shape.type !== "figure-group") {
+      toast.message("Only figure groups can be saved. Use the Figure button to wrap shapes first.");
+      return;
+    }
+    const nodeId = shape.meta?.octoNodeId;
+    if (!nodeId) {
+      toast.error("This figure isn't backed by DSL yet — describe it in the From-code drawer first.");
+      return;
+    }
+    const subgraphDsl = extractFigureSubgraphDsl(dsl, nodeId);
+    if (!subgraphDsl) {
+      toast.error("Couldn't extract this figure's subgraph from the canvas DSL.");
+      return;
+    }
+    const title = (shape.props?.label || "").trim() || "Untitled figure";
+    try {
+      const figure = await createSavedFigureClientApi(workspaceId, {
+        title,
+        dsl: subgraphDsl,
+      });
+      const url = `${window.location.origin}/f/${figure.id}`;
+      await navigator.clipboard.writeText(url).catch(() => {});
+      toast.success("Figure saved — embed URL copied.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save figure.");
+    }
   }
 
   const canShare =
@@ -152,6 +212,33 @@ export function CanvasPane({
               setFitToken((t) => t + 1);
             }}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const editor = editorRef.current;
+              if (!editor) return;
+              const id = wrapSelectionInFigure(editor);
+              if (!id) toast.message("Select shapes first to wrap them in a figure.");
+            }}
+            title="Wrap selected shapes in a figure group"
+          >
+            <Frame className="size-3.5" />
+            Figure
+          </Button>
+          {workspaceId ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => void saveSelectedFigure()}
+              title="Save the selected figure and copy its embed URL"
+            >
+              <Save className="size-3.5" />
+              Save figure
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"

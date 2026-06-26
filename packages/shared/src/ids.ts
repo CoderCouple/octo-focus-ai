@@ -35,6 +35,7 @@ export const ID_PREFIXES = {
   cliToken: "cli",
   meeting: "mtg",
   component: "cmp",
+  figure: "fig",
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];

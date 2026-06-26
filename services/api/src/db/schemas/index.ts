@@ -10,6 +10,7 @@ export * from "./pages";
 export * from "./canvases";
 export * from "./meetings";
 export * from "./components";
+export * from "./figures";
 export * from "./sharing";
 export * from "./agents";
 export * from "./audit";

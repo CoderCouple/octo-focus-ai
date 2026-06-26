@@ -19,11 +19,13 @@ import { env } from "@/env/client";
 import { updateCanvasAction } from "../actions/canvases-actions";
 import { syncDiagramToTldraw } from "../lib/diagram-to-tldraw";
 import { detectShape, type Point } from "../lib/shape-detector";
+import { FigureGroupShapeUtil } from "../shapes/figure-group";
 import { OctoCardShapeUtil } from "../shapes/octo-card";
 
 // Custom shape utils registered with Tldraw — extends the default set
-// with our DSL-rendered `octo-card` shape.
-const SHAPE_UTILS = [OctoCardShapeUtil];
+// with our DSL-rendered `octo-card` (leaf nodes) and `figure-group`
+// (eraser-style titled containers with parented children).
+const SHAPE_UTILS = [OctoCardShapeUtil, FigureGroupShapeUtil];
 
 // tldraw enforces a 5-second license timeout on production hostnames.
 // NEXT_PUBLIC_TLDRAW_LICENSE_KEY suppresses that gate (or attaches the
