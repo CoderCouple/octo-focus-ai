@@ -9,8 +9,8 @@ import {
   Eye,
   Link2,
   Loader2,
-  RefreshCcw,
   Save,
+  Send,
   Sparkles,
   Square,
 } from "lucide-react";
@@ -57,6 +57,19 @@ function highlightCode(code: string): string {
   }
 }
 
+function deriveTitle(code: string): string {
+  const titleMatch = code.match(/<title>([^<]+)<\/title>/i);
+  if (titleMatch?.[1]?.trim()) return titleMatch[1].trim().slice(0, 200);
+  const fnMatch = code.match(/(?:function|const)\s+([A-Z]\w+)/);
+  if (fnMatch?.[1]) return fnMatch[1].replace(/([A-Z])/g, " $1").trim();
+  return "Untitled component";
+}
+
+interface Message {
+  role: "user" | "assistant";
+  text: string;
+}
+
 interface ComponentStudioProps {
   workspaceId: string;
   /** When set, the studio loads in "edit existing" mode. */
@@ -64,68 +77,76 @@ interface ComponentStudioProps {
 }
 
 /**
- * Generative UI studio — type a description, stream a fresh component
- * back from Claude, render live in a sandboxed iframe, save and get a
- * permanent embed URL (`/c/<id>`).
- *
- * Two modes:
- *   - new: no `initial` — `Save` creates a new row + navigates to the
- *     edit URL.
- *   - edit: `initial` provided — `Save` updates in place.
+ * Components studio — two-pane layout matching the in-note refine
+ * overlay. Live preview on the left, AI chat sidebar on the right.
+ * Same `streamGeneratedComponent` SSE pipe powers both initial
+ * generation and follow-up refines; the first message in the chat
+ * acts as Generate, subsequent ones refine the current code.
  */
 export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) {
   const router = useRouter();
   const [savedId, setSavedId] = useState<string | null>(initial?.id ?? null);
-  const [prompt, setPrompt] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const [buffer, setBuffer] = useState("");
   const [committed, setCommitted] = useState(initial?.code ?? "");
   const [savedSnapshot, setSavedSnapshot] = useState(initial?.code ?? "");
-  const [view, setView] = useState<"preview" | "code">("preview");
-  const [copied, setCopied] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [streamBuffer, setStreamBuffer] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState("");
+  const [view, setView] = useState<"preview" | "source">("preview");
+  const [copiedCode, setCopiedCode] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [saving, setSaving] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-    };
+    return () => abortRef.current?.abort();
   }, []);
 
-  const displayCode = committed || buffer;
-  const highlighted = useMemo(() => highlightCode(displayCode), [displayCode]);
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [messages.length, streaming, streamBuffer.length]);
+
+  const highlighted = useMemo(() => highlightCode(committed), [committed]);
   const isDirty = savedId !== null && committed !== savedSnapshot;
   const embedUrl =
     savedId && typeof window !== "undefined"
       ? `${window.location.origin}/c/${savedId}`
       : null;
 
-  const handleGenerate = async () => {
-    const trimmed = prompt.trim();
-    if (!trimmed || streaming) return;
-    setBuffer("");
+  const handleSend = async () => {
+    const prompt = draft.trim();
+    if (!prompt || streaming) return;
+    setDraft("");
+    setMessages((m) => [...m, { role: "user", text: prompt }]);
+    setStreamBuffer("");
     setStreaming(true);
-    setView("code");
+    setView("preview");
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
     try {
       await streamGeneratedComponent(
-        { prompt: trimmed, ...(committed ? { currentCode: committed } : {}) },
+        { prompt, ...(committed ? { currentCode: committed } : {}) },
         {
-          onChunk: (delta) => setBuffer((b) => b + delta),
+          onChunk: (delta) => setStreamBuffer((b) => b + delta),
           onDone: (code) => {
             setCommitted(code);
-            setBuffer("");
+            setStreamBuffer("");
             setStreaming(false);
-            setView("preview");
+            setMessages((m) => [
+              ...m,
+              {
+                role: "assistant",
+                text: committed
+                  ? "Updated. Preview refreshed."
+                  : "Generated. Save it to get an embed URL.",
+              },
+            ]);
           },
           onError: (message) => {
-            toast.error(message);
+            setMessages((m) => [...m, { role: "assistant", text: `Error: ${message}` }]);
             setStreaming(false);
           },
         },
@@ -133,7 +154,13 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
       );
     } catch (err) {
       if ((err as { name?: string })?.name !== "AbortError") {
-        toast.error(err instanceof Error ? err.message : "Generation failed");
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            text: err instanceof Error ? `Error: ${err.message}` : "Generation failed",
+          },
+        ]);
       }
       setStreaming(false);
     }
@@ -144,15 +171,14 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
     setStreaming(false);
   };
 
-  const handleCopy = async () => {
-    if (!displayCode) return;
+  const handleCopyCode = async () => {
+    if (!committed) return;
     try {
-      await navigator.clipboard.writeText(displayCode);
-      setCopied(true);
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(committed);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 1500);
     } catch {
-      toast.error("Couldn't copy — check clipboard permissions.");
+      toast.error("Couldn't copy.");
     }
   };
 
@@ -164,16 +190,8 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
       setTimeout(() => setCopiedUrl(false), 1500);
       toast.success("Embed URL copied — paste into any note");
     } catch {
-      toast.error("Couldn't copy — check clipboard permissions.");
+      toast.error("Couldn't copy.");
     }
-  };
-
-  const deriveTitle = (code: string): string => {
-    const titleMatch = code.match(/<title>([^<]+)<\/title>/i);
-    if (titleMatch?.[1]?.trim()) return titleMatch[1].trim().slice(0, 200);
-    const fnMatch = code.match(/(?:function|const)\s+([A-Z]\w+)/);
-    if (fnMatch?.[1]) return fnMatch[1].replace(/([A-Z])/g, " $1").trim();
-    return "Untitled component";
   };
 
   const handleSave = async () => {
@@ -193,8 +211,7 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
         });
         setSavedId(created.id);
         setSavedSnapshot(committed);
-        toast.success("Saved — embed URL ready below");
-        // Update the URL bar so a reload lands back on the edit view.
+        toast.success("Saved — embed URL ready");
         router.replace(`/workspace/components/${created.id}`);
       }
     } catch (err) {
@@ -204,155 +221,89 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
     }
   };
 
-  const hasResult = displayCode.length > 0;
-  const showPreview = view === "preview" && committed.length > 0 && !streaming;
+  const hasCommitted = committed.length > 0;
+  const showPreview = view === "preview" && hasCommitted;
+  const showSource = view === "source" && hasCommitted;
 
   return (
-    <section className="flex h-full flex-col gap-6 p-6 lg:p-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          <Sparkles className="size-5" />
-          Components
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Describe a UI surface and Claude will emit a self-contained HTML artifact.
-          Save it to get a permanent embed URL you can paste into any note.
-        </p>
+    <section className="flex h-full flex-col">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Sparkles className="size-4 shrink-0" />
+          <span className="text-sm font-semibold">Components</span>
+          {savedId ? (
+            <span className="text-muted-foreground hidden font-mono text-[11px] md:inline">
+              {savedId}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1">
+          {embedUrl ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5"
+              onClick={handleCopyUrl}
+              title={embedUrl}
+            >
+              {copiedUrl ? <Check className="size-3.5" /> : <Link2 className="size-3.5" />}
+              {copiedUrl ? "Copied" : "Embed URL"}
+            </Button>
+          ) : null}
+          {hasCommitted && !streaming ? (
+            <Button
+              size="sm"
+              variant={savedId ? (isDirty ? "default" : "ghost") : "default"}
+              onClick={handleSave}
+              disabled={saving || (savedId !== null && !isDirty)}
+              className="h-7"
+            >
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              {savedId ? (isDirty ? "Save changes" : "Saved") : "Save"}
+            </Button>
+          ) : null}
+          {hasCommitted ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => setView((v) => (v === "preview" ? "source" : "preview"))}
+              title={view === "preview" ? "View source" : "View preview"}
+              disabled={streaming}
+            >
+              {view === "preview" ? (
+                <Code2 className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+            </Button>
+          ) : null}
+          {hasCommitted ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={handleCopyCode}
+              title="Copy code"
+            >
+              {copiedCode ? <Check className="size-4" /> : <Copy className="size-4" />}
+            </Button>
+          ) : null}
+        </div>
       </header>
 
-      <div className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4">
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder={committed ? "Describe the change you want…" : "What do you want to build?"}
-          className="min-h-[88px] resize-none"
-          disabled={streaming}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-              e.preventDefault();
-              void handleGenerate();
-            }
-          }}
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {EXAMPLE_PROMPTS.map((ex) => (
-              <button
-                key={ex}
-                type="button"
-                onClick={() => setPrompt(ex)}
-                disabled={streaming}
-                className="border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-40"
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            {streaming ? (
-              <Button size="sm" variant="destructive" onClick={handleStop}>
-                <Square className="size-3.5" />
-                Stop
-              </Button>
-            ) : (
-              <Button size="sm" onClick={handleGenerate} disabled={!prompt.trim()}>
-                {committed ? (
-                  <>
-                    <RefreshCcw className="size-3.5" />
-                    Refine
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="size-3.5" />
-                    Generate
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {embedUrl ? (
-        <div className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4">
-          <div className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
-            <Link2 className="size-3.5" />
-            Embed URL
-          </div>
-          <div className="flex items-center gap-2">
-            <code className="bg-muted/40 border-border flex-1 truncate rounded border px-2 py-1.5 font-mono text-xs">
-              {embedUrl}
-            </code>
-            <Button size="sm" variant="outline" onClick={handleCopyUrl}>
-              {copiedUrl ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copiedUrl ? "Copied" : "Copy"}
-            </Button>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            Paste this URL into any note — it auto-embeds the live component.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="border-border bg-card flex flex-1 flex-col overflow-hidden rounded-lg border">
-        <header className="flex h-10 shrink-0 items-center justify-between border-b px-3">
-          <div className="text-muted-foreground text-xs font-medium">
-            {streaming
-              ? "Streaming…"
-              : committed
-                ? showPreview
-                  ? "Live preview"
-                  : "Source"
-                : "Generated component will appear here"}
-          </div>
-          <div className="flex items-center gap-1">
-            {hasResult && committed && !streaming ? (
-              <Button
-                size="sm"
-                variant={savedId ? (isDirty ? "default" : "ghost") : "default"}
-                onClick={handleSave}
-                disabled={saving || (savedId !== null && !isDirty)}
-                className="h-7"
-              >
-                {saving ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Save className="size-3.5" />
-                )}
-                {savedId ? (isDirty ? "Save changes" : "Saved") : "Save"}
-              </Button>
-            ) : null}
-            {hasResult && committed ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                onClick={() => setView((v) => (v === "preview" ? "code" : "preview"))}
-                title={view === "preview" ? "View source" : "View preview"}
-                disabled={streaming}
-              >
-                {view === "preview" ? (
-                  <Code2 className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </Button>
-            ) : null}
-            {hasResult ? (
-              <Button variant="ghost" size="icon" className="size-7" onClick={handleCopy}>
-                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-              </Button>
-            ) : null}
-          </div>
-        </header>
-        <div className="bg-muted/30 relative flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
+        <div className="bg-muted/20 relative flex-1 overflow-hidden">
           {showPreview ? (
             <IframeArtifact code={committed} className="h-full" />
-          ) : displayCode ? (
+          ) : showSource ? (
             <pre className="hljs h-full overflow-auto p-4 font-mono text-[0.8rem] leading-relaxed">
               <code
-                className={`language-${detectLanguage(displayCode)}`}
+                className={`language-${detectLanguage(committed)}`}
                 dangerouslySetInnerHTML={{ __html: highlighted }}
               />
             </pre>
@@ -362,19 +313,126 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
                 <div className="inline-flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />
                   Thinking…
+                  {streamBuffer.length > 0 ? (
+                    <span className="text-muted-foreground/70 ml-1 text-xs">
+                      {streamBuffer.length} chars
+                    </span>
+                  ) : null}
                 </div>
               ) : (
                 <div className="max-w-md space-y-2">
-                  <Sparkles className="text-muted-foreground/60 mx-auto size-6" />
-                  <p>Type a prompt above and hit Generate.</p>
+                  <Sparkles className="text-muted-foreground/60 mx-auto size-7" />
+                  <p>Describe a UI surface in the chat on the right and hit Send.</p>
                   <p className="text-muted-foreground/70 text-xs">
-                    Save and paste the embed URL into any note for a live render.
+                    Save the result to get a permanent embed URL you can paste into any note.
                   </p>
                 </div>
               )}
             </div>
           )}
+          {streaming && hasCommitted ? (
+            <div className="bg-foreground/85 text-background absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs shadow">
+              <Loader2 className="size-3 animate-spin" />
+              Generating new version…
+            </div>
+          ) : null}
         </div>
+
+        <aside className="bg-card flex w-[380px] shrink-0 flex-col border-l">
+          <div className="text-muted-foreground border-b px-4 py-2 text-xs font-medium uppercase tracking-wider">
+            AI assistant
+          </div>
+
+          <div
+            ref={listRef}
+            className="flex-1 space-y-3 overflow-auto p-4"
+            aria-live="polite"
+          >
+            {messages.length === 0 && !streaming ? (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-xs">
+                  Describe what you want to build. Claude emits a complete
+                  HTML artifact rendered live on the left.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {EXAMPLE_PROMPTS.map((ex) => (
+                    <button
+                      key={ex}
+                      type="button"
+                      onClick={() => setDraft(ex)}
+                      className="border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 rounded-full border px-2.5 py-1 text-left text-[11px] leading-tight transition-colors"
+                    >
+                      {ex}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={
+                  m.role === "user"
+                    ? "bg-foreground text-background ml-auto max-w-[90%] rounded-lg px-3 py-2 text-sm"
+                    : "border-border bg-background max-w-[95%] rounded-lg border px-3 py-2 text-sm"
+                }
+              >
+                {m.text}
+              </div>
+            ))}
+
+            {streaming ? (
+              <div className="text-muted-foreground inline-flex items-center gap-2 text-xs">
+                <Loader2 className="size-3 animate-spin" />
+                {streamBuffer.length > 0
+                  ? `${streamBuffer.length} chars…`
+                  : "Thinking…"}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t p-3">
+            <div className="flex items-end gap-2">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleSend();
+                  }
+                }}
+                placeholder={committed ? "Describe a change…" : "What do you want to build?"}
+                className="min-h-[60px] resize-none text-sm"
+                rows={3}
+                disabled={streaming}
+              />
+              {streaming ? (
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  onClick={handleStop}
+                  className="size-9 shrink-0"
+                >
+                  <Square className="size-4" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={!draft.trim()}
+                  className="size-9 shrink-0"
+                >
+                  <Send className="size-4" />
+                </Button>
+              )}
+            </div>
+            <p className="text-muted-foreground mt-2 text-[10px]">
+              Enter to send, Shift+Enter for newline.
+            </p>
+          </div>
+        </aside>
       </div>
     </section>
   );
