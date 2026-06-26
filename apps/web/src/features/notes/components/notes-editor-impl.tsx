@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from "react";
 import { updateNoteAction } from "../actions/notes-actions";
 import { CodeBlock } from "./code-block";
 import { GenerativeUiBlock } from "./generative-ui-block";
-import { LegacyCodeBlock } from "./legacy-code-block";
 import { MermaidBlock } from "./mermaid-block";
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -29,14 +28,10 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     mermaid: MermaidBlock(),
-    // `codeBlock` accepts inline text content so notes saved before
-    // the `richCode` rename still load — without it BlockNote rejects
-    // the stored document with "Invalid content for node codeBlock"
-    // and the whole editor crashes.
-    codeBlock: LegacyCodeBlock(),
-    // `richCode` is our rich code block: language picker, copy button,
-    // syntax highlighting, resize. The slash menu inserts this going
-    // forward.
+    // ONE code block everywhere — `richCode`. Legacy `codeBlock`
+    // instances stored in old notes are rewritten to `richCode` by
+    // `migrateBlocks` BEFORE the editor sees them, so we no longer
+    // register a back-compat spec under `codeBlock`.
     richCode: CodeBlock(),
     // Live-rendered React/HTML artifact pasted from the Components
     // studio (or hand-written). Powered by react-live + the iframe
