@@ -1,4 +1,4 @@
-export { NotesPane } from "./components/notes-pane";
+export { NotesPane, type NotesEditorHandle } from "./components/notes-pane";
 export { NotesStats } from "./components/notes-stats";
 export { NotesTable } from "./components/notes-table";
 export { deriveNotesStats, noteStatusLabel } from "./lib/derive-notes-stats";

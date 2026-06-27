@@ -6,6 +6,7 @@ import type {
   SavedFigure,
   SavedFigureCreate,
   SavedFigureUpdate,
+  WorkspaceFigureSummary,
 } from "../types";
 
 async function clientFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -28,6 +29,10 @@ async function clientFetch<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new Error(`OctoFocusAI API ${path} ${res.status}: ${message}`);
   }
   return unwrapBaseResponse<T>(body, path);
+}
+
+export function listSavedFiguresClientApi(workspaceId: string): Promise<WorkspaceFigureSummary[]> {
+  return clientFetch<WorkspaceFigureSummary[]>(`/workspaces/${workspaceId}/saved-figures`);
 }
 
 export function createSavedFigureClientApi(

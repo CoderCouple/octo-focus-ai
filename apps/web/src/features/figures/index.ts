@@ -11,5 +11,8 @@ export type {
 export {
   createSavedFigureClientApi,
   getPublicFigureClientApi,
+  listSavedFiguresClientApi,
   updateSavedFigureClientApi,
 } from "./api/saved-figures-client-api";
+
+export { FigurePickerDialog } from "./components/figure-picker-dialog";

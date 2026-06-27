@@ -17,7 +17,10 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import { Code2, Frame, Sparkles, Workflow } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import * as React from "react";
+import { FigurePickerDialog } from "@/features/figures";
 import { updateNoteAction } from "../actions/notes-actions";
+import { parseEmbedUrl } from "../lib/parse-embed-url";
 import { CodeBlock } from "./code-block";
 import { FigureBlock } from "./figure-block";
 import { GenerativeUiBlock } from "./generative-ui-block";
@@ -93,7 +96,16 @@ function insertGenerativeUiItem(editor: OctoEditor): DefaultReactSuggestionItem 
   };
 }
 
-function insertFigureItem(editor: OctoEditor): DefaultReactSuggestionItem {
+/**
+ * When `workspaceId` is available, the slash menu's Figure item opens
+ * the workspace picker via `onOpenPicker`. Without a workspaceId
+ * (e.g. read-only contexts, published note views) we fall back to
+ * inserting an empty figure block so the user can paste a URL.
+ */
+function insertFigureItem(
+  editor: OctoEditor,
+  onOpenPicker: (() => void) | null,
+): DefaultReactSuggestionItem {
   return {
     title: "Figure",
     subtext: "Embed a saved canvas figure",
@@ -101,19 +113,43 @@ function insertFigureItem(editor: OctoEditor): DefaultReactSuggestionItem {
     group: "Embeds",
     icon: <Frame className="h-4 w-4" />,
     onItemClick: () => {
+      if (onOpenPicker) {
+        onOpenPicker();
+        return;
+      }
       const current = editor.getTextCursorPosition().block;
       editor.replaceBlocks([current], [{ type: "figure" }]);
     },
   };
 }
 
+/** Imperative handle exposed via the `onEditorReady` callback. */
+export interface NotesEditorHandle {
+  /** Insert a figure block referencing a saved figure id at the cursor. */
+  insertFigureBlock: (figureId: string) => void;
+}
+
 export interface NotesEditorProps {
   pageId: string;
   initialContent: unknown;
   view?: "edit" | "raw";
+  /** Required for the `/Figure` slash menu picker and drop-to-save. */
+  workspaceId?: string;
+  /**
+   * Called once on mount with the imperative editor handle so a
+   * sibling pane (e.g. CanvasPane in the split view) can push blocks
+   * into the editor without going through the clipboard.
+   */
+  onEditorReady?: (handle: NotesEditorHandle) => void;
 }
 
-export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEditorProps) {
+export function NotesEditor({
+  pageId,
+  initialContent,
+  view = "edit",
+  workspaceId,
+  onEditorReady,
+}: NotesEditorProps) {
   const initialBlocks =
     initialContent &&
     typeof initialContent === "object" &&
@@ -128,6 +164,22 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [rawMd, setRawMd] = useState<string>("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  /** Imperative figure-block insertion — shared by the picker, the
+   * "Insert into note" button from CanvasPane, and the drop handler. */
+  function insertFigureBlockById(figureId: string) {
+    const current = editor.getTextCursorPosition().block;
+    editor.replaceBlocks([current], [{ type: "figure", props: { figureId } }]);
+  }
+
+  // Hand out the imperative handle so the parent split view can push
+  // blocks in from the canvas.
+  useEffect(() => {
+    if (!onEditorReady) return;
+    onEditorReady({ insertFigureBlock: insertFigureBlockById });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onEditorReady]);
 
   useEffect(() => {
     return () => {
@@ -149,35 +201,60 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
   }, [view, editor]);
 
   /**
-   * Paste handler — when the user pastes a `/c/<id>` embed URL (from
-   * the Components studio's "Embed URL" copy), intercept it and
-   * insert a `generativeUi` block referencing that component id.
-   * Snapshot fetch happens inside the block on mount. Falls through to
-   * BlockNote's default paste behaviour for anything else.
+   * Capture-phase paste handler — runs BEFORE BlockNote's
+   * contentEditable hears the paste, so calling `preventDefault` +
+   * `stopPropagation` here actually prevents the URL from
+   * auto-linkifying. The earlier bubble-phase listener ran AFTER
+   * BlockNote had already inserted a hyperlink, which is why the
+   * figure URL showed up as a clickable link instead of an embed.
+   *
+   * Two embed URL shapes are recognised:
+   *   - `/c/<cmp_...>` → Components artifact (generativeUi block)
+   *   - `/f/<fig_...>` → Saved canvas figure (figure block)
    */
-  function onPaste(event: React.ClipboardEvent<HTMLDivElement>) {
+  function onPasteCapture(event: React.ClipboardEvent<HTMLDivElement>) {
     const text = event.clipboardData?.getData("text/plain") ?? "";
-    if (!text) return;
-    const trimmed = text.trim();
+    const target = parseEmbedUrl(text);
+    if (!target) return;
 
-    // `/c/<cmp_...>` → embed the saved Components artifact
-    const componentMatch = trimmed.match(/(?:^|\/c\/)(cmp_[A-Za-z0-9_-]+)/);
-    if (componentMatch) {
-      const componentId = componentMatch[1];
+    event.preventDefault();
+    event.stopPropagation();
+    const current = editor.getTextCursorPosition().block;
+
+    if (target.kind === "component") {
+      editor.replaceBlocks(
+        [current],
+        [{ type: "generativeUi", props: { componentId: target.id } }],
+      );
+    } else {
+      editor.replaceBlocks(
+        [current],
+        [{ type: "figure", props: { figureId: target.id } }],
+      );
+    }
+  }
+
+  /**
+   * Capture-phase drop handler — recognises figure ids dragged from a
+   * canvas figure-group's title handle. Prefers the custom mime type
+   * (most reliable), falls back to the text/plain URL which the drag
+   * source also sets (covers cross-frame strip-down). Falls through
+   * to BlockNote's default drop behaviour for anything else.
+   */
+  function onDropCapture(event: React.DragEvent<HTMLDivElement>) {
+    const figureId = event.dataTransfer?.getData("application/x-octofocus-figure-id");
+    if (figureId && /^fig_[A-Za-z0-9_-]+$/.test(figureId)) {
       event.preventDefault();
-      const current = editor.getTextCursorPosition().block;
-      editor.replaceBlocks([current], [{ type: "generativeUi", props: { componentId } }]);
+      event.stopPropagation();
+      insertFigureBlockById(figureId);
       return;
     }
-
-    // `/f/<fig_...>` → embed the saved canvas figure
-    const figureMatch = trimmed.match(/(?:^|\/f\/)(fig_[A-Za-z0-9_-]+)/);
-    if (figureMatch) {
-      const figureId = figureMatch[1];
+    const text = event.dataTransfer?.getData("text/plain") ?? "";
+    const target = parseEmbedUrl(text);
+    if (target?.kind === "figure") {
       event.preventDefault();
-      const current = editor.getTextCursorPosition().block;
-      editor.replaceBlocks([current], [{ type: "figure", props: { figureId } }]);
-      return;
+      event.stopPropagation();
+      insertFigureBlockById(target.id);
     }
   }
 
@@ -198,7 +275,11 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
   }
 
   return (
-    <div className="bg-card h-full overflow-auto" onPaste={onPaste}>
+    <div
+      className="bg-card h-full overflow-auto"
+      onPasteCapture={onPasteCapture}
+      onDropCapture={onDropCapture}
+    >
       <div className={view === "raw" ? "hidden" : "contents"}>
         <BlockNoteView editor={editor} onChange={onChange} slashMenu={false}>
           <SuggestionMenuController
@@ -210,7 +291,10 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
                   insertMermaidItem(editor),
                   insertCodeItem(editor),
                   insertGenerativeUiItem(editor),
-                  insertFigureItem(editor),
+                  insertFigureItem(
+                    editor,
+                    workspaceId ? () => setPickerOpen(true) : null,
+                  ),
                 ],
                 query,
               )
@@ -223,6 +307,14 @@ export function NotesEditor({ pageId, initialContent, view = "edit" }: NotesEdit
           {rawMd}
         </pre>
       )}
+      {workspaceId ? (
+        <FigurePickerDialog
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          workspaceId={workspaceId}
+          onPick={(figureId) => insertFigureBlockById(figureId)}
+        />
+      ) : null}
     </div>
   );
 }

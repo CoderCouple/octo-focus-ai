@@ -101,6 +101,29 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
 
   override component(shape: FigureGroupShape) {
     const { label, w, h } = shape.props;
+    // Figures saved via `Save figure` get their `figureId` written
+    // onto `meta`. When that's present the title bar shows a drag
+    // handle that initiates a native HTML5 drag carrying the figure
+    // id — the notes editor's `onDropCapture` recognises this and
+    // inserts a figure block at the drop position.
+    const figureId = (shape.meta as { figureId?: string } | undefined)?.figureId;
+
+    const handleDragStart = (event: React.DragEvent<HTMLSpanElement>) => {
+      if (!figureId) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("application/x-octofocus-figure-id", figureId);
+      // Plain-text fallback — useful if the drop target strips the
+      // custom mime type, or for cross-window drag.
+      const url = `${window.location.origin}/f/${figureId}`;
+      event.dataTransfer.setData("text/plain", url);
+      // Tldraw listens for pointer events on the canvas; stop the
+      // drag start from also triggering shape-move logic.
+      event.stopPropagation();
+    };
+
     return (
       <HTMLContainer
         id={shape.id}
@@ -163,6 +186,29 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
           >
             {label}
           </span>
+          {figureId ? (
+            <span
+              draggable
+              onDragStart={handleDragStart}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              title="Drag into a note to embed this figure"
+              role="button"
+              aria-label="Drag to embed in a note"
+              style={{
+                flex: "0 0 auto",
+                cursor: "grab",
+                userSelect: "none",
+                padding: "2px 4px",
+                borderRadius: 4,
+                color: "#71717a",
+                fontSize: 12,
+                lineHeight: 1,
+                letterSpacing: -1,
+              }}
+            >
+              ⋮⋮
+            </span>
+          ) : null}
         </div>
       </HTMLContainer>
     );

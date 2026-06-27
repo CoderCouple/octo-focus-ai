@@ -13,3 +13,5 @@ export const NotesEditor = dynamic(
     ),
   },
 );
+
+export type { NotesEditorHandle, NotesEditorProps } from "./notes-editor-impl";

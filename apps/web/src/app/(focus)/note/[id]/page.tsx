@@ -33,6 +33,7 @@ export default async function FocusNotePage({ params }: PageProps) {
         initialVisibility={page.visibility}
         initialPublicSlug={page.publicSlug}
         workspaceSlug={workspaceSlug}
+        workspaceId={project.workspaceId}
         closeHref="/workspace/notes"
       />
       <FloatingAiLauncher

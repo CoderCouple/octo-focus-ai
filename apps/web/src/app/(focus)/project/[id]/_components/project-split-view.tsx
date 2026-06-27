@@ -3,11 +3,11 @@
 import type { Canvas, Page, Project } from "@octofocus/shared";
 import { ArrowLeft, Columns2, FileText, Focus, LayoutGrid } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { FloatingAiLauncher } from "@/features/ai-chat";
 import { CanvasPane, extractDslLanguage, extractSourceOpen } from "@/features/canvas";
-import { NotesPane } from "@/features/notes";
+import { NotesPane, type NotesEditorHandle } from "@/features/notes";
 import { renameProjectAction } from "@/features/projects";
 import { SharePopover } from "@/features/sharing";
 import { EditableTitle } from "@/components/editable-title";
@@ -45,6 +45,24 @@ export function ProjectSplitView({
     initialMode ?? (page && canvas ? "both" : page ? "notes" : "canvas");
   const [mode, setMode] = useState<Mode>(resolvedInitialMode);
   const [projectName, setProjectName] = useState(project.name);
+
+  /**
+   * Holds the NotesEditor imperative handle (set via `onEditorReady`)
+   * so CanvasPane's "Save & insert into note" button can push a
+   * figure block straight into the live editor — no clipboard hop.
+   * Null when the notes pane isn't mounted (canvas-only mode).
+   */
+  const notesEditorHandleRef = useRef<NotesEditorHandle | null>(null);
+  const showNotesAndCanvas = mode === "both" && page && canvas;
+
+  function handleInsertFigureIntoNote(figureId: string) {
+    if (!notesEditorHandleRef.current) {
+      toast.error("Open the notes pane to insert a figure there.");
+      return;
+    }
+    notesEditorHandleRef.current.insertFigureBlock(figureId);
+    toast.success("Figure inserted into note.");
+  }
 
   const handleRename = async (next: string) => {
     setProjectName(next);
@@ -135,6 +153,10 @@ export function ProjectSplitView({
               initialVisibility={page.visibility}
               initialPublicSlug={page.publicSlug}
               workspaceSlug={workspaceSlug}
+              workspaceId={project.workspaceId}
+              onEditorReady={(handle) => {
+                notesEditorHandleRef.current = handle;
+              }}
             />
           </div>
         ) : null}
@@ -151,6 +173,9 @@ export function ProjectSplitView({
               initialPublicSlug={canvas.publicSlug}
               workspaceSlug={workspaceSlug}
               workspaceId={project.workspaceId}
+              onInsertFigureIntoNote={
+                showNotesAndCanvas ? handleInsertFigureIntoNote : undefined
+              }
             />
           </div>
         ) : null}

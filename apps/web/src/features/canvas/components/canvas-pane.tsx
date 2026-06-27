@@ -61,6 +61,13 @@ interface CanvasPaneProps {
   workspaceSlug?: string;
   /** Required for the "Save figure" action — the figure POST is scoped to a workspace. */
   workspaceId?: string;
+  /**
+   * When provided (split view), the canvas-pane renders an extra
+   * "Save & insert into note" button that pushes the saved figure
+   * straight into the sibling NotesPane via its imperative handle —
+   * skipping the clipboard hop entirely.
+   */
+  onInsertFigureIntoNote?: (figureId: string) => void;
   /** See NotesPane.closeHref — same role. */
   closeHref?: string;
 }
@@ -76,6 +83,7 @@ export function CanvasPane({
   initialPublicSlug,
   workspaceSlug,
   workspaceId,
+  onInsertFigureIntoNote,
   closeHref,
 }: CanvasPaneProps) {
   const [autoShape, setAutoShape] = useState(false);
@@ -144,44 +152,49 @@ export function CanvasPane({
   }
 
   /**
-   * Pull the selected figure-group's subgraph out of the canvas DSL,
-   * POST it as a saved figure, and copy `/f/<id>` to the clipboard
-   * for pasting into a note. Surfaces friendly toasts for the failure
-   * modes — no selection, multiple selection, non-DSL figure.
+   * Save the selected figure-group's subgraph as a standalone Figure
+   * row. Returns the saved figure id on success so callers can chain
+   * an "insert into note" or "copy URL" action; returns null when any
+   * precondition fails (toasts surface the friendly reason).
+   *
+   * Also persists `figureId` onto the shape's `meta` so the drag
+   * handle in the figure title bar knows the figure is saved and can
+   * carry the id in dataTransfer for drop-into-note (Phase 3B).
    */
-  async function saveSelectedFigure() {
+  async function saveSelectedFigure(): Promise<string | null> {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor) return null;
     if (!workspaceId) {
       toast.error("Workspace context missing — can't save figures here.");
-      return;
+      return null;
     }
     // Tldraw's TLShape union is closed over built-ins, so our custom
     // `figure-group` type isn't part of it. Treat the selection as a
     // loose shape record and check `type` / `meta` / `props` ourselves.
     const selected = editor.getSelectedShapes() as ReadonlyArray<{
+      id: string;
       type: string;
-      meta?: { octoNodeId?: string };
+      meta?: { octoNodeId?: string; figureId?: string };
       props?: { label?: string };
     }>;
     if (selected.length !== 1) {
       toast.message("Select exactly one figure to save.");
-      return;
+      return null;
     }
     const shape = selected[0];
     if (shape.type !== "figure-group") {
       toast.message("Only figure groups can be saved. Use the Figure button to wrap shapes first.");
-      return;
+      return null;
     }
     const nodeId = shape.meta?.octoNodeId;
     if (!nodeId) {
       toast.error("This figure isn't backed by DSL yet — describe it in the From-code drawer first.");
-      return;
+      return null;
     }
     const subgraphDsl = extractFigureSubgraphDsl(dsl, nodeId);
     if (!subgraphDsl) {
       toast.error("Couldn't extract this figure's subgraph from the canvas DSL.");
-      return;
+      return null;
     }
     const title = (shape.props?.label || "").trim() || "Untitled figure";
     try {
@@ -189,12 +202,36 @@ export function CanvasPane({
         title,
         dsl: subgraphDsl,
       });
-      const url = `${window.location.origin}/f/${figure.id}`;
-      await navigator.clipboard.writeText(url).catch(() => {});
-      toast.success("Figure saved — embed URL copied.");
+      // Tldraw shape ids are opaque strings; update the meta with the
+      // returned figure id so the drag handle in the figure title bar
+      // activates immediately for follow-up drag-and-drop.
+      editor.updateShape({
+        id: shape.id as never,
+        type: "figure-group",
+        meta: { ...(shape.meta ?? {}), figureId: figure.id },
+      } as never);
+      return figure.id;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save figure.");
+      return null;
     }
+  }
+
+  /** Save + copy `/f/<id>` URL to clipboard (the original Save button flow). */
+  async function saveSelectedFigureToClipboard() {
+    const id = await saveSelectedFigure();
+    if (!id) return;
+    const url = `${window.location.origin}/f/${id}`;
+    await navigator.clipboard.writeText(url).catch(() => {});
+    toast.success("Figure saved — embed URL copied.");
+  }
+
+  /** Save + push directly into the sibling NotesPane (split view only). */
+  async function saveSelectedFigureAndInsert() {
+    if (!onInsertFigureIntoNote) return;
+    const id = await saveSelectedFigure();
+    if (!id) return;
+    onInsertFigureIntoNote(id);
   }
 
   const canShare =
@@ -294,11 +331,23 @@ export function CanvasPane({
               variant="ghost"
               size="sm"
               className="gap-1.5"
-              onClick={() => void saveSelectedFigure()}
+              onClick={() => void saveSelectedFigureToClipboard()}
               title="Save the selected figure and copy its embed URL"
             >
               <Save className="size-3.5" />
               Save figure
+            </Button>
+          ) : null}
+          {workspaceId && onInsertFigureIntoNote ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => void saveSelectedFigureAndInsert()}
+              title="Save the figure and insert it into the open note"
+            >
+              <Save className="size-3.5" />
+              Insert into note
             </Button>
           ) : null}
           <Button

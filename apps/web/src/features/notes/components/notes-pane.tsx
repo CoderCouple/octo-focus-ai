@@ -11,6 +11,9 @@ import { Toggle } from "@/components/ui/toggle";
 import { SharePopover, type Visibility } from "@/features/sharing";
 import { updateNoteClientApi, updateNoteSettingsApi } from "../api/notes-client-api";
 import { NotesEditor } from "./notes-editor";
+import type { NotesEditorHandle } from "./notes-editor-impl";
+
+export type { NotesEditorHandle };
 
 interface NotesPaneProps {
   pageId: string;
@@ -26,12 +29,25 @@ interface NotesPaneProps {
   initialPublicSlug?: string | null;
   workspaceSlug?: string;
   /**
+   * Required for the `/Figure` slash menu and the figure block save
+   * fallback — both POST to a workspace-scoped endpoint. Optional so
+   * existing call sites (and the published read-only view) don't
+   * break; the slash menu just hides the picker when absent.
+   */
+  workspaceId?: string;
+  /**
    * When set, the pane renders a small X close link at the very start
    * of its header (before the title). Used by the focus route so the
    * close affordance sits inline with the title chrome instead of
    * floating on top of the editor.
    */
   closeHref?: string;
+  /**
+   * Imperative editor handle handed back to the parent so other panes
+   * (e.g. CanvasPane in the split view) can push blocks into the
+   * notes editor without going through the clipboard.
+   */
+  onEditorReady?: (handle: NotesEditorHandle) => void;
 }
 
 export function NotesPane({
@@ -42,7 +58,9 @@ export function NotesPane({
   initialVisibility,
   initialPublicSlug,
   workspaceSlug,
+  workspaceId,
   closeHref,
+  onEditorReady,
 }: NotesPaneProps) {
   const [raw, setRaw] = useState(false);
   const [font, setFont] = useState<NoteFont>(
@@ -121,7 +139,13 @@ export function NotesPane({
         </div>
       </header>
       <div className="flex-1 overflow-hidden" data-notes-font={font}>
-        <NotesEditor pageId={pageId} initialContent={initialContent} view={raw ? "raw" : "edit"} />
+        <NotesEditor
+          pageId={pageId}
+          initialContent={initialContent}
+          view={raw ? "raw" : "edit"}
+          workspaceId={workspaceId}
+          onEditorReady={onEditorReady}
+        />
       </div>
     </div>
   );
