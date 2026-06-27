@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPublicFigureApi } from "@/features/figures/api/saved-figures-api";
-import { FigureReadOnlyImpl } from "@/features/public/components/figure-readonly-impl";
+import { FigureReadOnly } from "@/features/public/components/figure-readonly";
 
 export const revalidate = 60;
 
@@ -30,7 +30,7 @@ export default async function PublicFigurePage({ params }: PageProps) {
 
   return (
     <div className="h-screen w-screen">
-      <FigureReadOnlyImpl dsl={figure.dsl} />
+      <FigureReadOnly dsl={figure.dsl} />
     </div>
   );
 }

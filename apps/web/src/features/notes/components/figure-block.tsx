@@ -5,7 +5,7 @@ import { Frame, GripHorizontal, GripVertical } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as React from "react";
 import { getPublicFigureClientApi } from "@/features/figures";
-import { FigureReadOnlyImpl } from "@/features/public/components/figure-readonly-impl";
+import { FigureReadOnly } from "@/features/public/components/figure-readonly";
 
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 1400;
@@ -149,7 +149,7 @@ export const FigureBlock = createReactBlockSpec(figureBlockConfig, {
           </div>
         </header>
         <div className="bg-background overflow-hidden" style={{ height: currentHeight }}>
-          <FigureReadOnlyImpl dsl={dsl} />
+          <FigureReadOnly dsl={dsl} />
         </div>
         {isEditable ? (
           <FigureResizeHandles startResize={startResize} />
