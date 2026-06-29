@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Code2, Focus, Frame, Pencil, RefreshCw, Save } from "lucide-react";
+import { ArrowLeft, Code2, Focus, Frame, Pencil, RefreshCw, Save, Ungroup } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import { SharePopover, type Visibility } from "@/features/sharing";
 import { renameCanvasAction, updateCanvasAction } from "../actions/canvases-actions";
 import type { DslLanguage } from "../lib/extract-dsl";
 import { extractFigureSubgraphDsl } from "../lib/extract-figure-dsl";
-import { wrapSelectionInFigure } from "../lib/wrap-figure";
+import { ungroupSelection, wrapSelectionInFigure } from "../lib/wrap-figure";
 import { CanvasExportDialog } from "./canvas-export-dialog";
 import { FromCodeDrawer } from "./from-code-drawer";
 import { OctoCanvas } from "./octo-canvas-dynamic";
@@ -440,6 +440,31 @@ export function CanvasPane({
           >
             <Frame className="size-3.5" />
             Figure
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const editor = editorRef.current;
+              if (!editor) return;
+              const result = ungroupSelection(editor);
+              if (result.kind === "noop") {
+                toast.message(
+                  "Select a figure to dissolve, or shapes inside one to lift them out.",
+                );
+              } else if (result.kind === "dissolved") {
+                toast.success(`Figure dissolved (${result.childCount} shape${result.childCount === 1 ? "" : "s"} kept).`);
+              } else {
+                toast.success(
+                  `${result.shapeCount} shape${result.shapeCount === 1 ? "" : "s"} removed from figure.`,
+                );
+              }
+            }}
+            title="Dissolve the selected figure, or remove selected shapes from their figure"
+          >
+            <Ungroup className="size-3.5" />
+            Ungroup
           </Button>
           {workspaceId && onInsertFigureIntoNote ? (
             <Button
