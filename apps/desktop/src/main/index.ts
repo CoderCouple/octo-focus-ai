@@ -14,6 +14,7 @@
 import { app, BrowserWindow, shell } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerIpcHandlers } from "./ipc";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -56,6 +57,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  registerIpcHandlers();
   createWindow();
 
   app.on("activate", () => {

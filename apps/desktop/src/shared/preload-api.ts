@@ -21,10 +21,20 @@ export type ProcessVersions = Readonly<Record<string, string | undefined>>;
  * platform strings doesn't matter, and using `string` avoids
  * coupling the renderer's types to a Node version it doesn't import.
  */
+export interface TokenApi {
+  /** Returns the stored Bearer token, or null when none is saved. */
+  get(): Promise<string | null>;
+  /** Persists a new token to the OS keychain. */
+  set(token: string): Promise<void>;
+  /** Clears the stored token (sign-out). */
+  clear(): Promise<void>;
+}
+
 export interface OctofocusBridge {
   platform: string;
   versions: ProcessVersions;
   invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
+  token: TokenApi;
 }
 
 declare global {

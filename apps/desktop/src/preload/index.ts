@@ -18,11 +18,21 @@ const api: OctofocusBridge = {
   /**
    * Generic IPC helper — main-side handlers register via
    * `ipcMain.handle(channel, ...)`. Surfaced as `window.octofocus.invoke`.
-   * Later PRs add typed wrappers (e.g. `getToken`, `startCapture`)
-   * that call this under the hood.
+   * Later PRs add typed wrappers (e.g. `startCapture`) that call
+   * this under the hood; today the only typed wrapper is `token.*`.
    */
   invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
     ipcRenderer.invoke(channel, ...args),
+  /**
+   * Bearer token vault — round-trips to the macOS Keychain via
+   * keytar in the main process. The token never enters renderer
+   * memory until the user explicitly fetches it for an API call.
+   */
+  token: {
+    get: () => ipcRenderer.invoke("token:get") as Promise<string | null>,
+    set: (token) => ipcRenderer.invoke("token:set", token) as Promise<void>,
+    clear: () => ipcRenderer.invoke("token:clear") as Promise<void>,
+  },
 };
 
 contextBridge.exposeInMainWorld("octofocus", api);
