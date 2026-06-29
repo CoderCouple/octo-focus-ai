@@ -168,9 +168,17 @@ export function NotesEditor({
 
   /** Imperative figure-block insertion — shared by the picker, the
    * "Insert into note" button from CanvasPane, and the drop handler. */
-  function insertFigureBlockById(figureId: string) {
+  function insertFigureBlockById(figureId: string, dslSnapshot?: string) {
     const current = editor.getTextCursorPosition().block;
-    editor.replaceBlocks([current], [{ type: "figure", props: { figureId } }]);
+    editor.replaceBlocks(
+      [current],
+      [
+        {
+          type: "figure",
+          props: dslSnapshot ? { figureId, dsl: dslSnapshot } : { figureId },
+        },
+      ],
+    );
   }
 
   // Hand out the imperative handle so the parent split view can push
@@ -241,12 +249,36 @@ export function NotesEditor({
    * source also sets (covers cross-frame strip-down). Falls through
    * to BlockNote's default drop behaviour for anything else.
    */
+  /**
+   * Mark drag-overs as a copy so the browser doesn't treat the
+   * gesture as a move and prompt the source (the canvas) to delete
+   * its shape on dragend. Also tells the browser the editor will
+   * accept the drop — without `preventDefault()` here, native drop
+   * never fires.
+   */
+  function onDragOverCapture(event: React.DragEvent<HTMLDivElement>) {
+    const types = event.dataTransfer?.types;
+    if (!types) return;
+    if (
+      types.includes("application/x-octofocus-figure-id") ||
+      types.includes("application/x-octofocus-figure-dsl")
+    ) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    }
+  }
+
   function onDropCapture(event: React.DragEvent<HTMLDivElement>) {
     const figureId = event.dataTransfer?.getData("application/x-octofocus-figure-id");
     if (figureId && /^fig_[A-Za-z0-9_-]+$/.test(figureId)) {
       event.preventDefault();
       event.stopPropagation();
-      insertFigureBlockById(figureId);
+      // Optional subgraph DSL set by the canvas drag source —
+      // unblocks instant render on drop. Falls back to the figure
+      // block's public-fetch path when absent.
+      const dslSnapshot =
+        event.dataTransfer?.getData("application/x-octofocus-figure-dsl") || undefined;
+      insertFigureBlockById(figureId, dslSnapshot);
       return;
     }
     const text = event.dataTransfer?.getData("text/plain") ?? "";
@@ -278,6 +310,7 @@ export function NotesEditor({
     <div
       className="bg-card h-full overflow-auto"
       onPasteCapture={onPasteCapture}
+      onDragOverCapture={onDragOverCapture}
       onDropCapture={onDropCapture}
     >
       <div className={view === "raw" ? "hidden" : "contents"}>

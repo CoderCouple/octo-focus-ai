@@ -211,6 +211,15 @@ export function CanvasPane({
               title,
             });
             lastSyncedFigureDslRef.current.set(existingId, subgraphDsl);
+            // Mirror the just-persisted subgraph onto the shape meta
+            // so the title-bar drag handle can carry it in
+            // dataTransfer — the note block then renders instantly
+            // from the snapshot instead of waiting for a public fetch.
+            editor.updateShape({
+              id: shape.id as never,
+              type: "figure-group",
+              meta: { ...(shape.meta ?? {}), figureDsl: subgraphDsl },
+            } as never);
           } catch (err) {
             console.error("Figure PATCH failed", err);
           }
@@ -225,7 +234,11 @@ export function CanvasPane({
           editor.updateShape({
             id: shape.id as never,
             type: "figure-group",
-            meta: { ...(shape.meta ?? {}), figureId: figure.id },
+            meta: {
+              ...(shape.meta ?? {}),
+              figureId: figure.id,
+              figureDsl: subgraphDsl,
+            },
           } as never);
           lastSyncedFigureDslRef.current.set(figure.id, subgraphDsl);
         } catch (err) {

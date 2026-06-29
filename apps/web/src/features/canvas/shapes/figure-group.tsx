@@ -106,7 +106,11 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
     // handle that initiates a native HTML5 drag carrying the figure
     // id — the notes editor's `onDropCapture` recognises this and
     // inserts a figure block at the drop position.
-    const figureId = (shape.meta as { figureId?: string } | undefined)?.figureId;
+    const meta = shape.meta as
+      | { figureId?: string; figureDsl?: string }
+      | undefined;
+    const figureId = meta?.figureId;
+    const figureDsl = meta?.figureDsl;
 
     const handleDragStart = (event: React.DragEvent<HTMLSpanElement>) => {
       if (!figureId) {
@@ -115,6 +119,13 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
       }
       event.dataTransfer.effectAllowed = "copy";
       event.dataTransfer.setData("application/x-octofocus-figure-id", figureId);
+      // Subgraph DSL snapshot — lets the dropped note block render
+      // the actual figure immediately, instead of showing the
+      // placeholder until the public fetch completes (slow link, or
+      // outright failure).
+      if (figureDsl) {
+        event.dataTransfer.setData("application/x-octofocus-figure-dsl", figureDsl);
+      }
       // Plain-text fallback — useful if the drop target strips the
       // custom mime type, or for cross-window drag.
       const url = `${window.location.origin}/f/${figureId}`;
