@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/**
+ * Strict monochrome theme matching the web app. Tailwind v4 reads
+ * these CSS vars via the `bg-foreground` / `text-muted-foreground` /
+ * etc. utilities under the @theme inline directive below.
+ */
+@theme inline {
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(0 0% 6%);
+  --color-card: hsl(0 0% 100%);
+  --color-muted: hsl(0 0% 96%);
+  --color-muted-foreground: hsl(0 0% 45%);
+  --color-border: hsl(0 0% 90%);
+  --color-accent: hsl(0 0% 96%);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme inline {
+    --color-background: hsl(0 0% 4%);
+    --color-foreground: hsl(0 0% 98%);
+    --color-card: hsl(0 0% 8%);
+    --color-muted: hsl(0 0% 14%);
+    --color-muted-foreground: hsl(0 0% 64%);
+    --color-border: hsl(0 0% 18%);
+    --color-accent: hsl(0 0% 18%);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
