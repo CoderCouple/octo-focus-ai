@@ -11,9 +11,10 @@ import { createMeeting, getMe, type MeResponse } from "../lib/api";
 
 interface HomeScreenProps {
   onSignedOut: () => void;
+  onStartMeeting: (meetingId: string, meetingTitle: string) => void;
 }
 
-export function HomeScreen({ onSignedOut }: HomeScreenProps) {
+export function HomeScreen({ onSignedOut, onStartMeeting }: HomeScreenProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,10 +40,11 @@ export function HomeScreen({ onSignedOut }: HomeScreenProps) {
     if (!activeWorkspace) return;
     setBusy(true);
     try {
-      const meeting = await createMeeting(activeWorkspace.id, {
-        title: `Desktop test ${new Date().toLocaleTimeString()}`,
-      });
-      setLastCreated(meeting.id);
+      const title = `Meeting ${new Date().toLocaleString()}`;
+      const meeting = await createMeeting(activeWorkspace.id, { title });
+      // Hand off to the capture screen — meeting row is now live in
+      // the API, ready to receive audio + transcript.
+      onStartMeeting(meeting.id, title);
     } catch (err) {
       setLastCreated(`Error: ${err instanceof Error ? err.message : "create failed"}`);
     } finally {
@@ -94,18 +96,16 @@ export function HomeScreen({ onSignedOut }: HomeScreenProps) {
               type="button"
               onClick={() => void handleCreateMeeting()}
               disabled={busy || !activeWorkspace}
-              className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+              className="bg-foreground text-background rounded-md px-5 py-2.5 text-sm font-medium disabled:opacity-50"
             >
-              {busy ? "Creating…" : "Create test meeting"}
+              {busy ? "Starting…" : "● Start a meeting"}
             </button>
-            {lastCreated ? (
-              <p className="text-muted-foreground font-mono text-[11px]">
-                {lastCreated.startsWith("Error") ? lastCreated : `Created: ${lastCreated}`}
-              </p>
+            {lastCreated && lastCreated.startsWith("Error") ? (
+              <p className="text-destructive font-mono text-[11px]">{lastCreated}</p>
             ) : null}
-            <p className="text-muted-foreground/60 mt-8 max-w-sm text-[11px] leading-relaxed">
-              Capture flow lands in PR3 — mic + system audio → live transcript →
-              auto-summary on stop.
+            <p className="text-muted-foreground/60 mt-6 max-w-sm text-[11px] leading-relaxed">
+              Mic-only capture in PR3. System audio (the other side of the
+              call) lands in PR5 via the Swift sidecar.
             </p>
           </>
         )}

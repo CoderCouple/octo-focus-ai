@@ -75,3 +75,48 @@ export function createMeeting(
     body: JSON.stringify(body),
   });
 }
+
+/**
+ * PATCH a partial update onto a meeting. Used at end-of-capture to
+ * write the final transcript (and later the AI summary, once PR4's
+ * /summarize endpoint kicks an ai_run that writes back here).
+ */
+export function patchMeeting(
+  id: string,
+  patch: { title?: string; transcript?: string; summary?: string },
+): Promise<unknown> {
+  return fetchWithAuth(`/meetings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * Upload the final audio blob. The API's raw-body parser expects an
+ * `application/octet-stream`-style body + the audio metadata in
+ * custom headers — see services/api/.../meetings.controller.ts.
+ */
+export async function uploadMeetingAudio(
+  id: string,
+  blob: Blob,
+  durationSec?: number,
+): Promise<void> {
+  const token = await window.octofocus.token.get();
+  if (!token) throw new Error("Not signed in.");
+  const headers = new Headers({
+    authorization: `Bearer ${token}`,
+    "content-type": "application/octet-stream",
+    "x-audio-content-type": blob.type || "audio/webm",
+  });
+  if (durationSec !== undefined && Number.isFinite(durationSec)) {
+    headers.set("x-audio-duration-sec", String(Math.floor(durationSec)));
+  }
+  const res = await fetch(`${API_URL}/meetings/${id}/audio`, {
+    method: "POST",
+    headers,
+    body: await blob.arrayBuffer(),
+  });
+  if (!res.ok) {
+    throw new Error(`Audio upload failed (${res.status})`);
+  }
+}
