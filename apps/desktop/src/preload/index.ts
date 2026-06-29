@@ -33,6 +33,47 @@ const api: OctofocusBridge = {
     set: (token) => ipcRenderer.invoke("token:set", token) as Promise<void>,
     clear: () => ipcRenderer.invoke("token:clear") as Promise<void>,
   },
+  /**
+   * Audio capture bridge — the Swift sidecar lives in the main
+   * process. Renderer subscribes to PCM chunks via `onChunk`; each
+   * chunk is a 100ms slice of 16kHz mono int16 PCM ready for
+   * Deepgram.
+   */
+  capture: {
+    start: () =>
+      ipcRenderer.invoke("capture:start") as Promise<{ pid: number; binaryPath: string }>,
+    stop: () => ipcRenderer.invoke("capture:stop") as Promise<void>,
+    isRunning: () => ipcRenderer.invoke("capture:isRunning") as Promise<boolean>,
+    onChunk: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, chunk: Buffer | Uint8Array) => {
+        const u8 = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+        handler(
+          u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer,
+        );
+      };
+      ipcRenderer.on("sidecar:chunk", listener);
+      return () => ipcRenderer.removeListener("sidecar:chunk", listener);
+    },
+    onLog: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, line: string) => handler(line);
+      ipcRenderer.on("sidecar:log", listener);
+      return () => ipcRenderer.removeListener("sidecar:log", listener);
+    },
+    onExit: (handler) => {
+      const listener = (
+        _e: Electron.IpcRendererEvent,
+        info: { code: number | null; signal: string | null },
+      ) => handler(info);
+      ipcRenderer.on("sidecar:exit", listener);
+      return () => ipcRenderer.removeListener("sidecar:exit", listener);
+    },
+    onError: (handler) => {
+      const listener = (_e: Electron.IpcRendererEvent, info: { message: string }) =>
+        handler(info);
+      ipcRenderer.on("sidecar:error", listener);
+      return () => ipcRenderer.removeListener("sidecar:error", listener);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld("octofocus", api);

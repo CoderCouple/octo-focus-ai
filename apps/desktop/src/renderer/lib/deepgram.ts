@@ -38,9 +38,16 @@ function buildUrl(mimeType: string): string {
     diarize: "true",
     language: "en-US",
   });
-  // Deepgram infers encoding from the WS subprotocol / content; for
-  // `audio/webm` (the MediaRecorder default) it parses opus directly.
-  if (mimeType.includes("opus") || mimeType.includes("webm")) {
+  // Two paths today:
+  //  - MediaRecorder webm/opus (browser fallback, not used by the
+  //    sidecar path): Deepgram infers opus from the bytes.
+  //  - Swift sidecar linear16 PCM at 16 kHz mono: must tell Deepgram
+  //    the encoding + sample rate explicitly.
+  if (mimeType === "audio/linear16") {
+    params.set("encoding", "linear16");
+    params.set("sample_rate", "16000");
+    params.set("channels", "1");
+  } else if (mimeType.includes("opus") || mimeType.includes("webm")) {
     params.set("encoding", "opus");
   }
   return `wss://api.deepgram.com/v1/listen?${params.toString()}`;

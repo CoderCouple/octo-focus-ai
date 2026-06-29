@@ -30,11 +30,32 @@ export interface TokenApi {
   clear(): Promise<void>;
 }
 
+export interface CaptureStartResult {
+  pid: number;
+  binaryPath: string;
+}
+
+export interface CaptureApi {
+  /** Spawns the Swift sidecar; PCM chunks arrive via `onChunk`. */
+  start(): Promise<CaptureStartResult>;
+  /** Sends EOF on stdin (graceful stop) + SIGTERM after 500 ms. */
+  stop(): Promise<void>;
+  isRunning(): Promise<boolean>;
+  /** Subscribe to PCM frames. Returns an unsubscribe function. */
+  onChunk(handler: (chunk: ArrayBuffer) => void): () => void;
+  /** Subscribe to human-readable diagnostics from the sidecar. */
+  onLog(handler: (line: string) => void): () => void;
+  /** Subscribe to sidecar exit + error events. */
+  onExit(handler: (info: { code: number | null; signal: string | null }) => void): () => void;
+  onError(handler: (info: { message: string }) => void): () => void;
+}
+
 export interface OctofocusBridge {
   platform: string;
   versions: ProcessVersions;
   invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
   token: TokenApi;
+  capture: CaptureApi;
 }
 
 declare global {
