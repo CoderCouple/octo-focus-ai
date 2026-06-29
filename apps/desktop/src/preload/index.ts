@@ -74,6 +74,21 @@ const api: OctofocusBridge = {
       return () => ipcRenderer.removeListener("sidecar:error", listener);
     },
   },
+  /**
+   * Global keyboard shortcut bridge — main registers ⌥⌘M and
+   * dispatches the toggle event over IPC; the renderer turns that
+   * into either "start a new meeting" or "stop the active one".
+   */
+  shortcuts: {
+    onToggleCapture: (handler) => {
+      const listener = () => handler();
+      ipcRenderer.on("shortcut:toggle-capture", listener);
+      return () => ipcRenderer.removeListener("shortcut:toggle-capture", listener);
+    },
+    notifyCaptureState: (state) => {
+      ipcRenderer.send("capture:state-changed", state);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld("octofocus", api);

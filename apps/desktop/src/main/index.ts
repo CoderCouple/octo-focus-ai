@@ -1,22 +1,27 @@
 /**
  * OctoFocusAI desktop — Electron main process.
  *
- * Responsibilities (today):
+ * Responsibilities:
  *   - App lifecycle (ready / window-all-closed / activate).
- *   - Single BrowserWindow that loads either the dev server (hot
- *     reload) or the packaged renderer bundle.
- *
- * Coming in later PRs:
- *   - Spawn the Swift `mac-audio-capture` sidecar (PR5).
- *   - Bridge IPC for start/stop capture + token storage (PR2/PR3).
- *   - Menubar tray + global shortcut (PR6).
+ *   - Single BrowserWindow that loads either the dev server or the
+ *     packaged renderer bundle.
+ *   - Tray icon (menubar) + global ⌥⌘M shortcut for toggle-capture.
+ *   - Forwards IPC + sidecar lifecycle to the renderer (see
+ *     ./ipc.ts and ./sidecar.ts).
  */
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "./ipc";
+import { installTray, setTrayRecordingState } from "./tray";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
+
+let mainWindow: BrowserWindow | null = null;
+
+function getMainWindow(): BrowserWindow | null {
+  return mainWindow;
+}
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -53,18 +58,51 @@ function createWindow(): BrowserWindow {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) mainWindow = null;
+  });
+
   return window;
 }
 
 app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
+  installTray(getMainWindow);
+
+  // Renderer notifies main whenever the capture state flips so the
+  // menubar icon can re-paint. Bound on the global ipcMain so it
+  // works regardless of which window is active (BrowserView, etc.).
+  ipcMain.on("capture:state-changed", (_event, state: { recording: boolean }) => {
+    setTrayRecordingState(Boolean(state?.recording), getMainWindow());
+  });
+
+  // ⌥⌘M — global shortcut to toggle the capture surface. The
+  // renderer interprets the event based on current state (start a
+  // new meeting + capture, or stop the active one).
+  const registered = globalShortcut.register("Alt+Cmd+M", () => {
+    const window = getMainWindow();
+    if (!window) return;
+    if (!window.isVisible()) {
+      window.show();
+      window.focus();
+    }
+    window.webContents.send("shortcut:toggle-capture");
+  });
+  if (!registered) {
+    console.warn("Failed to register ⌥⌘M global shortcut (likely already taken).");
+  }
 
   app.on("activate", () => {
     // On macOS, re-create the window when the dock icon is clicked
     // and there are no other windows open. Standard Cocoa pattern.
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {

@@ -83,6 +83,21 @@ export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreen
     return () => clearInterval(id);
   }, [status]);
 
+  // Mirror the recording state up to main so the menubar / tray
+  // icon repaints. The shortcut wiring (next effect) also reads this.
+  useEffect(() => {
+    window.octofocus.shortcuts.notifyCaptureState({ recording: status === "recording" });
+  }, [status]);
+
+  // Global ⌥⌘M shortcut: if we're recording, treat it as a Stop.
+  // Otherwise no-op (HomeScreen wires the start path).
+  useEffect(() => {
+    return window.octofocus.shortcuts.onToggleCapture(() => {
+      if (status === "recording") void handleStop();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   // Cleanup on unmount (safety net — Stop button is the primary path)
   useEffect(() => {
     return () => {

@@ -50,12 +50,24 @@ export interface CaptureApi {
   onError(handler: (info: { message: string }) => void): () => void;
 }
 
+export interface ShortcutsApi {
+  /**
+   * Subscribe to the global ⌥⌘M shortcut from the main process —
+   * "toggle capture". The renderer decides what that means based on
+   * the current state (start a new meeting, or stop the active one).
+   */
+  onToggleCapture(handler: () => void): () => void;
+  /** Tell main about the latest capture state for tray painting. */
+  notifyCaptureState(state: { recording: boolean }): void;
+}
+
 export interface OctofocusBridge {
   platform: string;
   versions: ProcessVersions;
   invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
   token: TokenApi;
   capture: CaptureApi;
+  shortcuts: ShortcutsApi;
 }
 
 declare global {

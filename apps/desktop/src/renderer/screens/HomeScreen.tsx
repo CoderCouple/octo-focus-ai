@@ -36,6 +36,16 @@ export function HomeScreen({ onSignedOut, onStartMeeting }: HomeScreenProps) {
 
   const activeWorkspace = me?.memberships[0]?.workspace ?? null;
 
+  // Global ⌥⌘M from the home screen: kick off the same flow the
+  // "Start a meeting" button does — saves a click when the menubar
+  // icon is the user's primary surface.
+  useEffect(() => {
+    return window.octofocus.shortcuts.onToggleCapture(() => {
+      void handleCreateMeeting();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkspace?.id]);
+
   const handleCreateMeeting = async () => {
     if (!activeWorkspace) return;
     setBusy(true);
