@@ -187,27 +187,67 @@ export class FigureGroupShapeUtil extends ShapeUtil<FigureGroupShape> {
             {label}
           </span>
           {figureId ? (
-            <span
-              draggable
-              onDragStart={handleDragStart}
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              title="Drag into a note to embed this figure"
-              role="button"
-              aria-label="Drag to embed in a note"
-              style={{
-                flex: "0 0 auto",
-                cursor: "grab",
-                userSelect: "none",
-                padding: "2px 4px",
-                borderRadius: 4,
-                color: "#71717a",
-                fontSize: 12,
-                lineHeight: 1,
-                letterSpacing: -1,
-              }}
-            >
-              ⋮⋮
-            </span>
+            <>
+              <button
+                type="button"
+                title="Copy embed URL"
+                aria-label="Copy embed URL"
+                onPointerDownCapture={(e) => e.stopPropagation()}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const url = `${window.location.origin}/f/${figureId}`;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                  } catch {
+                    // Clipboard API can be blocked in some contexts;
+                    // silently swallow — the URL is still selectable
+                    // via the public page if needed.
+                  }
+                }}
+                style={{
+                  flex: "0 0 auto",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 20,
+                  height: 20,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  borderRadius: 4,
+                  color: "#71717a",
+                  padding: 0,
+                }}
+              >
+                {/* Inline link icon — keeps the shape util free of
+                    a lucide dependency at render time. */}
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </button>
+              <span
+                draggable
+                onDragStart={handleDragStart}
+                onPointerDownCapture={(e) => e.stopPropagation()}
+                title="Drag into a note to embed this figure"
+                role="button"
+                aria-label="Drag to embed in a note"
+                style={{
+                  flex: "0 0 auto",
+                  cursor: "grab",
+                  userSelect: "none",
+                  padding: "2px 4px",
+                  borderRadius: 4,
+                  color: "#71717a",
+                  fontSize: 12,
+                  lineHeight: 1,
+                  letterSpacing: -1,
+                }}
+              >
+                ⋮⋮
+              </span>
+            </>
           ) : null}
         </div>
       </HTMLContainer>

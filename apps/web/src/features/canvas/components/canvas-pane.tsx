@@ -10,7 +10,10 @@ import { DslSidePanel } from "@/components/dsl-side-panel";
 import { EditableTitle } from "@/components/editable-title";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { createSavedFigureClientApi } from "@/features/figures";
+import {
+  createSavedFigureClientApi,
+  updateSavedFigureClientApi,
+} from "@/features/figures";
 import { SharePopover, type Visibility } from "@/features/sharing";
 import { renameCanvasAction, updateCanvasAction } from "../actions/canvases-actions";
 import type { DslLanguage } from "../lib/extract-dsl";
@@ -148,7 +151,88 @@ export function CanvasPane({
       }).then((r) => {
         if (!r.success) console.error("DSL save failed", r.message);
       });
+      // Sync each DSL-backed figure-group to its `figures` row —
+      // new figures get a POST, existing ones get a PATCH when the
+      // subgraph DSL has actually changed. Runs after the canvas
+      // save so the figure rows reflect the same DSL the canvas
+      // itself persisted.
+      void syncFiguresToBackend(value);
     }, DSL_SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Last subgraph DSL we persisted for each figure id. Used to skip
+   * redundant PATCHes when a canvas-wide DSL save didn't actually
+   * change a particular figure's subgraph (touching the title or
+   * adding an unrelated figure on the same canvas shouldn't trigger
+   * a network call for every other figure).
+   */
+  const lastSyncedFigureDslRef = useRef<Map<string, string>>(new Map());
+
+  /**
+   * Walk all DSL-backed figure-group shapes on the canvas and ensure
+   * each has a `figures` row reflecting its current subgraph. Auto-
+   * saves new figures (POST) and patches existing ones whose subgraph
+   * has drifted (PATCH). The shape's `meta.figureId` is written back
+   * after a POST so the inline title-bar icons + drag handle activate
+   * immediately. Failures are logged, not toasted — this is a
+   * background sync, not a user-initiated action.
+   */
+  async function syncFiguresToBackend(canvasDsl: string) {
+    if (!workspaceId) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const shapes = editor.getCurrentPageShapes() as ReadonlyArray<{
+      id: string;
+      type: string;
+      meta?: { octoNodeId?: string; figureId?: string };
+      props?: { label?: string };
+    }>;
+    const figureShapes = shapes.filter(
+      (s) => s.type === "figure-group" && s.meta?.octoNodeId,
+    );
+    await Promise.all(
+      figureShapes.map(async (shape) => {
+        const nodeId = shape.meta?.octoNodeId;
+        if (!nodeId) return;
+        const subgraphDsl = extractFigureSubgraphDsl(canvasDsl, nodeId);
+        if (!subgraphDsl) return;
+        const title = (shape.props?.label || "").trim() || "Untitled figure";
+        const existingId = shape.meta?.figureId;
+
+        if (existingId) {
+          // Skip the PATCH if nothing changed since the last sync.
+          if (lastSyncedFigureDslRef.current.get(existingId) === subgraphDsl) {
+            return;
+          }
+          try {
+            await updateSavedFigureClientApi(existingId, {
+              dsl: subgraphDsl,
+              title,
+            });
+            lastSyncedFigureDslRef.current.set(existingId, subgraphDsl);
+          } catch (err) {
+            console.error("Figure PATCH failed", err);
+          }
+          return;
+        }
+
+        try {
+          const figure = await createSavedFigureClientApi(workspaceId, {
+            title,
+            dsl: subgraphDsl,
+          });
+          editor.updateShape({
+            id: shape.id as never,
+            type: "figure-group",
+            meta: { ...(shape.meta ?? {}), figureId: figure.id },
+          } as never);
+          lastSyncedFigureDslRef.current.set(figure.id, subgraphDsl);
+        } catch (err) {
+          console.error("Figure POST failed", err);
+        }
+      }),
+    );
   }
 
   /**
@@ -217,21 +301,39 @@ export function CanvasPane({
     }
   }
 
-  /** Save + copy `/f/<id>` URL to clipboard (the original Save button flow). */
-  async function saveSelectedFigureToClipboard() {
-    const id = await saveSelectedFigure();
-    if (!id) return;
-    const url = `${window.location.origin}/f/${id}`;
-    await navigator.clipboard.writeText(url).catch(() => {});
-    toast.success("Figure saved — embed URL copied.");
-  }
-
-  /** Save + push directly into the sibling NotesPane (split view only). */
-  async function saveSelectedFigureAndInsert() {
+  /**
+   * Push the currently-selected figure into the sibling NotesPane.
+   * Reads `meta.figureId` (set by the auto-sync) and falls back to
+   * an immediate save if the user clicks before the debounced sync
+   * has caught up.
+   */
+  async function insertSelectedFigureIntoNote() {
     if (!onInsertFigureIntoNote) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selected = editor.getSelectedShapes() as ReadonlyArray<{
+      id: string;
+      type: string;
+      meta?: { octoNodeId?: string; figureId?: string };
+    }>;
+    if (selected.length !== 1) {
+      toast.message("Select exactly one figure to insert.");
+      return;
+    }
+    const shape = selected[0];
+    if (shape.type !== "figure-group") {
+      toast.message("Only figure groups can be inserted into a note.");
+      return;
+    }
+    const existing = shape.meta?.figureId;
+    if (existing) {
+      onInsertFigureIntoNote(existing);
+      return;
+    }
+    // Race: user clicked before the debounced auto-sync wrote
+    // figureId onto the shape's meta. Force-save now.
     const id = await saveSelectedFigure();
-    if (!id) return;
-    onInsertFigureIntoNote(id);
+    if (id) onInsertFigureIntoNote(id);
   }
 
   const canShare =
@@ -326,25 +428,13 @@ export function CanvasPane({
             <Frame className="size-3.5" />
             Figure
           </Button>
-          {workspaceId ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => void saveSelectedFigureToClipboard()}
-              title="Save the selected figure and copy its embed URL"
-            >
-              <Save className="size-3.5" />
-              Save figure
-            </Button>
-          ) : null}
           {workspaceId && onInsertFigureIntoNote ? (
             <Button
               variant="secondary"
               size="sm"
               className="gap-1.5"
-              onClick={() => void saveSelectedFigureAndInsert()}
-              title="Save the figure and insert it into the open note"
+              onClick={() => void insertSelectedFigureIntoNote()}
+              title="Insert the selected figure into the open note"
             >
               <Save className="size-3.5" />
               Insert into note
