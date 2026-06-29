@@ -25,6 +25,7 @@ import { CodeBlock } from "./code-block";
 import { FigureBlock } from "./figure-block";
 import { GenerativeUiBlock } from "./generative-ui-block";
 import { MermaidBlock } from "./mermaid-block";
+import { TableOfContentsRail } from "./table-of-contents-rail";
 
 const SAVE_DEBOUNCE_MS = 1200;
 
@@ -308,11 +309,14 @@ export function NotesEditor({
 
   return (
     <div
-      className="bg-card h-full overflow-auto"
+      className="bg-card relative h-full overflow-auto"
       onPasteCapture={onPasteCapture}
       onDragOverCapture={onDragOverCapture}
       onDropCapture={onDropCapture}
     >
+      {view === "edit" ? (
+        <TableOfContentsRail editor={editor as never} />
+      ) : null}
       <div className={view === "raw" ? "hidden" : "contents"}>
         <BlockNoteView editor={editor} onChange={onChange} slashMenu={false}>
           <SuggestionMenuController

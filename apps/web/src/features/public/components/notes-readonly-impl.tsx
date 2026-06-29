@@ -9,6 +9,7 @@ import { CodeBlock } from "@/features/notes/components/code-block";
 import { FigureBlock } from "@/features/notes/components/figure-block";
 import { GenerativeUiBlock } from "@/features/notes/components/generative-ui-block";
 import { MermaidBlock } from "@/features/notes/components/mermaid-block";
+import { TableOfContentsRail } from "@/features/notes/components/table-of-contents-rail";
 
 // Same custom block schema as the editor. Each block checks
 // `editor.isEditable` internally and hides the source / edit toggle
@@ -39,7 +40,8 @@ export function NotesReadOnlyImpl({ initialContent }: NotesReadOnlyImplProps) {
   const editor = useCreateBlockNote({ schema, initialContent: initialBlocks });
 
   return (
-    <div className="bg-background h-full overflow-auto">
+    <div className="bg-background relative h-full overflow-auto">
+      <TableOfContentsRail editor={editor as never} />
       <BlockNoteView editor={editor} editable={false} slashMenu={false} sideMenu={false} />
     </div>
   );
