@@ -26,7 +26,16 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: "out/preload",
-      lib: { entry: resolve(__dirname, "src/preload/index.ts") },
+      // Sandboxed preload scripts (sandbox: true on the BrowserWindow)
+      // run in a context that doesn't support ES modules — Electron's
+      // sandbox bundle only knows how to evaluate CommonJS at preload
+      // time. Force the lib output to CJS with a `.js` extension so
+      // the main process's `preload:` path points at a loadable file.
+      lib: {
+        entry: resolve(__dirname, "src/preload/index.ts"),
+        formats: ["cjs"],
+        fileName: () => "index.js",
+      },
     },
   },
   renderer: {

@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OctoFocusAI</title>
+    <!--
+      Dev-permissive CSP. Adds:
+        - 'unsafe-inline' + 'unsafe-eval' on script-src so Vite's HMR
+          runtime + React refresh boundary inject inline scripts.
+        - ws://localhost:* on connect-src for Vite's HMR socket — the
+          renderer goes black silently when this is blocked because
+          Vite never confirms the client connection and the mount
+          script never runs.
+      Production build should ship a tighter CSP (no unsafe-*,
+      no ws://). Wire that into electron-builder when packaging.
+    -->
     <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https://*.supabase.co https://api.deepgram.com wss://api.deepgram.com https://api.octofocus.ai https://www.octofocus.ai; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:;"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* ws://localhost:* https://*.supabase.co https://api.deepgram.com wss://api.deepgram.com https://api.octofocus.ai https://www.octofocus.ai; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:;"
     />
   </head>
   <body class="bg-background text-foreground">

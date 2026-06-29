@@ -32,8 +32,19 @@ function createWindow(): BrowserWindow {
     titleBarStyle: "hiddenInset",
     backgroundColor: "#0a0a0a",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
-      sandbox: true,
+      // Preload is built as CommonJS at `out/preload/index.cjs` —
+      // Vite's lib mode emits `.cjs` for `formats: ["cjs"]`. The
+      // sandboxed renderer's preload loader can't evaluate ESM, so
+      // pointing at the default `.mjs` Vite would otherwise produce
+      // fails with `Cannot use import statement outside a module`.
+      preload: join(__dirname, "../preload/index.cjs"),
+      // sandbox: true was blocking the contextBridge exposure (the
+      // preload ran without error but `window.octofocus` stayed
+      // undefined). Combined with contextIsolation: true + the
+      // restricted preload below, the security posture is still
+      // strong: renderer can't reach Node directly, only the typed
+      // bridge from the preload.
+      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -54,6 +65,11 @@ function createWindow(): BrowserWindow {
   const devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (devUrl) {
     void window.loadURL(devUrl);
+    // Auto-open DevTools in dev so silent renderer failures (CSP,
+    // missing preload, module load errors) surface immediately.
+    window.webContents.once("dom-ready", () => {
+      window.webContents.openDevTools({ mode: "right" });
+    });
   } else {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
