@@ -92,6 +92,17 @@ export function patchMeeting(
 }
 
 /**
+ * Trigger Claude summarization for the meeting's current transcript.
+ * Synchronous round-trip — returns the meeting row with the new
+ * `summary` field populated.
+ */
+export function summarizeMeeting(id: string): Promise<{ summary: string | null }> {
+  return fetchWithAuth<{ summary: string | null }>(`/meetings/${id}/summarize`, {
+    method: "POST",
+  });
+}
+
+/**
  * Upload the final audio blob. The API's raw-body parser expects an
  * `application/octet-stream`-style body + the audio metadata in
  * custom headers — see services/api/.../meetings.controller.ts.

@@ -139,4 +139,19 @@ export class MeetingsController {
     raw.setHeader("Cache-Control", "private, max-age=3600");
     raw.end(audio.content);
   }
+
+  /**
+   * Generate a Claude summary from the stored transcript and persist
+   * it on the meeting row. Synchronous — caller (desktop app or web)
+   * awaits the round-trip. Errors:
+   *   - 400 if the transcript is empty (nothing to summarise).
+   *   - 500 if ANTHROPIC_API_KEY isn't configured on the API.
+   */
+  @Post("meetings/:id/summarize")
+  async summarize(
+    @Param("id", IdParam) id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<MeetingDto> {
+    return meetingToDto(await this.meetings.summarize(id, req.user.id));
+  }
 }

@@ -12,7 +12,7 @@
  *      the full webm blob, PATCH the final transcript.
  */
 import { useEffect, useRef, useState } from "react";
-import { patchMeeting, uploadMeetingAudio } from "../lib/api";
+import { patchMeeting, summarizeMeeting, uploadMeetingAudio } from "../lib/api";
 import { connectDeepgram, type DeepgramHandle } from "../lib/deepgram";
 
 interface CaptureScreenProps {
@@ -29,14 +29,22 @@ interface TranscriptSegment {
 
 const CHUNK_INTERVAL_MS = 250;
 
+type CaptureStatus =
+  | "idle"
+  | "recording"
+  | "stopping"
+  | "saving"
+  | "summarizing"
+  | "done"
+  | "error";
+
 export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreenProps) {
-  const [status, setStatus] = useState<"idle" | "recording" | "stopping" | "saving" | "done" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<CaptureStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [interimText, setInterimText] = useState("");
+  const [summary, setSummary] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -154,9 +162,28 @@ export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreen
     const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
     try {
       await uploadMeetingAudio(meetingId, blob, durationSec);
-      await patchMeeting(meetingId, {
-        transcript: finalTranscriptRef.current.trim(),
-      });
+      const transcriptText = finalTranscriptRef.current.trim();
+      await patchMeeting(meetingId, { transcript: transcriptText });
+
+      // Kick off Claude summarization. We've already uploaded + PATCHed
+      // the transcript, so even if summarize fails the meeting is
+      // safely persisted — the user can retry from the web view.
+      if (transcriptText.length > 0) {
+        setStatus("summarizing");
+        try {
+          const result = await summarizeMeeting(meetingId);
+          if (result.summary) setSummary(result.summary);
+        } catch (err) {
+          // Surface as a soft error — the meeting is saved; only the
+          // summary failed. The done state still renders.
+          console.error("summarize failed", err);
+          setError(
+            err instanceof Error
+              ? `Summary failed: ${err.message}`
+              : "Summary failed.",
+          );
+        }
+      }
       setStatus("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
@@ -182,7 +209,24 @@ export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreen
       </header>
       <main className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-auto px-6 py-4">
-          {segments.length === 0 && !interimText ? (
+          {summary ? (
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Summary
+              </p>
+              <pre className="bg-muted/40 whitespace-pre-wrap rounded-md p-3 font-sans text-sm leading-relaxed">
+                {summary}
+              </pre>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Transcript
+              </p>
+              <div className="space-y-2 text-sm leading-relaxed">
+                {segments.map((s) => (
+                  <p key={s.id}>{s.text}</p>
+                ))}
+              </div>
+            </div>
+          ) : segments.length === 0 && !interimText ? (
             <p className="text-muted-foreground/70 mt-8 text-center text-sm">
               {status === "idle"
                 ? "Press Start to begin recording."
@@ -220,6 +264,8 @@ export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreen
             <p className="text-muted-foreground text-xs">Finishing…</p>
           ) : status === "saving" ? (
             <p className="text-muted-foreground text-xs">Saving meeting…</p>
+          ) : status === "summarizing" ? (
+            <p className="text-muted-foreground text-xs">Generating summary…</p>
           ) : (
             <button
               type="button"
