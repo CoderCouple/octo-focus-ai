@@ -13,15 +13,18 @@ import {
   Send,
   Sparkles,
   Square,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { streamGeneratedComponent } from "../api/components-client-api";
 import {
   createSavedComponentClientApi,
+  deleteSavedComponentClientApi,
   updateSavedComponentClientApi,
 } from "../api/saved-components-client-api";
 import type { ComponentLanguage, SavedComponent } from "../types";
@@ -221,6 +224,19 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
     }
   };
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!savedId) return;
+    try {
+      await deleteSavedComponentClientApi(savedId);
+      toast.success("Component deleted");
+      router.replace("/workspace/components");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    }
+  };
+
   const hasCommitted = committed.length > 0;
   const showPreview = view === "preview" && hasCommitted;
   const showSource = view === "source" && hasCommitted;
@@ -293,8 +309,30 @@ export function ComponentStudio({ workspaceId, initial }: ComponentStudioProps) 
               {copiedCode ? <Check className="size-4" /> : <Copy className="size-4" />}
             </Button>
           ) : null}
+          {savedId ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive size-7"
+              onClick={() => setDeleteOpen(true)}
+              title="Delete component"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          ) : null}
         </div>
       </header>
+      <ConfirmActionDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={initial ? `Delete component "${initial.title}"?` : "Delete component?"}
+        description="The component and its embed URL are removed. Notes embedding it will keep working with their snapshot. This action can't be undone."
+        actionLabel="Delete component"
+        typeToConfirm={
+          initial ? { value: initial.title, label: "component title" } : undefined
+        }
+        onConfirm={handleConfirmDelete}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         <div className="bg-muted/20 relative flex-1 overflow-hidden">

@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { CreateProjectDialog } from "@/features/projects";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { OwnerCell } from "@/components/owner-cell";
 import { ReviewersCell } from "@/components/reviewers-cell";
 import { StatusBadge } from "@/components/status-badge";
@@ -97,6 +98,7 @@ export function NotesTable({
   const remove = useDeleteNote(workspaceId);
   const [renameTarget, setRenameTarget] = useState<WorkspacePageSummary | null>(null);
   const [draft, setDraft] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<WorkspacePageSummary | null>(null);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("updated-desc");
   const sorting = useMemo(
@@ -202,12 +204,7 @@ export function NotesTable({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => {
-                    remove.mutate(row.original.id, {
-                      onSuccess: () => toast.success("Note deleted"),
-                      onError: (e) => toast.error(e.message),
-                    });
-                  }}
+                  onSelect={() => setDeleteTarget(row.original)}
                 >
                   Delete
                 </DropdownMenuItem>
@@ -444,6 +441,32 @@ export function NotesTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={deleteTarget ? `Delete note "${deleteTarget.title}"?` : "Delete note?"}
+        description="The note and its blocks are removed. This action can't be undone."
+        actionLabel="Delete note"
+        typeToConfirm={
+          deleteTarget ? { value: deleteTarget.title, label: "note title" } : undefined
+        }
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          return new Promise<void>((resolve) => {
+            remove.mutate(deleteTarget.id, {
+              onSuccess: () => {
+                toast.success("Note deleted");
+                resolve();
+              },
+              onError: (e) => {
+                toast.error(e.message);
+                resolve();
+              },
+            });
+          });
+        }}
+      />
     </Tabs>
   );
 }

@@ -50,6 +50,12 @@ export function updateSavedComponentClientApi(
   });
 }
 
+export function deleteSavedComponentClientApi(id: string): Promise<SavedComponent> {
+  return clientFetch<SavedComponent>(`/saved-components/${id}`, {
+    method: "DELETE",
+  });
+}
+
 /**
  * Browser-side public read. Used by the generativeUi BlockNote block
  * when it has a `componentId` prop — fetches the latest code, falls

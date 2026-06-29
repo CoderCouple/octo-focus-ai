@@ -3,6 +3,7 @@ export { IframeArtifact } from "./components/iframe-artifact";
 export { streamGeneratedComponent } from "./api/components-client-api";
 export {
   createSavedComponentClientApi,
+  deleteSavedComponentClientApi,
   getPublicComponentClientApi,
   updateSavedComponentClientApi,
 } from "./api/saved-components-client-api";
