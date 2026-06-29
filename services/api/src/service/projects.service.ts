@@ -12,14 +12,23 @@ import type {
 } from "../api/v1/request/project.request";
 import { ChangeEventsService } from "../common/change-events.service";
 import { NotFound } from "../common/error/error-factory";
+import { CanvasesRepository } from "../db/repository/canvases.repository";
+import { PagesRepository } from "../db/repository/pages.repository";
 import { ProjectsRepository } from "../db/repository/projects.repository";
 import { toProject, type Project } from "../model/project.model";
+import {
+  expectedChildTitle,
+  isAutoTitle,
+  type ProjectChildRole,
+} from "./lib/project-child-naming";
 import { WorkspacesService } from "./workspaces.service";
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly projectsRepo: ProjectsRepository,
+    private readonly pagesRepo: PagesRepository,
+    private readonly canvasesRepo: CanvasesRepository,
     private readonly workspacesService: WorkspacesService,
     private readonly changeEvents: ChangeEventsService,
   ) {}
@@ -95,6 +104,21 @@ export class ProjectsService {
     });
     if (!updated) throw NotFound("Project not found.");
 
+    // Cascade rename: when the project name actually changes, re-derive
+    // the title of each 1:1 child (page + canvas) only when their current
+    // title still matches the OLD expected pattern. Manual overrides
+    // stay sticky.
+    const nameChanged = patch.name !== undefined && patch.name !== existing.name;
+    if (nameChanged) {
+      await this.cascadeRename(
+        projectId,
+        existing.workspaceId,
+        existing.name,
+        patch.name!,
+        actorUserId,
+      );
+    }
+
     await this.changeEvents.record({
       workspaceId: existing.workspaceId,
       actorType: "USER",
@@ -109,7 +133,77 @@ export class ProjectsService {
     return toProject(updated);
   }
 
-  /** Soft archive — preserves rows under FK constraints. */
+  /**
+   * Re-title the project's 1:1 page + canvas children to reflect the
+   * new project name — but only the ones still using the auto-derived
+   * title for the OLD name. Children the user has hand-edited keep
+   * their custom title.
+   *
+   * Failures here log and continue: a rename succeeding on the
+   * project row but failing on one child is recoverable (the user
+   * can re-rename to retry); a noisy throw isn't.
+   */
+  private async cascadeRename(
+    projectId: string,
+    workspaceId: string,
+    oldName: string,
+    newName: string,
+    actorUserId: string,
+  ): Promise<void> {
+    const roleConfigs: Array<{
+      role: ProjectChildRole;
+      list: () => Promise<Array<{ id: string; title: string }>>;
+      update: (id: string, patch: { title: string; updatedAt: Date }) => Promise<unknown>;
+      entityType: "page" | "canvas";
+    }> = [
+      {
+        role: "Note",
+        list: () => this.pagesRepo.listByProject(projectId),
+        update: (id, patch) => this.pagesRepo.updateById(id, patch),
+        entityType: "page",
+      },
+      {
+        role: "Canvas",
+        list: () => this.canvasesRepo.listByProject(projectId),
+        update: (id, patch) => this.canvasesRepo.updateById(id, patch),
+        entityType: "canvas",
+      },
+    ];
+
+    for (const cfg of roleConfigs) {
+      const children = await cfg.list();
+      for (const child of children) {
+        if (!isAutoTitle(child.title, oldName, cfg.role)) continue;
+        const nextTitle = expectedChildTitle(newName, cfg.role);
+        try {
+          await cfg.update(child.id, { title: nextTitle, updatedAt: new Date() });
+          await this.changeEvents.record({
+            workspaceId,
+            actorType: "USER",
+            userId: actorUserId,
+            entityType: cfg.entityType,
+            entityId: child.id,
+            action: `${cfg.entityType}.update`,
+            before: { title: child.title },
+            after: { title: nextTitle },
+            patch: { title: nextTitle },
+            // Why: this rename was triggered by the parent project
+            // changing names, not a direct edit on the child.
+            cascadedFrom: { kind: "project", id: projectId },
+          } as never);
+        } catch (err) {
+          console.error("cascadeRename child update failed", err);
+        }
+      }
+    }
+  }
+
+  /**
+   * Soft archive — preserves rows under FK constraints, and cascades
+   * the soft-delete to every active page + canvas under the project.
+   * Projects are containers in the UX; orphaning children when the
+   * container archives leaves them dangling in their list views.
+   */
   async archive(projectId: string, actorUserId: string): Promise<Project> {
     const existing = await this.projectsRepo.findById(projectId);
     if (!existing) throw NotFound("Project not found.");
@@ -120,6 +214,9 @@ export class ProjectsService {
     ]);
     const updated = await this.projectsRepo.archiveById(projectId);
     if (!updated) throw NotFound("Project not found.");
+
+    await this.cascadeDelete(projectId, existing.workspaceId, actorUserId);
+
     await this.changeEvents.record({
       workspaceId: existing.workspaceId,
       actorType: "USER",
@@ -131,5 +228,62 @@ export class ProjectsService {
       after: updated,
     });
     return toProject(updated);
+  }
+
+  /**
+   * Soft-delete every active page + canvas under the project. Each
+   * deletion emits its own `change_event` so audit + undo tooling can
+   * see the cascade. A child failure logs and continues — partial
+   * progress is better than throwing mid-iteration.
+   */
+  private async cascadeDelete(
+    projectId: string,
+    workspaceId: string,
+    actorUserId: string,
+  ): Promise<void> {
+    const [pages, canvases] = await Promise.all([
+      this.pagesRepo.listByProject(projectId),
+      this.canvasesRepo.listByProject(projectId),
+    ]);
+
+    for (const page of pages) {
+      try {
+        const after = await this.pagesRepo.softDeleteById(page.id);
+        if (!after) continue;
+        await this.changeEvents.record({
+          workspaceId,
+          actorType: "USER",
+          userId: actorUserId,
+          entityType: "page",
+          entityId: page.id,
+          action: "page.delete",
+          before: page,
+          after,
+          cascadedFrom: { kind: "project", id: projectId },
+        } as never);
+      } catch (err) {
+        console.error("cascadeDelete page failed", err);
+      }
+    }
+
+    for (const canvas of canvases) {
+      try {
+        const after = await this.canvasesRepo.softDeleteById(canvas.id);
+        if (!after) continue;
+        await this.changeEvents.record({
+          workspaceId,
+          actorType: "USER",
+          userId: actorUserId,
+          entityType: "canvas",
+          entityId: canvas.id,
+          action: "canvas.delete",
+          before: canvas,
+          after,
+          cascadedFrom: { kind: "project", id: projectId },
+        } as never);
+      } catch (err) {
+        console.error("cascadeDelete canvas failed", err);
+      }
+    }
   }
 }

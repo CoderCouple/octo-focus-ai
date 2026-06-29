@@ -78,6 +78,16 @@ export class PublishService {
       patch,
     });
 
+    // Cascade visibility from project to its 1:1 children. Projects
+    // are containers in the product UX; publishing the parent without
+    // also publishing the page + canvas means the reader hits a 404
+    // (or "private") the moment they click through. Each child gets
+    // its own slug and its own change_event so the audit trail is
+    // honest per resource.
+    if (kind === "project") {
+      await this.cascadePublishChildren(id, access.workspaceId, patch, actorUserId);
+    }
+
     const [ws] = await this.db
       .select({ slug: workspaces.slug })
       .from(workspaces)
@@ -122,6 +132,69 @@ export class PublishService {
   ): string {
     if (kind === "project") return row.name ?? "untitled";
     return row.title ?? "untitled";
+  }
+
+  /**
+   * Propagate the publish gesture from a project to each 1:1 child
+   * (the page + the canvas). Same `visibility` + `publishedAt`
+   * semantics as the parent — each child allocates its own slug if it
+   * doesn't have one. Failures on a single child log + continue
+   * rather than throwing mid-cascade, so partial success leaves the
+   * project + at least one child published instead of nothing.
+   */
+  private async cascadePublishChildren(
+    projectId: string,
+    workspaceId: string,
+    patch: PublishUpdate,
+    actorUserId: string,
+  ): Promise<void> {
+    const [pages, canvases] = await Promise.all([
+      this.pagesRepo.listByProject(projectId),
+      this.canvasesRepo.listByProject(projectId),
+    ]);
+    const now = new Date();
+    const goingPublic = patch.visibility !== "private";
+
+    type ChildKind = "page" | "canvas";
+    type ChildRow = ResourceCommonShape & { id: string; title?: string };
+
+    const apply = async (childKind: ChildKind, child: ChildRow) => {
+      try {
+        const slug =
+          child.publicSlug ??
+          (await this.slugs.allocate(workspaceId, child.title ?? "untitled"));
+        const updates = {
+          visibility: patch.visibility,
+          publicSlug: slug,
+          lastPublishedAt: patch.visibility === "private" ? child.lastPublishedAt : now,
+          publishedAt:
+            patch.visibility === "private"
+              ? child.publishedAt
+              : child.publishedAt ?? now,
+        };
+        const after = await this.writeBack(childKind, child.id, updates);
+        if (!after) return;
+        await this.changeEvents.record({
+          workspaceId,
+          actorType: "USER",
+          userId: actorUserId,
+          entityType: childKind,
+          entityId: child.id,
+          action: goingPublic
+            ? `${childKind}.publish`
+            : `${childKind}.visibility.update`,
+          before: child,
+          after,
+          patch,
+          cascadedFrom: { kind: "project", id: projectId },
+        } as never);
+      } catch (err) {
+        console.error(`cascadePublishChildren ${childKind} ${child.id} failed`, err);
+      }
+    };
+
+    for (const p of pages) await apply("page", p as ChildRow);
+    for (const c of canvases) await apply("canvas", c as ChildRow);
   }
 
   private async writeBack(

@@ -21,7 +21,32 @@ function projectRow(over: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function buildSut(opts?: { existing?: ReturnType<typeof projectRow> }) {
+interface ChildStub {
+  id: string;
+  title: string;
+  publicSlug: string | null;
+  visibility: "private" | "unlisted" | "workspace" | "public";
+  publishedAt: Date | null;
+  lastPublishedAt: Date | null;
+}
+
+function childStub(over: Partial<ChildStub> = {}): ChildStub {
+  return {
+    id: "pag_1",
+    title: "Acme | Note",
+    publicSlug: null,
+    visibility: "private",
+    publishedAt: null,
+    lastPublishedAt: null,
+    ...over,
+  };
+}
+
+function buildSut(opts?: {
+  existing?: ReturnType<typeof projectRow>;
+  pages?: ChildStub[];
+  canvases?: ChildStub[];
+}) {
   const existing = opts?.existing ?? projectRow();
   const projectsRepo = {
     findById: vi.fn(async () => existing),
@@ -29,8 +54,28 @@ function buildSut(opts?: { existing?: ReturnType<typeof projectRow> }) {
       projectRow({ id, ...existing, ...patch }),
     ),
   };
-  const pagesRepo = { findById: vi.fn(), updateById: vi.fn() };
-  const canvasesRepo = { findById: vi.fn(), updateById: vi.fn() };
+  const pages = [...(opts?.pages ?? [])];
+  const canvases = [...(opts?.canvases ?? [])];
+  const pagesRepo = {
+    findById: vi.fn(),
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
+      const child = pages.find((p) => p.id === id);
+      if (!child) return null;
+      Object.assign(child, patch);
+      return child;
+    }),
+    listByProject: vi.fn(async () => pages),
+  };
+  const canvasesRepo = {
+    findById: vi.fn(),
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
+      const child = canvases.find((c) => c.id === id);
+      if (!child) return null;
+      Object.assign(child, patch);
+      return child;
+    }),
+    listByProject: vi.fn(async () => canvases),
+  };
   const permissions = {
     require: vi.fn(async () => ({
       workspaceId: "wsp_1",
@@ -38,7 +83,13 @@ function buildSut(opts?: { existing?: ReturnType<typeof projectRow> }) {
       source: "membership",
     })),
   };
-  const slugs = { allocate: vi.fn(async () => "acme") };
+  let slugCounter = 0;
+  const slugs = {
+    allocate: vi.fn(async () => {
+      slugCounter += 1;
+      return slugCounter === 1 ? "acme" : `acme-${slugCounter}`;
+    }),
+  };
   const changeEvents = { record: vi.fn(async () => undefined) };
   const db = {
     select: () => ({
@@ -59,7 +110,16 @@ function buildSut(opts?: { existing?: ReturnType<typeof projectRow> }) {
     slugs as never,
     changeEvents as never,
   );
-  return { service, projectsRepo, slugs, changeEvents };
+  return {
+    service,
+    projectsRepo,
+    pagesRepo,
+    canvasesRepo,
+    slugs,
+    changeEvents,
+    pages,
+    canvases,
+  };
 }
 
 describe("PublishService", () => {
@@ -98,5 +158,84 @@ describe("PublishService", () => {
     expect(out.visibility).toBe("private");
     expect(out.publishedAt).toBe(past.toISOString());
     expect(out.lastPublishedAt).toBe(past.toISOString());
+  });
+
+  describe("cascade publish", () => {
+    it("publishing a project also publishes its page + canvas children with their own slugs", async () => {
+      const { service, pagesRepo, canvasesRepo, slugs, pages, canvases } = buildSut({
+        pages: [childStub({ id: "pag_1", title: "Acme | Note" })],
+        canvases: [childStub({ id: "cnv_1", title: "Acme | Canvas" })],
+      });
+      await service.publish("project", "prj_1", { visibility: "public" }, "usr_a");
+      // 3 slug allocations: project + page + canvas
+      expect(slugs.allocate).toHaveBeenCalledTimes(3);
+      expect(pagesRepo.updateById).toHaveBeenCalledWith(
+        "pag_1",
+        expect.objectContaining({ visibility: "public", publicSlug: expect.any(String) }),
+      );
+      expect(canvasesRepo.updateById).toHaveBeenCalledWith(
+        "cnv_1",
+        expect.objectContaining({ visibility: "public", publicSlug: expect.any(String) }),
+      );
+      expect(pages[0]!.visibility).toBe("public");
+      expect(canvases[0]!.visibility).toBe("public");
+    });
+
+    it("children re-use their sticky slug when re-published", async () => {
+      const { service, slugs } = buildSut({
+        pages: [
+          childStub({ id: "pag_1", publicSlug: "page-slug", visibility: "private" }),
+        ],
+        canvases: [
+          childStub({ id: "cnv_1", publicSlug: "canvas-slug", visibility: "private" }),
+        ],
+      });
+      await service.publish("project", "prj_1", { visibility: "public" }, "usr_a");
+      // Only the project allocates a slug; children re-use their existing ones.
+      expect(slugs.allocate).toHaveBeenCalledTimes(1);
+    });
+
+    it("flipping the project to private also flips children", async () => {
+      const past = new Date("2026-01-01");
+      const { service, pages, canvases } = buildSut({
+        existing: projectRow({
+          publicSlug: "acme",
+          visibility: "public",
+          publishedAt: past,
+          lastPublishedAt: past,
+        }),
+        pages: [
+          childStub({ id: "pag_1", publicSlug: "p", visibility: "public", publishedAt: past, lastPublishedAt: past }),
+        ],
+        canvases: [
+          childStub({ id: "cnv_1", publicSlug: "c", visibility: "public", publishedAt: past, lastPublishedAt: past }),
+        ],
+      });
+      await service.publish("project", "prj_1", { visibility: "private" }, "usr_a");
+      expect(pages[0]!.visibility).toBe("private");
+      expect(canvases[0]!.visibility).toBe("private");
+      // Original publishedAt timestamps stay so external links keep
+      // tracking the original publish moment.
+      expect(pages[0]!.publishedAt).toEqual(past);
+      expect(canvases[0]!.publishedAt).toEqual(past);
+    });
+
+    it("publishing a single page (kind != project) does NOT cascade", async () => {
+      const { service, pagesRepo, canvasesRepo } = buildSut({
+        existing: projectRow(),
+        pages: [childStub({ id: "pag_1" })],
+        canvases: [childStub({ id: "cnv_1" })],
+      });
+      // We're publishing the project — but assert the cascade was
+      // gated on `kind === "project"` by changing kind to page.
+      // Mock loadResource pathway: page lookups still need to work.
+      const pageRow = childStub({ id: "pag_1", title: "Solo Page" });
+      pagesRepo.findById = vi.fn(async () => pageRow);
+      await service.publish("page", "pag_1", { visibility: "public" }, "usr_a");
+      // The page's listByProject must not have run as part of a
+      // cascade (only the project path triggers cascade).
+      expect(pagesRepo.listByProject).not.toHaveBeenCalled();
+      expect(canvasesRepo.listByProject).not.toHaveBeenCalled();
+    });
   });
 });

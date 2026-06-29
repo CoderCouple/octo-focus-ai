@@ -35,9 +35,15 @@ export async function getProjectAction(projectId: string) {
 export async function createProjectAction(workspaceId: string, body: ProjectCreate) {
   return runAction(async () => {
     const project = await createProjectApi(workspaceId, body);
+    // Auto-derive child titles from the parent name so the project
+    // visually owns its 1:1 note + canvas in every list view.
+    // `<project> | Note` / `<project> | Canvas` — same separator the
+    // API's cascade-rename uses, so renaming the project later picks
+    // these up automatically. See
+    // services/api/src/service/lib/project-child-naming.ts.
     await Promise.all([
-      createNoteApi(project.id, { title: project.name }),
-      createCanvasApi(project.id, { title: project.name }),
+      createNoteApi(project.id, { title: `${project.name} | Note` }),
+      createCanvasApi(project.id, { title: `${project.name} | Canvas` }),
     ]);
     revalidatePath("/workspace");
     revalidatePath("/workspace/projects");

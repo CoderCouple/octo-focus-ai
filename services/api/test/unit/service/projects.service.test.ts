@@ -21,7 +21,16 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-function buildSut(opts?: { existing?: Record<string, ReturnType<typeof row> | null> }) {
+interface ChildStub {
+  id: string;
+  title: string;
+}
+
+function buildSut(opts?: {
+  existing?: Record<string, ReturnType<typeof row> | null>;
+  pages?: ChildStub[];
+  canvases?: ChildStub[];
+}) {
   const projectsRepo = {
     findById: vi.fn(async (id: string) => opts?.existing?.[id] ?? null),
     listByWorkspace: vi.fn(async () => [row()]),
@@ -35,14 +44,51 @@ function buildSut(opts?: { existing?: Record<string, ReturnType<typeof row> | nu
       archivedAt: new Date(),
     })),
   };
+  const pages: ChildStub[] = [...(opts?.pages ?? [])];
+  const canvases: ChildStub[] = [...(opts?.canvases ?? [])];
+  const pagesRepo = {
+    listByProject: vi.fn(async () => pages),
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
+      const child = pages.find((p) => p.id === id);
+      if (child && typeof patch.title === "string") child.title = patch.title;
+      return child ?? null;
+    }),
+    softDeleteById: vi.fn(async (id: string) => {
+      const child = pages.find((p) => p.id === id);
+      return child ?? null;
+    }),
+  };
+  const canvasesRepo = {
+    listByProject: vi.fn(async () => canvases),
+    updateById: vi.fn(async (id: string, patch: Record<string, unknown>) => {
+      const child = canvases.find((c) => c.id === id);
+      if (child && typeof patch.title === "string") child.title = patch.title;
+      return child ?? null;
+    }),
+    softDeleteById: vi.fn(async (id: string) => {
+      const child = canvases.find((c) => c.id === id);
+      return child ?? null;
+    }),
+  };
   const workspacesService = { requireRole: vi.fn(async () => "MEMBER") };
   const changeEvents = { record: vi.fn(async () => undefined) };
   const service = new ProjectsService(
     projectsRepo as never,
+    pagesRepo as never,
+    canvasesRepo as never,
     workspacesService as never,
     changeEvents as never,
   );
-  return { service, projectsRepo, workspacesService, changeEvents };
+  return {
+    service,
+    projectsRepo,
+    pagesRepo,
+    canvasesRepo,
+    workspacesService,
+    changeEvents,
+    pages,
+    canvases,
+  };
 }
 
 describe("ProjectsService", () => {
@@ -83,5 +129,76 @@ describe("ProjectsService", () => {
     const callPatch = projectsRepo.updateById.mock.calls[0]![1] as Record<string, unknown>;
     expect(callPatch.name).toBe("New");
     expect("description" in callPatch).toBe(false);
+  });
+
+  describe("cascade rename", () => {
+    it("re-derives child titles still matching the OLD pattern", async () => {
+      const { service, pagesRepo, canvasesRepo, pages, canvases } = buildSut({
+        existing: { prj_1: row({ name: "Old" }) },
+        pages: [{ id: "pag_1", title: "Old | Note" }],
+        canvases: [{ id: "cnv_1", title: "Old | Canvas" }],
+      });
+      await service.update("prj_1", { name: "New" }, "usr_a");
+      expect(pagesRepo.updateById).toHaveBeenCalledWith(
+        "pag_1",
+        expect.objectContaining({ title: "New | Note" }),
+      );
+      expect(canvasesRepo.updateById).toHaveBeenCalledWith(
+        "cnv_1",
+        expect.objectContaining({ title: "New | Canvas" }),
+      );
+      expect(pages[0]!.title).toBe("New | Note");
+      expect(canvases[0]!.title).toBe("New | Canvas");
+    });
+
+    it("leaves children with hand-edited titles alone (sticky opt-out)", async () => {
+      const { service, pagesRepo, canvasesRepo } = buildSut({
+        existing: { prj_1: row({ name: "Old" }) },
+        pages: [{ id: "pag_1", title: "Q1 Brief" }],
+        canvases: [{ id: "cnv_1", title: "Architecture v3" }],
+      });
+      await service.update("prj_1", { name: "New" }, "usr_a");
+      expect(pagesRepo.updateById).not.toHaveBeenCalled();
+      expect(canvasesRepo.updateById).not.toHaveBeenCalled();
+    });
+
+    it("does not cascade when the name patch is undefined or unchanged", async () => {
+      const { service, pagesRepo, canvasesRepo } = buildSut({
+        existing: { prj_1: row({ name: "Same" }) },
+        pages: [{ id: "pag_1", title: "Same | Note" }],
+      });
+      await service.update("prj_1", { description: "new desc" }, "usr_a");
+      expect(pagesRepo.listByProject).not.toHaveBeenCalled();
+      expect(pagesRepo.updateById).not.toHaveBeenCalled();
+      expect(canvasesRepo.updateById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cascade delete", () => {
+    it("soft-deletes every active page + canvas under the project", async () => {
+      const { service, pagesRepo, canvasesRepo } = buildSut({
+        existing: { prj_1: row() },
+        pages: [
+          { id: "pag_1", title: "Proj | Note" },
+          { id: "pag_2", title: "Hand-edited" },
+        ],
+        canvases: [{ id: "cnv_1", title: "Proj | Canvas" }],
+      });
+      await service.archive("prj_1", "usr_a");
+      expect(pagesRepo.softDeleteById).toHaveBeenCalledWith("pag_1");
+      expect(pagesRepo.softDeleteById).toHaveBeenCalledWith("pag_2");
+      expect(canvasesRepo.softDeleteById).toHaveBeenCalledWith("cnv_1");
+    });
+
+    it("emits a change_event per cascaded child", async () => {
+      const { service, changeEvents } = buildSut({
+        existing: { prj_1: row() },
+        pages: [{ id: "pag_1", title: "Proj | Note" }],
+        canvases: [{ id: "cnv_1", title: "Proj | Canvas" }],
+      });
+      await service.archive("prj_1", "usr_a");
+      // 1 project archive + 1 page delete + 1 canvas delete
+      expect(changeEvents.record).toHaveBeenCalledTimes(3);
+    });
   });
 });
