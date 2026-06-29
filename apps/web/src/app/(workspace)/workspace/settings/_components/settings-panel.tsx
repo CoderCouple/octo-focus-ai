@@ -33,6 +33,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import {
   Dialog,
   DialogContent,
@@ -570,8 +571,18 @@ function MembersSection({
     toast.success("Role updated");
   };
 
-  const handleRemove = async (userId: string) => {
-    if (!confirm("Remove this member from the workspace?")) return;
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<{
+    userId: string;
+    name: string;
+  } | null>(null);
+
+  const handleRemove = (userId: string, name: string) => {
+    setRemoveMemberTarget({ userId, name });
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!removeMemberTarget) return;
+    const { userId } = removeMemberTarget;
     const previous = members;
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
     const r = await removeMemberAction(workspaceId, userId);
@@ -731,7 +742,7 @@ function MembersSection({
                           variant="ghost"
                           size="sm"
                           className="size-7 p-0"
-                          onClick={() => handleRemove(m.userId)}
+                          onClick={() => handleRemove(m.userId, m.user.name || m.user.email || "this member")}
                           aria-label="Remove member"
                         >
                           <Trash2 className="size-3.5" />
@@ -745,6 +756,18 @@ function MembersSection({
           </Table>
         </div>
       </div>
+      <ConfirmActionDialog
+        open={removeMemberTarget !== null}
+        onOpenChange={(o) => !o && setRemoveMemberTarget(null)}
+        title={
+          removeMemberTarget
+            ? `Remove ${removeMemberTarget.name}?`
+            : "Remove member?"
+        }
+        description="They lose access to this workspace and everything in it. You can re-invite them later."
+        actionLabel="Remove member"
+        onConfirm={confirmRemoveMember}
+      />
     </SectionShell>
   );
 }

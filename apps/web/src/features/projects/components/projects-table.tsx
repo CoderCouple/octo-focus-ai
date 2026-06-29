@@ -24,6 +24,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { OwnerCell } from "@/components/owner-cell";
 import { ReviewersCell } from "@/components/reviewers-cell";
 import { StatusBadge } from "@/components/status-badge";
@@ -97,6 +98,10 @@ export function ProjectsTable({
   const remove = useDeleteProject(workspaceId);
   const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const [draft, setDraft] = useState("");
+  // Type-to-confirm modal for project deletion — replaces the
+  // platform `confirm()` so users have to re-type the project name
+  // before the destructive action fires.
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("updated-desc");
   const sorting = useMemo(
@@ -193,19 +198,7 @@ export function ProjectsTable({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => {
-                    if (
-                      !confirm(
-                        `Delete project "${row.original.name}"? This removes its note and canvas.`,
-                      )
-                    ) {
-                      return;
-                    }
-                    remove.mutate(row.original.id, {
-                      onSuccess: () => toast.success("Project deleted"),
-                      onError: (e) => toast.error(e.message),
-                    });
-                  }}
+                  onSelect={() => setDeleteTarget(row.original)}
                 >
                   Delete
                 </DropdownMenuItem>
@@ -443,6 +436,36 @@ export function ProjectsTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={
+          deleteTarget ? `Delete project "${deleteTarget.name}"?` : "Delete project?"
+        }
+        description="This removes the project, its note, and its canvas. This action can't be undone."
+        actionLabel="Delete project"
+        typeToConfirm={
+          deleteTarget
+            ? { value: deleteTarget.name, label: "project name" }
+            : undefined
+        }
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          return new Promise<void>((resolve) => {
+            remove.mutate(deleteTarget.id, {
+              onSuccess: () => {
+                toast.success("Project deleted");
+                resolve();
+              },
+              onError: (e) => {
+                toast.error(e.message);
+                resolve();
+              },
+            });
+          });
+        }}
+      />
     </Tabs>
   );
 }

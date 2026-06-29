@@ -56,6 +56,7 @@ import { z } from "zod"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog"
 import {
   ChartContainer,
   ChartTooltip,
@@ -321,9 +322,10 @@ function RowActionsCell({
   const { onDelete, onRename, resourceLabel } = React.useContext(RowActionsContext)
   const [busy, setBusy] = React.useState(false)
 
-  const handleDelete = async () => {
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+
+  const runDelete = async () => {
     if (!onDelete || !resourceId) return
-    if (!confirm(`Delete ${resourceLabel ?? "this item"} "${title}"?`)) return
     setBusy(true)
     try {
       await onDelete(resourceId)
@@ -373,13 +375,22 @@ function RowActionsCell({
             <DropdownMenuItem
               variant="destructive"
               disabled={busy}
-              onClick={handleDelete}
+              onSelect={() => setConfirmOpen(true)}
             >
               {busy ? "Deleting…" : "Delete"}
             </DropdownMenuItem>
           </>
         ) : null}
       </DropdownMenuContent>
+      <ConfirmActionDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Delete ${resourceLabel ?? "item"} "${title}"?`}
+        description="This action can't be undone."
+        actionLabel={`Delete ${resourceLabel ?? "item"}`}
+        typeToConfirm={{ value: title, label: `${resourceLabel ?? "item"} name` }}
+        onConfirm={runDelete}
+      />
     </DropdownMenu>
   )
 }
