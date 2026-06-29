@@ -5,6 +5,7 @@
  * verify it by hitting `/me`, then hand the user off to HomeScreen.
  */
 import { useState } from "react";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { getMe } from "../lib/api";
 
 interface OnboardingScreenProps {
@@ -39,7 +40,10 @@ export function OnboardingScreen({ onSignedIn }: OnboardingScreenProps) {
   };
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center px-8">
+    <div className="relative flex h-screen flex-col items-center justify-center px-8">
+      <div className="absolute top-3 right-3">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
           <div className="bg-foreground text-background mx-auto flex size-12 items-center justify-center rounded-2xl">

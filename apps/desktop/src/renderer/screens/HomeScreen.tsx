@@ -7,6 +7,7 @@
  * PR3 replaces most of this with the live capture view.
  */
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { createMeeting, getMe, type MeResponse } from "../lib/api";
 
 interface HomeScreenProps {
@@ -76,13 +77,16 @@ export function HomeScreen({ onSignedOut, onStartMeeting }: HomeScreenProps) {
           </div>
           <span className="text-sm font-medium">OctoFocusAI Desktop</span>
         </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="text-muted-foreground hover:text-foreground text-xs"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-muted-foreground hover:text-foreground text-xs"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 text-center">
         {loadError ? (

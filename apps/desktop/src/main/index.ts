@@ -30,7 +30,9 @@ function createWindow(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: "hiddenInset",
-    backgroundColor: "#0a0a0a",
+    // No backgroundColor — let Electron pick a neutral default so the
+    // window chrome (titlebar buttons, edges) doesn't lock to a dark
+    // colour the renderer's theme switcher can't override.
     webPreferences: {
       // Preload is built as CommonJS at `out/preload/index.cjs` —
       // Vite's lib mode emits `.cjs` for `formats: ["cjs"]`. The

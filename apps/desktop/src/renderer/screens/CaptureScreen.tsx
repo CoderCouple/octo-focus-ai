@@ -20,6 +20,7 @@
  *      kick off Claude summarize, render the summary.
  */
 import { useEffect, useRef, useState } from "react";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { patchMeeting, summarizeMeeting, uploadMeetingAudio } from "../lib/api";
 import { connectDeepgram, type DeepgramHandle } from "../lib/deepgram";
 import { wrapPcmAsWav } from "../lib/wav";
@@ -312,9 +313,12 @@ export function CaptureScreen({ meetingId, meetingTitle, onDone }: CaptureScreen
           ← Back
         </button>
         <span className="text-sm font-medium">{meetingTitle}</span>
-        <span className="text-muted-foreground font-mono text-xs">
-          {formatTime(elapsedSec)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground font-mono text-xs">
+            {formatTime(elapsedSec)}
+          </span>
+          <ThemeToggle />
+        </div>
       </header>
       <main className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-auto px-6 py-4">
