@@ -356,6 +356,15 @@ function computeLayoutCompound(diagram: OctoFocusAIDiagram): ComputedLayout {
 
   const positions = new Map<string, NodePosition>();
   const groupBoundsOut = new Map<string, NodeBounds>();
+  // Defaults when Dagre returns NaN — happens for empty group nodes
+  // in compound mode (no children → undefined width/height). Tldraw's
+  // record validator rejects NaN, so we coerce to a small placeholder
+  // rectangle at the origin and let the user move/resize it.
+  const EMPTY_FIGURE_W = 240;
+  const EMPTY_FIGURE_H = 120;
+  const safe = (value: number | undefined, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
   for (const id of g.nodes()) {
     const dagreNode = g.node(id);
     if (!dagreNode) continue;
@@ -364,14 +373,21 @@ function computeLayoutCompound(diagram: OctoFocusAIDiagram): ComputedLayout {
     if (diagramNode.isGroup) {
       // Dagre returns the group's centre + total bounds (children
       // included). Convert to top-left for tldraw.
+      const w = safe(dagreNode.width, EMPTY_FIGURE_W);
+      const h = safe(dagreNode.height, EMPTY_FIGURE_H);
+      const cx = safe(dagreNode.x, 0);
+      const cy = safe(dagreNode.y, 0);
       groupBoundsOut.set(id, {
-        x: dagreNode.x - dagreNode.width / 2,
-        y: dagreNode.y - dagreNode.height / 2,
-        width: dagreNode.width,
-        height: dagreNode.height,
+        x: cx - w / 2,
+        y: cy - h / 2,
+        width: w,
+        height: h,
       });
     } else {
-      positions.set(id, { x: dagreNode.x - NODE_W / 2, y: dagreNode.y - NODE_H / 2 });
+      positions.set(id, {
+        x: safe(dagreNode.x, 0) - NODE_W / 2,
+        y: safe(dagreNode.y, 0) - NODE_H / 2,
+      });
     }
   }
   return { positions, groupBounds: groupBoundsOut };
