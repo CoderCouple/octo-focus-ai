@@ -1,34 +1,23 @@
 /**
- * Shape of the bridge exposed on `window.octofocus` by the preload
- * script. Kept in `src/shared` so the renderer + preload reference
- * the exact same type — no drift between what's exposed and what the
+ * Bridge exposed on `window.octofocus` by the preload script. Lives
+ * in `src/shared` so the preload and the web app reference the
+ * exact same type — no drift between what's exposed and what the
  * renderer assumes is available.
  *
- * PR2 grows this with typed wrappers (e.g. `getToken`, `setToken`);
- * PR3 adds `startCapture` / `stopCapture` etc.
+ * After the Part C pivot (BrowserWindow loads the hosted web app
+ * directly), this bridge only carries native capabilities the web
+ * app can't do on its own:
+ *   - `isElectron` flag the web uses to branch its MeetingRecorder
+ *     between the browser `MediaRecorder` path and the Swift
+ *     sidecar PCM stream.
+ *   - `capture` — sidecar lifecycle + chunk subscription.
+ *   - `shortcuts` — global ⌥⌘M dispatch + capture-state notify so
+ *     the menubar tray icon can repaint.
+ *
+ * Auth is handled entirely by the web app via the existing Supabase
+ * cookie session — no token storage, no API proxy, no main-process
+ * HTTP. The renderer IS the web app.
  */
-/**
- * Subset of Node `process.versions` we actually surface in the
- * renderer. Re-declared as a plain string-map so the renderer
- * tsconfig (which deliberately excludes @types/node) compiles
- * without pulling Node globals.
- */
-export type ProcessVersions = Readonly<Record<string, string | undefined>>;
-
-/**
- * `process.platform` is widened to `string` for the renderer — we
- * only ever branch on `=== "darwin"` so the exact union of Node's
- * platform strings doesn't matter, and using `string` avoids
- * coupling the renderer's types to a Node version it doesn't import.
- */
-export interface TokenApi {
-  /** Returns the stored Bearer token, or null when none is saved. */
-  get(): Promise<string | null>;
-  /** Persists a new token to the OS keychain. */
-  set(token: string): Promise<void>;
-  /** Clears the stored token (sign-out). */
-  clear(): Promise<void>;
-}
 
 export interface CaptureStartResult {
   pid: number;
@@ -51,55 +40,25 @@ export interface CaptureApi {
 }
 
 export interface ShortcutsApi {
-  /**
-   * Subscribe to the global ⌥⌘M shortcut from the main process —
-   * "toggle capture". The renderer decides what that means based on
-   * the current state (start a new meeting, or stop the active one).
-   */
+  /** Subscribe to the global ⌥⌘M shortcut from the main process. */
   onToggleCapture(handler: () => void): () => void;
-  /** Tell main about the latest capture state for tray painting. */
+  /** Tell main about the latest capture state so the tray icon repaints. */
   notifyCaptureState(state: { recording: boolean }): void;
 }
 
-export interface ApiRequest {
-  path: string;
-  method?: string;
-  body?: string | ArrayBuffer | Uint8Array;
-  headers?: Record<string, string>;
-  authenticated?: boolean;
-}
-
-export interface ApiResponse {
-  ok: boolean;
-  status: number;
-  body: string;
-  base: string;
-}
-
-export interface ApiBridge {
-  /**
-   * Proxy every HTTP request through the Electron main process.
-   * Avoids CORS (Node fetch ignores it) and centralises the
-   * remote-vs-local base URL fallback. The Bearer token is read
-   * from the keychain main-side and never enters the renderer.
-   */
-  request(req: ApiRequest): Promise<ApiResponse>;
-}
-
 export interface OctofocusBridge {
+  /** Always true when running inside the desktop app. */
+  isElectron: true;
+  /** Platform string ("darwin" | "win32" | "linux"). */
   platform: string;
-  versions: ProcessVersions;
-  invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
-  token: TokenApi;
   capture: CaptureApi;
   shortcuts: ShortcutsApi;
-  api: ApiBridge;
 }
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface Window {
-    octofocus: OctofocusBridge;
+    octofocus?: OctofocusBridge;
   }
 }
 

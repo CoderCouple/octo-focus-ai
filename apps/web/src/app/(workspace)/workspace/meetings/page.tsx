@@ -1,5 +1,5 @@
-import { Video } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { listWorkspaceMeetingsApi } from "@/features/meetings/api/meetings-api";
+import { MeetingsTable } from "@/features/meetings/components/meetings-table";
 import {
   getActiveWorkspaceIdCookie,
   resolveActiveMembership,
@@ -12,27 +12,23 @@ export default async function MeetingsPage() {
   const active = resolveActiveMembership(me.memberships, activeId);
   if (!active) return null;
 
+  let meetings: Awaited<ReturnType<typeof listWorkspaceMeetingsApi>>;
+  try {
+    meetings = await listWorkspaceMeetingsApi(active.workspace.id);
+  } catch {
+    meetings = [];
+  }
+
   return (
-    <section className="flex h-full flex-col gap-8 p-8">
-      <div className="grid gap-2">
+    <section className="flex h-full flex-col gap-6 p-8">
+      <header className="grid gap-1">
         <h1 className="text-2xl font-semibold">Meetings</h1>
         <p className="text-muted-foreground text-sm">
-          Capture meeting notes, record sessions, and generate AI summaries.
+          Record + transcribe meetings. Click any meeting to view its
+          recording, transcript, and AI summary.
         </p>
-      </div>
-      <Card className="grid place-items-center gap-3 p-12 text-center">
-        <div className="border-border text-foreground grid h-12 w-12 place-items-center rounded-md border">
-          <Video className="h-6 w-6" />
-        </div>
-        <div className="grid gap-1">
-          <div className="text-sm font-semibold">Coming soon</div>
-          <div className="text-muted-foreground max-w-md text-xs">
-            Meetings will let you record, transcribe, and turn discussions into
-            notes and diagrams. Available for workspace{" "}
-            <span className="font-medium text-foreground">{active.workspace.name}</span>.
-          </div>
-        </div>
-      </Card>
+      </header>
+      <MeetingsTable workspaceId={active.workspace.id} initialData={meetings} />
     </section>
   );
 }

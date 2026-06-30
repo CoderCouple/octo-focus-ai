@@ -1,47 +1,34 @@
 /**
- * Preload script — runs in an isolated world that has access to both
- * Node `process` (via the `electron` module) and the renderer's
- * `window`. Anything we expose via `contextBridge.exposeInMainWorld`
- * becomes available on `window.octofocus` in React.
+ * Preload script — runs inside the BrowserWindow's renderer (which
+ * loads the hosted OctoFocusAI web app at `https://www.octofocus.ai`
+ * or the local dev server). Exposes a small typed bridge on
+ * `window.octofocus` that the web app's `MeetingRecorder` reads to
+ * decide whether it should use the browser `MediaRecorder` (no
+ * bridge) or the Swift sidecar (bridge present).
  *
- * Today the bridge is intentionally tiny — just the platform info.
- * PR2 adds token storage; PR3 adds the capture start/stop verbs.
+ * No auth, no API client — Supabase cookies inside the BrowserWindow
+ * handle that. The bridge is intentionally tiny: capture lifecycle,
+ * shortcut subscription, isElectron flag.
  */
 import { contextBridge, ipcRenderer } from "electron";
 import type { OctofocusBridge } from "../shared/preload-api";
 
 const api: OctofocusBridge = {
-  /** Platform string ("darwin" | "win32" | "linux"). Useful for guards. */
+  isElectron: true,
   platform: process.platform,
-  /** Electron / chromium / node versions, for diagnostics. */
-  versions: { ...process.versions },
-  /**
-   * Generic IPC helper — main-side handlers register via
-   * `ipcMain.handle(channel, ...)`. Surfaced as `window.octofocus.invoke`.
-   * Later PRs add typed wrappers (e.g. `startCapture`) that call
-   * this under the hood; today the only typed wrapper is `token.*`.
-   */
-  invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
-    ipcRenderer.invoke(channel, ...args),
-  /**
-   * Bearer token vault — round-trips to the macOS Keychain via
-   * keytar in the main process. The token never enters renderer
-   * memory until the user explicitly fetches it for an API call.
-   */
-  token: {
-    get: () => ipcRenderer.invoke("token:get") as Promise<string | null>,
-    set: (token) => ipcRenderer.invoke("token:set", token) as Promise<void>,
-    clear: () => ipcRenderer.invoke("token:clear") as Promise<void>,
-  },
+
   /**
    * Audio capture bridge — the Swift sidecar lives in the main
    * process. Renderer subscribes to PCM chunks via `onChunk`; each
-   * chunk is a 100ms slice of 16kHz mono int16 PCM ready for
+   * chunk is a 100 ms slice of 16 kHz mono int16 PCM ready for
    * Deepgram.
    */
   capture: {
     start: () =>
-      ipcRenderer.invoke("capture:start") as Promise<{ pid: number; binaryPath: string }>,
+      ipcRenderer.invoke("capture:start") as Promise<{
+        pid: number;
+        binaryPath: string;
+      }>,
     stop: () => ipcRenderer.invoke("capture:stop") as Promise<void>,
     isRunning: () => ipcRenderer.invoke("capture:isRunning") as Promise<boolean>,
     onChunk: (handler) => {
@@ -74,24 +61,11 @@ const api: OctofocusBridge = {
       return () => ipcRenderer.removeListener("sidecar:error", listener);
     },
   },
-  /**
-   * HTTP proxy — every API call rides through the main process to
-   * dodge CORS + centralise base-URL fallback. The Bearer token is
-   * pulled from the keychain main-side; the renderer never sees it.
-   */
-  api: {
-    request: (req) =>
-      ipcRenderer.invoke("api:request", req) as Promise<{
-        ok: boolean;
-        status: number;
-        body: string;
-        base: string;
-      }>,
-  },
+
   /**
    * Global keyboard shortcut bridge — main registers ⌥⌘M and
-   * dispatches the toggle event over IPC; the renderer turns that
-   * into either "start a new meeting" or "stop the active one".
+   * dispatches the toggle event over IPC; the web app interprets
+   * the event based on the current page state.
    */
   shortcuts: {
     onToggleCapture: (handler) => {

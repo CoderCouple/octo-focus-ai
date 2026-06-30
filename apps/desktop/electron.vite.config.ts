@@ -1,18 +1,17 @@
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import { resolve } from "node:path";
 
 /**
- * Electron-vite splits the build into three targets:
- *   - main:     Node.js process (electron app lifecycle)
- *   - preload:  Bridge between main and renderer (contextIsolation safe)
- *   - renderer: Vite + React (Tailwind v4 via the official plugin)
+ * Electron-vite split into two targets after the Part C pivot:
+ *   - main:     Node.js process (app lifecycle + sidecar + tray)
+ *   - preload:  Bridge between main and renderer (CJS, sandboxed-safe)
+ *
+ * The renderer target is gone — the BrowserWindow loads the hosted
+ * OctoFocusAI web app directly. No local React bundle to build.
  *
  * `externalizeDepsPlugin` keeps node_modules out of the main/preload
- * bundles — Electron resolves them at runtime instead of bundling
- * them in (which is what we want for native modules like `keytar`
- * once PR2 lands).
+ * bundles so native modules are resolved at runtime instead of
+ * being bundled.
  */
 export default defineConfig({
   main: {
@@ -26,30 +25,12 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: "out/preload",
-      // Sandboxed preload scripts (sandbox: true on the BrowserWindow)
-      // run in a context that doesn't support ES modules — Electron's
-      // sandbox bundle only knows how to evaluate CommonJS at preload
-      // time. Force the lib output to CJS with a `.js` extension so
-      // the main process's `preload:` path points at a loadable file.
+      // Sandboxed preload can't evaluate ESM; force CJS output so the
+      // main process's `webPreferences.preload` path loads cleanly.
       lib: {
         entry: resolve(__dirname, "src/preload/index.ts"),
         formats: ["cjs"],
         fileName: () => "index.js",
-      },
-    },
-  },
-  renderer: {
-    root: resolve(__dirname),
-    plugins: [react(), tailwindcss()],
-    build: {
-      outDir: "out/renderer",
-      rollupOptions: {
-        input: resolve(__dirname, "index.html"),
-      },
-    },
-    resolve: {
-      alias: {
-        "@": resolve(__dirname, "src/renderer"),
       },
     },
   },
