@@ -20,8 +20,12 @@
 import { ipcMain } from "electron";
 import { getStoredToken } from "./token-store";
 
-const REMOTE_DEFAULT = process.env["OCTOFOCUS_API_REMOTE"] ?? "https://api.octofocus.ai/v1";
-const LOCAL_DEFAULT = process.env["OCTOFOCUS_API_LOCAL"] ?? "http://localhost:4000/v1";
+// The NestJS API doesn't use a `/v1` URL prefix (controllers mount
+// at the root path), so the base URL is host-only. The path each
+// call passes — `/me`, `/meetings/:id`, etc. — matches the
+// controller `@Controller(...)` decorators directly.
+const REMOTE_DEFAULT = process.env["OCTOFOCUS_API_REMOTE"] ?? "https://api.octofocus.ai";
+const LOCAL_DEFAULT = process.env["OCTOFOCUS_API_LOCAL"] ?? "http://localhost:4000";
 
 let resolvedBase: string | null = null;
 
@@ -88,6 +92,12 @@ export function registerApiProxy(): void {
       const token = await getStoredToken();
       if (!token) throw new Error("Not signed in.");
       headers["authorization"] = `Bearer ${token}`;
+      // DIAGNOSTIC — shows base + token prefix (NOT the full token)
+      // so we can confirm the `oft_` shape survives the keychain
+      // round-trip and which API host is serving us.
+      console.log(
+        `[api-proxy] ${req.method ?? "GET"} ${base}${req.path} (token=${token.slice(0, 8)}…, len=${token.length})`,
+      );
     }
     if (req.body && typeof req.body === "string" && !headers["content-type"]) {
       headers["content-type"] = "application/json";

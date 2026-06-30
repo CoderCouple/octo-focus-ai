@@ -21,6 +21,16 @@ export function OnboardingScreen({ onSignedIn }: OnboardingScreenProps) {
     e.preventDefault();
     const trimmed = token.trim();
     if (!trimmed) return;
+    // Hard validate the token shape BEFORE storing or sending. A
+    // password input can accept characters the API (and `fetch`'s
+    // ByteString header conversion) rejects — bullets pasted from
+    // the masked display, RTL characters, smart quotes, etc.
+    if (!/^oft_[A-Za-z0-9_-]+$/.test(trimmed)) {
+      setError(
+        "That doesn't look like a token. Expect `oft_` followed by letters, numbers, `_`, or `-`. Re-copy from the website and try again.",
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -56,7 +66,10 @@ export function OnboardingScreen({ onSignedIn }: OnboardingScreenProps) {
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
-            type="password"
+            // Plain text so you can see what's in the field. The
+            // token shows clearly in your own machine; no need to
+            // mask it from yourself.
+            type="text"
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder="oft_…"
