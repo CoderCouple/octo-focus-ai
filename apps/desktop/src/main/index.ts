@@ -49,6 +49,16 @@ function createWindow(): BrowserWindow {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Dev convenience: disable CORS / mixed-content checks when
+      // loading from the Vite dev server. The renderer origin in
+      // dev is `http://localhost:5174` which neither the prod API
+      // (allows octofocus.ai) nor the local API (allows
+      // localhost:3000) whitelists. We're still sandboxed via
+      // contextIsolation, so the attack surface stays narrow.
+      // Production build (no devUrl) keeps webSecurity on; we'll
+      // route API calls through the main process IPC then so the
+      // renderer never makes cross-origin requests at all.
+      webSecurity: process.env["ELECTRON_RENDERER_URL"] ? false : true,
     },
   });
 

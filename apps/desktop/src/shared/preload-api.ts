@@ -61,6 +61,31 @@ export interface ShortcutsApi {
   notifyCaptureState(state: { recording: boolean }): void;
 }
 
+export interface ApiRequest {
+  path: string;
+  method?: string;
+  body?: string | ArrayBuffer | Uint8Array;
+  headers?: Record<string, string>;
+  authenticated?: boolean;
+}
+
+export interface ApiResponse {
+  ok: boolean;
+  status: number;
+  body: string;
+  base: string;
+}
+
+export interface ApiBridge {
+  /**
+   * Proxy every HTTP request through the Electron main process.
+   * Avoids CORS (Node fetch ignores it) and centralises the
+   * remote-vs-local base URL fallback. The Bearer token is read
+   * from the keychain main-side and never enters the renderer.
+   */
+  request(req: ApiRequest): Promise<ApiResponse>;
+}
+
 export interface OctofocusBridge {
   platform: string;
   versions: ProcessVersions;
@@ -68,6 +93,7 @@ export interface OctofocusBridge {
   token: TokenApi;
   capture: CaptureApi;
   shortcuts: ShortcutsApi;
+  api: ApiBridge;
 }
 
 declare global {

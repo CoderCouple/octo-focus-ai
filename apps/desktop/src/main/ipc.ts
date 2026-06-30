@@ -8,10 +8,12 @@
  * capture:stop, ...).
  */
 import { BrowserWindow, ipcMain } from "electron";
+import { registerApiProxy } from "./api-proxy";
 import { isSidecarRunning, startSidecar, stopSidecar } from "./sidecar";
 import { clearStoredToken, getStoredToken, setStoredToken } from "./token-store";
 
 export function registerIpcHandlers(): void {
+  registerApiProxy();
   ipcMain.handle("token:get", async () => getStoredToken());
   ipcMain.handle("token:set", async (_event, token: string) => {
     if (typeof token !== "string" || token.length < 8) {

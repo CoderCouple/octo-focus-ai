@@ -1,17 +1,16 @@
 /**
- * Thin desktop API client. Pulls the Bearer token from the keychain
- * on every call (lazy fetch — the main process owns the token, the
- * renderer never caches it long-term) and adds it to the Auth
- * header.
+ * Renderer-side API client. Every request goes through
+ * `window.octofocus.api.request(...)` which is implemented in the
+ * Electron main process — see `apps/desktop/src/main/api-proxy.ts`.
+ * That layer handles:
+ *   - CORS bypass (Node fetch has no CORS)
+ *   - Remote-first / local-fallback base URL resolution
+ *   - Bearer token attachment from the macOS Keychain
  *
- * Errors surface as thrown Error instances with the message taken
- * from the API's BaseResponse envelope where present, otherwise the
- * raw status. The caller decides what to toast.
+ * The renderer never directly touches `fetch` or the token. Errors
+ * surface as thrown Errors with the message taken from the API's
+ * BaseResponse envelope where present.
  */
-
-const API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "http://localhost:4000/v1";
 
 export interface BaseResponseEnvelope<T> {
   success: boolean;
@@ -19,31 +18,50 @@ export interface BaseResponseEnvelope<T> {
   message?: string;
 }
 
-async function fetchWithAuth<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = await window.octofocus.token.get();
-  if (!token) {
-    throw new Error("Not signed in. Add an API token in Settings.");
+interface FetchOptions {
+  method?: string;
+  body?: string | ArrayBuffer | Uint8Array;
+  headers?: Record<string, string>;
+  authenticated?: boolean;
+}
+
+async function call<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  const res = await window.octofocus.api.request({
+    path,
+    method: opts.method,
+    body: opts.body,
+    headers: opts.headers,
+    authenticated: opts.authenticated,
+  });
+  // Bodies are returned as text. Most endpoints return JSON; tolerate
+  // the rare empty body (e.g. 204 No Content).
+  let parsed: BaseResponseEnvelope<T> | T | null = null;
+  if (res.body) {
+    try {
+      parsed = JSON.parse(res.body) as BaseResponseEnvelope<T>;
+    } catch {
+      parsed = null;
+    }
   }
-  const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${token}`);
-  if (!headers.has("content-type") && init.body !== undefined) {
-    headers.set("content-type", "application/json");
-  }
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
-  const body = (await res.json().catch(() => null)) as BaseResponseEnvelope<T> | null;
   if (!res.ok) {
     const message =
-      body && typeof body === "object" && typeof body.message === "string"
-        ? body.message
+      parsed &&
+      typeof parsed === "object" &&
+      "message" in parsed &&
+      typeof (parsed as { message?: unknown }).message === "string"
+        ? ((parsed as { message: string }).message)
         : `${res.status}`;
     throw new Error(`OctoFocusAI API ${path} ${res.status}: ${message}`);
   }
-  // API wraps everything in a `BaseResponse` envelope; tolerate raw
-  // payloads too (some endpoints return body directly).
-  if (body && typeof body === "object" && "success" in body && body.data !== undefined) {
-    return body.data as T;
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "success" in parsed &&
+    (parsed as BaseResponseEnvelope<T>).data !== undefined
+  ) {
+    return (parsed as BaseResponseEnvelope<T>).data as T;
   }
-  return body as T;
+  return parsed as T;
 }
 
 // ----- Domain calls ---------------------------------------------------------
@@ -57,7 +75,7 @@ export interface MeResponse {
 }
 
 export function getMe(): Promise<MeResponse> {
-  return fetchWithAuth<MeResponse>("/me");
+  return call<MeResponse>("/me");
 }
 
 export interface CreateMeetingResponse {
@@ -70,7 +88,7 @@ export function createMeeting(
   workspaceId: string,
   body: { title: string; description?: string | null },
 ): Promise<CreateMeetingResponse> {
-  return fetchWithAuth<CreateMeetingResponse>(`/workspaces/${workspaceId}/meetings`, {
+  return call<CreateMeetingResponse>(`/workspaces/${workspaceId}/meetings`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -85,7 +103,7 @@ export function patchMeeting(
   id: string,
   patch: { title?: string; transcript?: string; summary?: string },
 ): Promise<unknown> {
-  return fetchWithAuth(`/meetings/${id}`, {
+  return call(`/meetings/${id}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
@@ -97,37 +115,33 @@ export function patchMeeting(
  * `summary` field populated.
  */
 export function summarizeMeeting(id: string): Promise<{ summary: string | null }> {
-  return fetchWithAuth<{ summary: string | null }>(`/meetings/${id}/summarize`, {
+  return call<{ summary: string | null }>(`/meetings/${id}/summarize`, {
     method: "POST",
   });
 }
 
 /**
- * Upload the final audio blob. The API's raw-body parser expects an
- * `application/octet-stream`-style body + the audio metadata in
- * custom headers — see services/api/.../meetings.controller.ts.
+ * Upload the final audio blob. Routed through the main-process proxy
+ * like every other call — the body is sent as an ArrayBuffer (IPC
+ * deep-copies it into the main process, then main streams to the
+ * API).
  */
 export async function uploadMeetingAudio(
   id: string,
   blob: Blob,
   durationSec?: number,
 ): Promise<void> {
-  const token = await window.octofocus.token.get();
-  if (!token) throw new Error("Not signed in.");
-  const headers = new Headers({
-    authorization: `Bearer ${token}`,
+  const buf = await blob.arrayBuffer();
+  const headers: Record<string, string> = {
     "content-type": "application/octet-stream",
     "x-audio-content-type": blob.type || "audio/webm",
-  });
+  };
   if (durationSec !== undefined && Number.isFinite(durationSec)) {
-    headers.set("x-audio-duration-sec", String(Math.floor(durationSec)));
+    headers["x-audio-duration-sec"] = String(Math.floor(durationSec));
   }
-  const res = await fetch(`${API_URL}/meetings/${id}/audio`, {
+  await call(`/meetings/${id}/audio`, {
     method: "POST",
+    body: buf,
     headers,
-    body: await blob.arrayBuffer(),
   });
-  if (!res.ok) {
-    throw new Error(`Audio upload failed (${res.status})`);
-  }
 }

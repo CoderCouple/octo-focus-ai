@@ -75,6 +75,20 @@ const api: OctofocusBridge = {
     },
   },
   /**
+   * HTTP proxy — every API call rides through the main process to
+   * dodge CORS + centralise base-URL fallback. The Bearer token is
+   * pulled from the keychain main-side; the renderer never sees it.
+   */
+  api: {
+    request: (req) =>
+      ipcRenderer.invoke("api:request", req) as Promise<{
+        ok: boolean;
+        status: number;
+        body: string;
+        base: string;
+      }>,
+  },
+  /**
    * Global keyboard shortcut bridge — main registers ⌥⌘M and
    * dispatches the toggle event over IPC; the renderer turns that
    * into either "start a new meeting" or "stop the active one".
