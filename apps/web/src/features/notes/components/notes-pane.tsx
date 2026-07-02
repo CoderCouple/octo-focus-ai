@@ -8,6 +8,7 @@ import type { PageSettings } from "@octofocus/shared";
 import { EditableTitle } from "@/components/editable-title";
 import { FontPicker, type NoteFont } from "@/components/font-picker";
 import { Toggle } from "@/components/ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SharePopover, type Visibility } from "@/features/sharing";
 import { updateNoteClientApi, updateNoteSettingsApi } from "../api/notes-client-api";
 import { NotesEditor } from "./notes-editor";
@@ -116,18 +117,25 @@ export function NotesPane({
         )}
         <div className="ml-auto flex items-center gap-1">
           <FontPicker value={font} onChange={handleFontChange} />
-          <Toggle
-            pressed={raw}
-            onPressedChange={setRaw}
-            size="sm"
-            aria-label="Raw markdown"
-            title="View raw markdown"
-          >
-            {raw ? <FileText className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
-            {raw ? "Editor" : "Raw"}
-          </Toggle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                pressed={raw}
+                onPressedChange={setRaw}
+                size="sm"
+                aria-label={raw ? "Editor" : "Raw markdown"}
+                className="size-8 p-0"
+              >
+                {raw ? <FileText className="size-3.5" /> : <Code2 className="size-3.5" />}
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>
+              {raw ? "Editor — back to the rich editor" : "Raw — view the underlying markdown"}
+            </TooltipContent>
+          </Tooltip>
           {canShare ? (
             <SharePopover
+              iconOnly
               resourceKind="page"
               resourceId={pageId}
               resourceTitle={noteTitle!}

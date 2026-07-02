@@ -267,6 +267,13 @@ body {
   }
 }
 
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Per-page font override for the notes editor — driven by the FontPicker.
    data-notes-font is set on the editor wrapper; we force every BlockNote
    sub-element to the chosen family. */

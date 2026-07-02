@@ -148,7 +148,10 @@ export const FigureBlock = createReactBlockSpec(figureBlockConfig, {
             ) : null}
           </div>
         </header>
-        <div className="bg-background overflow-hidden" style={{ height: currentHeight }}>
+        <div
+          className="bg-background pointer-events-none overflow-hidden"
+          style={{ height: currentHeight }}
+        >
           <FigureReadOnly dsl={dsl} />
         </div>
         {isEditable ? (

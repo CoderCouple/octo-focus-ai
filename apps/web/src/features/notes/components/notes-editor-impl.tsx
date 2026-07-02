@@ -307,43 +307,53 @@ export function NotesEditor({
     }, SAVE_DEBOUNCE_MS);
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [tocHovered, setTocHovered] = useState(false);
+
   return (
-    <div
-      className="bg-card relative h-full overflow-auto"
-      onPasteCapture={onPasteCapture}
-      onDragOverCapture={onDragOverCapture}
-      onDropCapture={onDropCapture}
-    >
-      {view === "edit" ? (
-        <TableOfContentsRail editor={editor as never} />
-      ) : null}
-      <div className={view === "raw" ? "hidden" : "contents"}>
-        <BlockNoteView editor={editor} onChange={onChange} slashMenu={false}>
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) =>
-              filterSuggestionItems(
-                [
-                  ...getDefaultReactSlashMenuItems(editor),
-                  insertMermaidItem(editor),
-                  insertCodeItem(editor),
-                  insertGenerativeUiItem(editor),
-                  insertFigureItem(
-                    editor,
-                    workspaceId ? () => setPickerOpen(true) : null,
-                  ),
-                ],
-                query,
-              )
-            }
-          />
-        </BlockNoteView>
+    <div className="bg-card relative h-full">
+      <div
+        ref={scrollRef}
+        className={`h-full overflow-auto ${tocHovered ? "hide-scrollbar" : ""}`}
+        onPasteCapture={onPasteCapture}
+        onDragOverCapture={onDragOverCapture}
+        onDropCapture={onDropCapture}
+      >
+        <div className={view === "raw" ? "hidden" : "contents"}>
+          <BlockNoteView editor={editor} onChange={onChange} slashMenu={false}>
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) =>
+                filterSuggestionItems(
+                  [
+                    ...getDefaultReactSlashMenuItems(editor),
+                    insertMermaidItem(editor),
+                    insertCodeItem(editor),
+                    insertGenerativeUiItem(editor),
+                    insertFigureItem(
+                      editor,
+                      workspaceId ? () => setPickerOpen(true) : null,
+                    ),
+                  ],
+                  query,
+                )
+              }
+            />
+          </BlockNoteView>
+        </div>
+        {view === "raw" && (
+          <pre className="text-foreground h-full overflow-auto p-6 font-mono text-sm whitespace-pre-wrap">
+            {rawMd}
+          </pre>
+        )}
       </div>
-      {view === "raw" && (
-        <pre className="text-foreground h-full overflow-auto p-6 font-mono text-sm whitespace-pre-wrap">
-          {rawMd}
-        </pre>
-      )}
+      {view === "edit" ? (
+        <TableOfContentsRail
+          editor={editor as never}
+          scrollRef={scrollRef}
+          onHoverChange={setTocHovered}
+        />
+      ) : null}
       {workspaceId ? (
         <FigurePickerDialog
           open={pickerOpen}
