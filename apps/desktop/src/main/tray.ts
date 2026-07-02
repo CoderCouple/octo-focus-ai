@@ -11,9 +11,6 @@
  */
 import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 let tray: Tray | null = null;
 let isRecording = false;

@@ -15,11 +15,8 @@
  */
 import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "./ipc";
 import { installTray, setTrayRecordingState } from "./tray";
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 const DEFAULT_WEB_URL = "https://www.octofocus.ai";
 
