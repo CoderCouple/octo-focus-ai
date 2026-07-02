@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { FileCode2, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetContent,
@@ -112,10 +113,14 @@ export function FromCodeDrawer({ currentDsl, onGenerated }: FromCodeDrawerProps)
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5">
-          <Sparkles className="size-3.5" />
-          From code
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="From code">
+              <FileCode2 className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>From code — generate a diagram from source</TooltipContent>
+        </Tooltip>
       </SheetTrigger>
       <SheetContent side="right" className="flex w-full flex-col gap-4 p-0 sm:max-w-xl">
         <SheetHeader className="px-6 pt-6">

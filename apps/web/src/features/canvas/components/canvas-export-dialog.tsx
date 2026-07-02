@@ -8,7 +8,7 @@
  */
 "use client";
 
-import { Check, Copy, Image as ImageIcon, Loader2, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Image as ImageIcon, Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Editor } from "tldraw";
 import {
@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CanvasExportDialogProps {
   canvasId: string;
@@ -39,10 +40,14 @@ export function CanvasExportDialog({ canvasId, getEditor }: CanvasExportDialogPr
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5">
-          <ImageIcon className="size-3.5" />
-          Export
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Export">
+              <Download className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Export — save the canvas as an image URL</TooltipContent>
+        </Tooltip>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>

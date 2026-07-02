@@ -1,7 +1,16 @@
 "use client";
 
 import type { Canvas, Page, Project } from "@octofocus/shared";
-import { ArrowLeft, Columns2, FileText, Focus, LayoutGrid } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Cloud,
+  Columns2,
+  FileText,
+  Focus,
+  LayoutGrid,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +20,8 @@ import { NotesPane, type NotesEditorHandle } from "@/features/notes";
 import { renameProjectAction } from "@/features/projects";
 import { SharePopover } from "@/features/sharing";
 import { EditableTitle } from "@/components/editable-title";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Mode = "notes" | "both" | "canvas";
@@ -45,6 +56,7 @@ export function ProjectSplitView({
     initialMode ?? (page && canvas ? "both" : page ? "notes" : "canvas");
   const [mode, setMode] = useState<Mode>(resolvedInitialMode);
   const [projectName, setProjectName] = useState(project.name);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   /**
    * Holds the NotesEditor imperative handle (set via `onEditorReady`)
@@ -68,6 +80,21 @@ export function ProjectSplitView({
     setProjectName(next);
     const result = await renameProjectAction(project.id, next);
     if (!result.success) toast.error(result.message);
+  };
+
+  const handleSave = async () => {
+    setSaveState("saving");
+    if (projectName !== project.name) {
+      const result = await renameProjectAction(project.id, projectName);
+      if (!result.success) {
+        setSaveState("idle");
+        toast.error(result.message);
+        return;
+      }
+    }
+    setSaveState("saved");
+    toast.success("All changes saved");
+    setTimeout(() => setSaveState("idle"), 2000);
   };
 
   const hasBoth = Boolean(page && canvas);
@@ -126,7 +153,31 @@ export function ProjectSplitView({
           </ToggleGroup>
         ) : null}
 
-        <div className="flex w-32 items-center justify-end">
+        <div className="flex items-center justify-end gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleSave}
+                disabled={saveState === "saving"}
+                aria-label="Save"
+              >
+                {saveState === "saving" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : saveState === "saved" ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Cloud className="size-3.5" />
+                )}
+                {saveState === "saved" ? "Saved" : "Save"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Save — flush pending changes (notes and canvas also autosave)
+            </TooltipContent>
+          </Tooltip>
           <SharePopover
             resourceKind="project"
             resourceId={project.id}

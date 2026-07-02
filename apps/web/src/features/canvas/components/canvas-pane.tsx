@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, Code2, Focus, Frame, Pencil, RefreshCw, Save, Ungroup } from "lucide-react";
+import {
+  ArrowLeft,
+  Code2,
+  Focus,
+  Group,
+  LayoutGrid,
+  NotebookPen,
+  Shapes,
+  Ungroup,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +19,7 @@ import { DslSidePanel } from "@/components/dsl-side-panel";
 import { EditableTitle } from "@/components/editable-title";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   createSavedFigureClientApi,
   updateSavedFigureClientApi,
@@ -383,27 +393,35 @@ export function CanvasPane({
         {canvasTitle !== undefined ? (
           <EditableTitle value={title} onSave={handleRename} placeholder="Untitled canvas" />
         ) : null}
-        <Toggle
-          pressed={autoShape}
-          onPressedChange={setAutoShape}
-          size="sm"
-          aria-label="Auto-shape"
-          title="Pencil strokes snap to clean shapes"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Auto-shape
-        </Toggle>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Toggle
+              pressed={autoShape}
+              onPressedChange={setAutoShape}
+              size="sm"
+              aria-label="Auto-shape"
+              className="size-8 p-0"
+            >
+              <Shapes className="size-3.5" />
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent>Auto-shape — pencil strokes snap to clean shapes</TooltipContent>
+        </Tooltip>
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant={sourceOpen ? "secondary" : "ghost"}
-            size="sm"
-            className="gap-1.5"
-            onClick={toggleSourceOpen}
-            title="Toggle the DSL source editor"
-          >
-            <Code2 className="size-3.5" />
-            Source
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={sourceOpen ? "secondary" : "ghost"}
+                size="sm"
+                className="size-8 p-0"
+                onClick={toggleSourceOpen}
+                aria-label="Source"
+              >
+                <Code2 className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Source — toggle the DSL editor</TooltipContent>
+          </Tooltip>
           <FromCodeDrawer
             currentDsl={dsl}
             onGenerated={(next) => {
@@ -426,77 +444,94 @@ export function CanvasPane({
               setFitToken((t) => t + 1);
             }}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const editor = editorRef.current;
-              if (!editor) return;
-              const id = wrapSelectionInFigure(editor);
-              if (!id) toast.message("Select shapes first to wrap them in a figure.");
-            }}
-            title="Wrap selected shapes in a figure group"
-          >
-            <Frame className="size-3.5" />
-            Figure
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const editor = editorRef.current;
-              if (!editor) return;
-              const result = ungroupSelection(editor);
-              if (result.kind === "noop") {
-                toast.message(
-                  "Select a figure to dissolve, or shapes inside one to lift them out.",
-                );
-              } else if (result.kind === "dissolved") {
-                toast.success(`Figure dissolved (${result.childCount} shape${result.childCount === 1 ? "" : "s"} kept).`);
-              } else {
-                toast.success(
-                  `${result.shapeCount} shape${result.shapeCount === 1 ? "" : "s"} removed from figure.`,
-                );
-              }
-            }}
-            title="Dissolve the selected figure, or remove selected shapes from their figure"
-          >
-            <Ungroup className="size-3.5" />
-            Ungroup
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                aria-label="Figure"
+                onClick={() => {
+                  const editor = editorRef.current;
+                  if (!editor) return;
+                  const id = wrapSelectionInFigure(editor);
+                  if (!id) toast.message("Select shapes first to wrap them in a figure.");
+                }}
+              >
+                <Group className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Figure — wrap selected shapes in a group</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                aria-label="Ungroup"
+                onClick={() => {
+                  const editor = editorRef.current;
+                  if (!editor) return;
+                  const result = ungroupSelection(editor);
+                  if (result.kind === "noop") {
+                    toast.message(
+                      "Select a figure to dissolve, or shapes inside one to lift them out.",
+                    );
+                  } else if (result.kind === "dissolved") {
+                    toast.success(`Figure dissolved (${result.childCount} shape${result.childCount === 1 ? "" : "s"} kept).`);
+                  } else {
+                    toast.success(
+                      `${result.shapeCount} shape${result.shapeCount === 1 ? "" : "s"} removed from figure.`,
+                    );
+                  }
+                }}
+              >
+                <Ungroup className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Ungroup — dissolve figure or lift shapes out</TooltipContent>
+          </Tooltip>
           {workspaceId && onInsertFigureIntoNote ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => void insertSelectedFigureIntoNote()}
-              title="Insert the selected figure into the open note"
-            >
-              <Save className="size-3.5" />
-              Insert into note
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="size-8 p-0"
+                  aria-label="Insert into note"
+                  onClick={() => void insertSelectedFigureIntoNote()}
+                >
+                  <NotebookPen className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Insert into note — embed the selected figure</TooltipContent>
+            </Tooltip>
           ) : null}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            disabled={!dsl.trim()}
-            onClick={() => {
-              const next = flipDirection(dsl);
-              if (next === dsl) return;
-              onDslChange(next);
-              setFitToken((t) => t + 1);
-            }}
-            title="Cycle layout direction (right → down → left → up)"
-          >
-            <RefreshCw className="size-3.5" />
-            Re-layout
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                aria-label="Re-layout"
+                disabled={!dsl.trim()}
+                onClick={() => {
+                  const next = flipDirection(dsl);
+                  if (next === dsl) return;
+                  onDslChange(next);
+                  setFitToken((t) => t + 1);
+                }}
+              >
+                <LayoutGrid className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Re-layout — cycle direction (right → down → left → up)</TooltipContent>
+          </Tooltip>
           <CanvasExportDialog canvasId={canvasId} getEditor={getEditor} />
           {canShare ? (
             <SharePopover
+              iconOnly
               resourceKind="canvas"
               resourceId={canvasId}
               resourceTitle={canvasTitle!}

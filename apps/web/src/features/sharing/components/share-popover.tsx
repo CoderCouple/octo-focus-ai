@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   createShareApi,
   createShareLinkApi,
@@ -53,16 +54,29 @@ export interface SharePopoverProps {
   initialVisibility: Visibility;
   initialPublicSlug: string | null;
   workspaceSlug: string;
+  /** Render trigger as an icon-only button with a tooltip. Used on the canvas toolbar. */
+  iconOnly?: boolean;
 }
 
-export function SharePopover(props: SharePopoverProps) {
+export function SharePopover({ iconOnly, ...props }: SharePopoverProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5">
-          <Share2 className="size-3.5" />
-          Share
-        </Button>
+        {iconOnly ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Share">
+                <Share2 className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Share — invite people or publish a link</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button variant="ghost" size="sm" className="gap-1.5">
+            <Share2 className="size-3.5" />
+            Share
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="p-0">
         <SharePopoverBody {...props} />

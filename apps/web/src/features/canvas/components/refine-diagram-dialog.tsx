@@ -16,6 +16,7 @@ import { Loader2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -75,10 +76,20 @@ export function RefineDiagramDialog({ currentDsl, onRefined }: RefineDiagramDial
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5" disabled={!currentDsl.trim()}>
-          <Wand2 className="size-3.5" />
-          Refine
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="size-8 p-0"
+              disabled={!currentDsl.trim()}
+              aria-label="Refine"
+            >
+              <Wand2 className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Refine — describe an edit, Claude rewrites the DSL</TooltipContent>
+        </Tooltip>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
