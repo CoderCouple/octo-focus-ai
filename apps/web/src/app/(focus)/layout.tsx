@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -18,5 +19,9 @@ export default async function FocusLayout({ children }: { children: React.ReactN
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  return <div className="h-screen w-screen overflow-hidden">{children}</div>;
+  return (
+    <TooltipProvider>
+      <div className="h-screen w-screen overflow-hidden">{children}</div>
+    </TooltipProvider>
+  );
 }
