@@ -61,7 +61,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDeleteProject, useProjects, useRenameProject } from "../hooks/use-projects";
 import { projectStatusLabel } from "../lib/derive-projects-stats";
 import type { Project } from "../types";
@@ -227,11 +227,7 @@ export function ProjectsTable({
     SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Sort";
 
   return (
-    <Tabs
-      value={status}
-      onValueChange={(v) => setStatus(v as StatusFilter)}
-      className="w-full flex-col justify-start gap-4"
-    >
+    <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2 px-4 lg:px-6">
         <Label htmlFor="projects-status-selector" className="sr-only">
           Status
@@ -246,17 +242,24 @@ export function ProjectsTable({
             <SelectItem value="published">Published ({counts.published})</SelectItem>
           </SelectContent>
         </Select>
-        <TabsList className="hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="all">
+        <ToggleGroup
+          type="single"
+          value={status}
+          onValueChange={(v) => v && setStatus(v as StatusFilter)}
+          variant="outline"
+          size="sm"
+          className="hidden gap-2 **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:px-1 @4xl/main:flex"
+        >
+          <ToggleGroupItem value="all">
             All <Badge variant="secondary">{counts.all}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="draft">
+          </ToggleGroupItem>
+          <ToggleGroupItem value="draft">
             Drafts <Badge variant="secondary">{counts.draft}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="published">
+          </ToggleGroupItem>
+          <ToggleGroupItem value="published">
             Published <Badge variant="secondary">{counts.published}</Badge>
-          </TabsTrigger>
-        </TabsList>
+          </ToggleGroupItem>
+        </ToggleGroup>
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -466,6 +469,6 @@ export function ProjectsTable({
           });
         }}
       />
-    </Tabs>
+    </div>
   );
 }
